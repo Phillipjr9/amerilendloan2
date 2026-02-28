@@ -1,28 +1,19 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { trpc } from "@/lib/trpc";
-import { CheckCircle2, Loader2, CreditCard, Bitcoin, Wallet, Copy, Check, Zap } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { CheckCircle2, Loader2, Bitcoin, Wallet, Copy, Check, Zap } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { SkeletonPaymentCard, SkeletonDetailSection } from "@/components/SkeletonCard";
-import { SecuritySeal, TrustIndicators } from "@/components/SecuritySeal";
+import { TrustIndicators } from "@/components/SecuritySeal";
 import StripePaymentForm from "@/components/StripePaymentForm";
-
-// Declare Accept.js types
-declare global {
-  interface Window {
-    Accept?: {
-      dispatchData: (secureData: any, callback: (response: any) => void) => void;
-    };
-  }
-}
 
 export default function PaymentPage() {
   const { t } = useTranslation();
@@ -31,23 +22,14 @@ export default function PaymentPage() {
   const [, params] = useRoute("/payment/:id");
   const applicationId = params?.id ? parseInt(params.id) : null;
   const [paymentComplete, setPaymentComplete] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "stripe" | "crypto">("card");
+  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "crypto">("stripe");
   const [processing, setProcessing] = useState(false);
-  
-  // Card payment fields
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvc, setCardCvc] = useState("");
-  const [cardName, setCardName] = useState("");
   
   // Crypto payment fields
   const [selectedCrypto, setSelectedCrypto] = useState<"BTC" | "ETH" | "USDT" | "USDC">("USDT");
   const [cryptoAddress, setCryptoAddress] = useState("");
   const [cryptoAmount, setCryptoAmount] = useState("");
   const [addressCopied, setAddressCopied] = useState(false);
-  
-  // Accept.js loading state
-  const [acceptJsLoaded, setAcceptJsLoaded] = useState(false);
 
   const { data: application, isLoading } = trpc.loans.getById.useQuery(
     { id: applicationId! },
@@ -55,8 +37,6 @@ export default function PaymentPage() {
   );
 
   const { data: feeConfig } = trpc.feeConfig.getActive.useQuery();
-  
-  const { data: authorizeNetConfig } = trpc.payments.getAuthorizeNetConfig.useQuery();
   
   const { data: cryptoConversion } = trpc.payments.convertToCrypto.useQuery(
     { usdCents: application?.processingFeeAmount || 0, currency: selectedCrypto },
@@ -79,32 +59,6 @@ export default function PaymentPage() {
     },
   });
 
-  // Load Authorize.Net Accept.js script
-  useEffect(() => {
-    if (paymentMethod === "card" && authorizeNetConfig && !window.Accept) {
-      const script = document.createElement("script");
-      script.src = authorizeNetConfig.environment === "production"
-        ? "https://js.authorize.net/v1/Accept.js"
-        : "https://jstest.authorize.net/v1/Accept.js";
-      script.async = true;
-      script.onload = () => {
-        setAcceptJsLoaded(true);
-      };
-      script.onerror = () => {
-        toast.error("Failed to load payment processor. Please refresh the page.");
-        setAcceptJsLoaded(false);
-      };
-      document.body.appendChild(script);
-      
-      return () => {
-        document.body.removeChild(script);
-        setAcceptJsLoaded(false);
-      };
-    } else if (window.Accept) {
-      setAcceptJsLoaded(true);
-    }
-  }, [paymentMethod, authorizeNetConfig]);
-
   // Update crypto address when switching currency or when address data loads
   useEffect(() => {
     if (paymentMethod === "crypto" && cryptoAddressData?.address) {
@@ -112,66 +66,6 @@ export default function PaymentPage() {
       setCryptoAmount(cryptoConversion?.amount || "0");
     }
   }, [paymentMethod, selectedCrypto, cryptoAddressData, cryptoConversion]);
-
-  const handleCardPayment = async () => {
-    if (!applicationId || !authorizeNetConfig) return;
-    
-    // Validate card fields
-    if (!cardNumber || !cardExpiry || !cardCvc || !cardName) {
-      toast.error("Please fill in all card details");
-      return;
-    }
-    
-    setProcessing(true);
-    
-    try {
-      // Check if Accept.js is loaded
-      // @ts-ignore - Accept.js is loaded dynamically
-      if (!window.Accept) {
-        toast.error("Payment system is still loading. Please wait a moment and try again.");
-        setProcessing(false);
-        return;
-      }
-
-      // Tokenize card data with Accept.js
-      const secureData = {
-        cardData: {
-          cardNumber: cardNumber.replace(/\s/g, ""),
-          month: cardExpiry.split("/")[0],
-          year: "20" + cardExpiry.split("/")[1],
-          cardCode: cardCvc,
-        },
-        authData: {
-          clientKey: authorizeNetConfig.clientKey,
-          apiLoginID: authorizeNetConfig.apiLoginId,
-        },
-      };
-
-      // @ts-ignore - Accept.js is loaded dynamically
-      window.Accept.dispatchData(secureData, async (response: any) => {
-        if (response.messages.resultCode === "Error") {
-          toast.error(response.messages.message[0].text);
-          setProcessing(false);
-          return;
-        }
-
-        // Send opaque data to server
-        await createPaymentMutation.mutateAsync({
-          loanApplicationId: applicationId,
-          paymentMethod: "card",
-          paymentProvider: "authorizenet",
-          opaqueData: {
-            dataDescriptor: response.opaqueData.dataDescriptor,
-            dataValue: response.opaqueData.dataValue,
-          },
-        });
-      });
-    } catch (error) {
-      console.error("Card payment error:", error);
-      toast.error("Payment processing failed");
-      setProcessing(false);
-    }
-  };
 
   const handleCryptoPayment = async () => {
     if (!applicationId) return;
@@ -448,152 +342,17 @@ export default function PaymentPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as "card" | "stripe" | "crypto")}>
-                <TabsList className="grid w-full grid-cols-3 mb-6">
-                  <TabsTrigger value="card">
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Card
-                  </TabsTrigger>
+              <Tabs value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as "stripe" | "crypto")}>
+                <TabsList className="grid w-full grid-cols-2 mb-6">
                   <TabsTrigger value="stripe">
                     <Zap className="mr-2 h-4 w-4" />
-                    Stripe
+                    Card Payment
                   </TabsTrigger>
                   <TabsTrigger value="crypto">
                     <Bitcoin className="mr-2 h-4 w-4" />
                     Crypto
                   </TabsTrigger>
                 </TabsList>
-
-                <TabsContent value="card" className="space-y-4">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                    <p className="text-sm text-blue-900">
-                      <strong>Secure Payment:</strong> Your card information is encrypted and processed securely through Authorize.Net.
-                    </p>
-                  </div>
-
-                  {/* Security Seal */}
-                  <div className="flex justify-center mb-4">
-                    <SecuritySeal />
-                  </div>
-
-                  {/* Accepted Cards */}
-                  <div className="flex items-center justify-center gap-3 pb-4 border-b">
-                    <span className="text-sm text-muted-foreground mr-2">We accept:</span>
-                    <div className="flex items-center gap-2">
-                      <div className="bg-white border rounded px-2 py-1 h-8 flex items-center">
-                        <svg className="h-5" viewBox="0 0 48 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <rect width="48" height="32" rx="4" fill="#1434CB"/>
-                          <path d="M18 10h12v12h-12z" fill="#EB001B"/>
-                          <path d="M20 16c0-2.4 1.1-4.5 2.8-5.9 1.7 1.4 2.8 3.5 2.8 5.9s-1.1 4.5-2.8 5.9c-1.7-1.4-2.8-3.5-2.8-5.9z" fill="#FF5F00"/>
-                        </svg>
-                      </div>
-                      <div className="bg-white border rounded px-2 py-1 h-8 flex items-center">
-                        <svg className="h-5" viewBox="0 0 48 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <rect width="48" height="32" rx="4" fill="#00579F"/>
-                          <text x="24" y="20" fontSize="12" fill="white" fontWeight="bold" textAnchor="middle" fontFamily="Arial">VISA</text>
-                        </svg>
-                      </div>
-                      <div className="bg-white border rounded px-2 py-1 h-8 flex items-center">
-                        <svg className="h-5" viewBox="0 0 48 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <rect width="48" height="32" rx="4" fill="#016FD0"/>
-                          <text x="24" y="20" fontSize="9" fill="white" fontWeight="bold" textAnchor="middle" fontFamily="Arial">AMEX</text>
-                        </svg>
-                      </div>
-                      <div className="bg-white border rounded px-2 py-1 h-8 flex items-center">
-                        <svg className="h-5" viewBox="0 0 48 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <rect width="48" height="32" rx="4" fill="#FF6000"/>
-                          <circle cx="18" cy="16" r="8" fill="#EB001B"/>
-                          <circle cx="30" cy="16" r="8" fill="#F79E1B"/>
-                          <path d="M24 10c1.7 1.4 2.8 3.5 2.8 5.9s-1.1 4.5-2.8 5.9c-1.7-1.4-2.8-3.5-2.8-5.9s1.1-4.5 2.8-5.9z" fill="#FF5F00"/>
-                        </svg>
-                      </div>
-                      <div className="bg-white border rounded px-2 py-1 h-8 flex items-center">
-                        <svg className="h-5" viewBox="0 0 48 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <rect width="48" height="32" rx="4" fill="#0079BE"/>
-                          <text x="24" y="12" fontSize="7" fill="white" fontWeight="bold" textAnchor="middle" fontFamily="Arial">discover</text>
-                          <rect x="28" y="16" width="12" height="8" rx="1" fill="#FF6000"/>
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="cardName">Cardholder Name</Label>
-                      <Input
-                        id="cardName"
-                        placeholder="John Doe"
-                        value={cardName}
-                        onChange={(e) => setCardName(e.target.value)}
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="cardNumber">Card Number</Label>
-                      <Input
-                        id="cardNumber"
-                        placeholder="1234 5678 9012 3456"
-                        value={cardNumber}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/\s/g, "");
-                          const formatted = value.match(/.{1,4}/g)?.join(" ") || value;
-                          setCardNumber(formatted);
-                        }}
-                        maxLength={19}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="cardExpiry">Expiry Date</Label>
-                        <Input
-                          id="cardExpiry"
-                          placeholder="MM/YY"
-                          value={cardExpiry}
-                          onChange={(e) => {
-                            const value = e.target.value.replace(/\D/g, "");
-                            if (value.length <= 2) {
-                              setCardExpiry(value);
-                            } else {
-                              setCardExpiry(value.slice(0, 2) + "/" + value.slice(2, 4));
-                            }
-                          }}
-                          maxLength={5}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="cardCvc">CVC</Label>
-                        <Input
-                          id="cardCvc"
-                          placeholder="123"
-                          value={cardCvc}
-                          onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, ""))}
-                          maxLength={4}
-                          type="password"
-                        />
-                      </div>
-                    </div>
-
-                    <Button
-                      size="lg"
-                      className="w-full"
-                      onClick={handleCardPayment}
-                      disabled={processing}
-                    >
-                      {processing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Processing Payment...
-                        </>
-                      ) : (
-                        <>
-                          <CreditCard className="mr-2 h-4 w-4" />
-                          Pay ${((application.processingFeeAmount || 0) / 100).toFixed(2)}
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </TabsContent>
 
                 {/* Stripe Payment */}
                 <TabsContent value="stripe" className="space-y-4">

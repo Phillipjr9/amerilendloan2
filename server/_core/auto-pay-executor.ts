@@ -12,7 +12,7 @@ import {
   getUserById,
   getLoanApplicationById
 } from "../db";
-import { createAuthorizeNetTransaction } from "./authorizenet";
+import { processStripePayment } from "./stripe";
 import { sendPaymentConfirmationEmail, sendPaymentFailedEmail } from "./email";
 
 /**
@@ -145,7 +145,7 @@ export async function processAutoPay() {
 }
 
 /**
- * Process card auto-payment
+ * Process card auto-payment via Stripe
  */
 async function processCardAutoPayment(
   loan: any,
@@ -154,36 +154,27 @@ async function processCardAutoPayment(
   user: any
 ) {
   try {
-    // Note: createAuthorizeNetTransaction expects 3 parameters: amount, paymentData, billingData
-    // We'll simplify for now since we're using tokenized cards
-    const paymentData = {
-      cardNumber: "TOKENIZED", // Use token in production
-      expiryMonth: paymentMethod.expiryMonth || "12",
-      expiryYear: paymentMethod.expiryYear || "2025",
-      cvv: "000",
-      cardholderName: paymentMethod.nameOnCard || user.name || "Cardholder"
-    };
+    const amountDollars = amount / 100;
     
-    const billingAddress = {
-      firstName: user.name?.split(' ')[0] || 'User',
-      lastName: user.name?.split(' ')[1] || 'Name',
-      address: user.street || '',
-      city: user.city || '',
-      state: user.state || '',
-      zip: user.zipCode || '',
-      country: 'US'
-    };
+    // Use Stripe to process the payment
+    // paymentMethod.token stores the Stripe payment method ID
+    // paymentMethod.customerProfileId stores the Stripe customer ID (stored in customerProfileId field)
+    const customerId = paymentMethod.customerProfileId || paymentMethod.token;
+    const paymentMethodId = paymentMethod.paymentProfileId || paymentMethod.token;
     
-    // Use opaque data for tokenized payment
-    const opaqueData = {
-      dataDescriptor: 'COMMON.ACCEPT.INAPP.PAYMENT',
-      dataValue: paymentMethod.token || 'TOKENIZED'
-    };
-    
-    const result = await createAuthorizeNetTransaction(
-      amount / 100,
-      opaqueData,
-      `Auto-payment for loan ${loan.id}`
+    if (!customerId || !paymentMethodId) {
+      return { success: false, error: "No Stripe payment method configured for auto-pay" };
+    }
+
+    const result = await processStripePayment(
+      amountDollars,
+      customerId,
+      paymentMethodId,
+      {
+        userId: String(user.id),
+        loanApplicationId: String(loan.id),
+        type: "auto_payment",
+      }
     );
     
     if (result.success) {
@@ -194,17 +185,17 @@ async function processCardAutoPayment(
         amount: amount,
         paymentMethod: 'card',
         status: 'succeeded',
-        paymentIntentId: result.transactionId,
-        cardLast4: paymentMethod.last4,
+        paymentIntentId: result.paymentIntentId || result.transactionId,
+        cardLast4: paymentMethod.last4 || paymentMethod.cardLast4,
         cardBrand: paymentMethod.cardBrand
       });
       
-      return { success: true, transactionId: result.transactionId };
+      return { success: true, transactionId: result.paymentIntentId || result.transactionId };
     } else {
       return { success: false, error: result.error };
     }
   } catch (error) {
-    console.error("[Auto-Pay] Card payment error:", error);
+    console.error("[Auto-Pay] Stripe payment error:", error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : "Card payment failed" 

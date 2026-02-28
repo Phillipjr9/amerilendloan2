@@ -4,10 +4,7 @@ import {
   sendPaymentReceiptEmail, 
   sendPaymentFailureEmail 
 } from './email';
-import { 
-  chargeCustomerProfile, 
-  getCustomerPaymentProfile 
-} from './authorizenet';
+import { processStripePayment } from './stripe';
 
 /**
  * Auto-Pay Scheduler
@@ -130,27 +127,24 @@ async function processIndividualAutoPay(setting: any) {
     throw new Error('Loan is not in disbursed status');
   }
 
-  // Validate saved payment method exists
-  if (!setting.paymentProfileId || !setting.customerProfileId) {
+  // Validate saved payment method exists (Stripe customer + payment method)
+  if (!setting.customerProfileId || !setting.paymentProfileId) {
     throw new Error('No saved payment method found for auto-pay');
   }
 
-  // Get payment method details for receipt
-  const paymentDetails = await getCustomerPaymentProfile(
-    setting.customerProfileId,
-    setting.paymentProfileId
-  );
+  const stripeCustomerId = setting.customerProfileId;
+  const stripePaymentMethodId = setting.paymentProfileId;
 
-  if (!paymentDetails.success) {
-    throw new Error(`Failed to retrieve payment method: ${paymentDetails.error}`);
-  }
-
-  // Charge the saved payment method
-  const chargeResult = await chargeCustomerProfile(
-    setting.customerProfileId,
-    setting.paymentProfileId,
+  // Charge using Stripe
+  const chargeResult = await processStripePayment(
     setting.amount || 0,
-    `Auto-pay for loan ${loan.trackingNumber}`
+    stripeCustomerId,
+    stripePaymentMethodId,
+    {
+      loanId: String(loan.id),
+      trackingNumber: loan.trackingNumber,
+      type: 'auto-pay',
+    }
   );
 
   if (!chargeResult.success) {
@@ -163,11 +157,11 @@ async function processIndividualAutoPay(setting: any) {
     userId: user.id,
     amount: setting.amount,
     currency: 'USD',
-    paymentProvider: 'authorizenet',
+    paymentProvider: 'stripe',
     paymentMethod: 'card',
-    paymentIntentId: chargeResult.transactionId!,
-    cardLast4: paymentDetails.cardLast4,
-    cardBrand: paymentDetails.cardBrand,
+    paymentIntentId: chargeResult.paymentIntentId || '',
+    cardLast4: null,
+    cardBrand: null,
     status: 'succeeded',
   });
 
@@ -187,9 +181,9 @@ async function processIndividualAutoPay(setting: any) {
     loan.trackingNumber,
     setting.amount || 0,
     'card',
-    paymentDetails.cardLast4,
-    paymentDetails.cardBrand,
-    chargeResult.transactionId!
+    null,
+    null,
+    chargeResult.paymentIntentId || ''
   );
 
   if (payment) {

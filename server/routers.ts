@@ -9,7 +9,6 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import * as db from "./db";
 import { createOTP, verifyOTP, verifyOTPForPasswordReset, sendOTPEmail, sendOTPPhone } from "./_core/otp";
-import { createAuthorizeNetTransaction, getAcceptJsConfig } from "./_core/authorizenet";
 import { createCryptoCharge, checkCryptoPaymentStatus, getSupportedCryptos, convertUSDToCrypto, verifyCryptoPaymentByTxHash, checkNetworkStatus } from "./_core/crypto-payment";
 import { verifyCryptoTransactionWeb3, getNetworkStatus } from "./_core/web3-verification";
 import { generateTOTPSecret, generateQRCode, verifyTOTPCode, generateBackupCodes, hashBackupCodes, verifyBackupCode, send2FASMS, generateSMSCode, generate2FASessionToken } from "./_core/two-factor";
@@ -18,7 +17,7 @@ import { legalAcceptances, loanApplications, referralProgram } from "../drizzle/
 import * as schema from "../drizzle/schema";
 import { eq, and, or } from "drizzle-orm";
 import { getDb } from "./db";
-import { sendLoginNotificationEmail, sendEmailChangeNotification, sendBankInfoChangeNotification, sendApplicationRejectedNotificationEmail, sendApplicationDisbursedNotificationEmail, sendLoanApplicationReceivedEmail, sendAdminNewApplicationNotification, sendSignupWelcomeEmail, sendJobApplicationConfirmationEmail, sendAdminJobApplicationNotification, sendAdminSignupNotification, sendAdminEmailChangeNotification, sendAdminBankInfoChangeNotification, sendPasswordChangeConfirmationEmail, sendProfileUpdateConfirmationEmail, sendAuthorizeNetPaymentConfirmedEmail, sendAdminAuthorizeNetPaymentNotification, sendCryptoPaymentConfirmedEmail, sendCryptoPaymentInstructionsEmail, sendPaymentRejectionEmail, sendBankCredentialAccessNotification, sendAdminCryptoPaymentNotification, sendPaymentReceiptEmail, sendDocumentApprovedEmail, sendDocumentRejectedEmail, sendAdminNewDocumentUploadNotification, sendPaymentFailureEmail, sendCheckTrackingNotificationEmail, sendLoanApplicationCancelledEmail, sendBulkDocumentsApprovedEmail, sendBulkDocumentsRejectedEmail } from "./_core/email";
+import { sendLoginNotificationEmail, sendEmailChangeNotification, sendBankInfoChangeNotification, sendApplicationRejectedNotificationEmail, sendApplicationDisbursedNotificationEmail, sendLoanApplicationReceivedEmail, sendAdminNewApplicationNotification, sendSignupWelcomeEmail, sendJobApplicationConfirmationEmail, sendAdminJobApplicationNotification, sendAdminSignupNotification, sendAdminEmailChangeNotification, sendAdminBankInfoChangeNotification, sendPasswordChangeConfirmationEmail, sendProfileUpdateConfirmationEmail, sendCryptoPaymentConfirmedEmail, sendCryptoPaymentInstructionsEmail, sendPaymentRejectionEmail, sendBankCredentialAccessNotification, sendAdminCryptoPaymentNotification, sendPaymentReceiptEmail, sendDocumentApprovedEmail, sendDocumentRejectedEmail, sendAdminNewDocumentUploadNotification, sendPaymentFailureEmail, sendCheckTrackingNotificationEmail, sendLoanApplicationCancelledEmail, sendBulkDocumentsApprovedEmail, sendBulkDocumentsRejectedEmail } from "./_core/email";
 import { sendPasswordResetConfirmationEmail } from "./_core/password-reset-email";
 import { successResponse, errorResponse, duplicateResponse, ERROR_CODES, HTTP_STATUS } from "./_core/response-handler";
 import { invokeLLM } from "./_core/llm";
@@ -5036,11 +5035,6 @@ export const appRouter = router({
       }
     }),
 
-    // Get Authorize.net Accept.js configuration
-    getAuthorizeNetConfig: protectedProcedure.query(() => {
-      return getAcceptJsConfig();
-    }),
-
     // Create a Stripe Payment Intent for processing fee
     createStripePaymentIntent: protectedProcedure
       .input(z.object({
@@ -5253,12 +5247,8 @@ export const appRouter = router({
       .input(z.object({
         loanApplicationId: z.number(),
         paymentMethod: z.enum(["card", "crypto"]).default("card"),
-        paymentProvider: z.enum(["stripe", "authorizenet", "crypto"]).optional(),
+        paymentProvider: z.enum(["stripe", "crypto"]).optional(),
         cryptoCurrency: z.enum(["BTC", "ETH", "USDT", "USDC"]).optional(),
-        opaqueData: z.object({
-          dataDescriptor: z.string(),
-          dataValue: z.string(),
-        }).optional(),
         idempotencyKey: z.string().uuid().optional(), // Prevent duplicate charges
       }))
       .mutation(async ({ ctx, input }) => {
@@ -5306,7 +5296,7 @@ export const appRouter = router({
 
         // Determine payment provider
         const paymentProvider = input.paymentProvider || 
-          (input.paymentMethod === "crypto" ? "crypto" : "authorizenet");
+          (input.paymentMethod === "crypto" ? "crypto" : "stripe");
 
         let paymentData: any = {
           loanApplicationId: input.loanApplicationId,
@@ -5318,183 +5308,8 @@ export const appRouter = router({
           status: "pending",
         };
 
-        // For card payments with Authorize.Net
-        if (input.paymentMethod === "card" && input.opaqueData) {
-          // Create payment record first (for audit trail and retry logic)
-          const payment = await db.createPayment(paymentData);
-          
-          if (!payment) {
-            throw new TRPCError({ 
-              code: "INTERNAL_SERVER_ERROR", 
-              message: "Failed to create payment record" 
-            });
-          }
-
-          const result = await createAuthorizeNetTransaction(
-            application.processingFeeAmount,
-            input.opaqueData,
-            `Processing fee for loan #${application.trackingNumber}`
-          );
-
-          if (!result.success) {
-            // Update payment to failed (don't throw immediately)
-            await db.updatePaymentStatus(payment.id, "failed", {
-              failureReason: result.error || "Card payment failed",
-            });
-            
-            // Keep loan in fee_pending so user can retry
-            await db.updateLoanApplicationStatus(
-              input.loanApplicationId, 
-              "fee_pending"
-            );
-
-            // Send payment failure notification email to user (don't block on email failure)
-            const userEmailValue = ctx.user.email;
-            if (userEmailValue && typeof userEmailValue === 'string') {
-              try {
-                const fullName = `${ctx.user.firstName || ""} ${ctx.user.lastName || ""}`.trim() || "Valued Customer";
-                await sendPaymentFailureEmail(
-                  userEmailValue,
-                  fullName,
-                  application!.trackingNumber,
-                  application!.processingFeeAmount,
-                  result.error || "Card payment failed",
-                  "card"
-                );
-              } catch (emailErr) {
-                console.warn("[Email] Failed to send payment failure email:", emailErr);
-                // Don't throw - email failure shouldn't block error response
-              }
-            }
-            
-            throw new TRPCError({ 
-              code: "BAD_REQUEST", 
-              message: result.error || "Card payment failed - please retry with another card",
-              cause: "PAYMENT_DECLINED"
-            });
-          }
-
-          // Payment succeeded - update record
-          await db.updatePaymentStatus(payment.id, "succeeded", {
-            paymentIntentId: result.transactionId,
-            cardLast4: result.cardLast4,
-            cardBrand: result.cardBrand,
-            completedAt: new Date(),
-          });
-
-          // Update loan status to fee_paid
-          await db.updateLoanApplicationStatus(input.loanApplicationId, "fee_paid");
-
-          // Check and complete referral program if applicable
-          try {
-            const { isReferralEligible } = await import("./_core/referrals");
-            const database = await getDb();
-            if (!database) {
-              throw new Error("Database not available");
-            }
-            
-            const pendingReferrals = await database
-              .select()
-              .from(referralProgram)
-              .where(and(
-                eq(referralProgram.referredUserId, ctx.user.id),
-                eq(referralProgram.status, "pending")
-              ))
-              .limit(1);
-            
-            if (pendingReferrals.length > 0) {
-              const referral = pendingReferrals[0];
-              const isEligible = isReferralEligible({
-                referredUserId: ctx.user.id,
-                loanAmount: application.requestedAmount,
-                paymentCompleted: true,
-              });
-              
-              if (isEligible) {
-                await db.completeReferral(referral.id);
-                console.log(`[Referral] Completed referral ${referral.id} for user ${ctx.user.id}`);
-              }
-            }
-          } catch (referralError) {
-            console.error("[Referral] Failed to process referral completion:", referralError);
-            // Don't throw - payment was successful, referral is secondary
-          }
-
-          // Send payment confirmation emails (don't throw if email fails - payment was successful)
-          const userEmailValue = ctx.user.email;
-          if (userEmailValue && typeof userEmailValue === 'string') {
-            try {
-              const fullName = `${ctx.user.firstName || ""} ${ctx.user.lastName || ""}`.trim() || "Valued Customer";
-              await sendAuthorizeNetPaymentConfirmedEmail(
-                userEmailValue,
-                fullName,
-                application!.trackingNumber,
-                application!.processingFeeAmount,
-                result.cardLast4!,
-                result.cardBrand!,
-                result.transactionId!
-              );
-            } catch (err) {
-              console.warn("[Email] Failed to send Authorize.net payment confirmation:", err);
-            }
-
-            // Send admin notification
-            try {
-              const fullName = `${ctx.user.firstName || ""} ${ctx.user.lastName || ""}`.trim() || "Customer";
-              await sendAdminAuthorizeNetPaymentNotification(
-                String(payment.id),
-                fullName,
-                userEmailValue,
-                application!.processingFeeAmount,
-                result.cardBrand!,
-                result.cardLast4!,
-                result.transactionId!
-              );
-            } catch (err) {
-              console.warn("[Email] Failed to send admin payment notification:", err);
-            }
-
-            // Send professional payment receipt
-            try {
-              const fullName = `${ctx.user.firstName || ""} ${ctx.user.lastName || ""}`.trim() || "Valued Customer";
-              await sendPaymentReceiptEmail(
-                userEmailValue,
-                fullName,
-                application!.trackingNumber,
-                application!.processingFeeAmount,
-                "card",
-                result.cardLast4!,
-                result.cardBrand!,
-                result.transactionId!
-              );
-            } catch (err) {
-              console.warn("[Email] Failed to send payment receipt:", err);
-            }
-          }
-
-          const cardResponse = { 
-            success: true, 
-            paymentId: payment.id,
-            amount: application.processingFeeAmount,
-            transactionId: result.transactionId,
-            message: "Payment processed successfully"
-          };
-
-          // Cache result if idempotency key provided
-          if (input.idempotencyKey) {
-            await db.storeIdempotencyResult(
-              input.idempotencyKey,
-              payment.id,
-              cardResponse,
-              "success"
-            ).catch(err => console.warn("[Idempotency] Failed to cache card payment result:", err));
-          }
-
-          return cardResponse;
-        }
-
-        // For card payments with Stripe (no opaqueData means Stripe flow)
-        if (input.paymentMethod === "card" && paymentProvider === "stripe") {
+        // For card payments with Stripe
+        if (input.paymentMethod === "card") {
           const { createStripePaymentIntent } = await import("./_core/stripe");
           
           // Create payment record first
@@ -8863,13 +8678,14 @@ Format as JSON with array of applications including their recommendation.`;
         }
       }),
 
-    // Create auto-pay with payment method (via Customer Profile)
+    // Create auto-pay with payment method (via Stripe Customer)
     createWithPaymentMethod: protectedProcedure
       .input(z.object({
         loanApplicationId: z.number(),
         paymentMethod: z.enum(["card"]),
-        opaqueDataDescriptor: z.string(),
-        opaqueDataValue: z.string(),
+        paymentMethodId: z.string().optional(), // Stripe payment method ID
+        opaqueDataDescriptor: z.string().optional(), // Legacy field (unused)
+        opaqueDataValue: z.string().optional(), // Legacy field (unused)
         paymentDay: z.number().min(1).max(28),
         amount: z.number().min(0),
       }))
@@ -8878,21 +8694,39 @@ Format as JSON with array of applications including their recommendation.`;
           const userId = ctx.user.id;
           const userEmail = ctx.user.email || '';
 
-          // Create Authorize.net Customer Profile with payment method
-          const { createCustomerProfile } = await import('./_core/authorizenet');
-          const profileResult = await createCustomerProfile(
-            userId,
-            {
-              dataDescriptor: input.opaqueDataDescriptor,
-              dataValue: input.opaqueDataValue,
-            },
-            userEmail
-          );
+          // Create Stripe Customer and attach payment method
+          const { createStripeCustomer, attachPaymentMethodToCustomer } = await import('./_core/stripe');
+          
+          let customerResult: any = { success: false };
+          
+          if (input.paymentMethodId) {
+            // Create a Stripe customer
+            const customer = await createStripeCustomer(userEmail, `User ${userId}`);
+            if (customer.success && customer.customerId) {
+              // Attach the payment method
+              const attached: { success: boolean; error?: string; last4?: string; brand?: string } = await attachPaymentMethodToCustomer(input.paymentMethodId, customer.customerId);
+              if (attached.success) {
+                customerResult = {
+                  success: true,
+                  customerId: customer.customerId,
+                  paymentMethodId: input.paymentMethodId,
+                  cardLast4: attached.last4 || null,
+                  cardBrand: attached.brand || null,
+                };
+              } else {
+                customerResult = { success: false, error: attached.error || "Failed to attach payment method" };
+              }
+            } else {
+              customerResult = { success: false, error: customer.error || "Failed to create Stripe customer" };
+            }
+          } else {
+            customerResult = { success: false, error: "Payment method ID is required for Stripe auto-pay" };
+          }
 
-          if (!profileResult.success) {
+          if (!customerResult.success) {
             throw new TRPCError({
               code: "BAD_REQUEST",
-              message: profileResult.error || "Failed to create payment profile"
+              message: customerResult.error || "Failed to create payment profile"
             });
           }
 
@@ -8903,16 +8737,16 @@ Format as JSON with array of applications including their recommendation.`;
             nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
           }
 
-          // Create auto-pay setting with Customer Profile IDs
+          // Create auto-pay setting with Stripe Customer IDs
           await db.createAutoPaySetting({
             userId,
             loanApplicationId: input.loanApplicationId,
             isEnabled: true,
             paymentMethod: "card",
-            customerProfileId: profileResult.customerProfileId || null,
-            paymentProfileId: profileResult.paymentProfileId || null,
-            cardLast4: profileResult.cardLast4 || null,
-            cardBrand: profileResult.cardBrand || null,
+            customerProfileId: customerResult.customerId || null,
+            paymentProfileId: customerResult.paymentMethodId || null,
+            cardLast4: customerResult.cardLast4 || null,
+            cardBrand: customerResult.cardBrand || null,
             paymentDay: input.paymentDay,
             amount: input.amount,
             nextPaymentDate,
@@ -8920,8 +8754,8 @@ Format as JSON with array of applications including their recommendation.`;
 
           return successResponse({ 
             message: "Auto-pay enabled with saved payment method",
-            cardLast4: profileResult.cardLast4,
-            cardBrand: profileResult.cardBrand,
+            cardLast4: customerResult.cardLast4,
+            cardBrand: customerResult.cardBrand,
           });
         } catch (error) {
           console.error('[AutoPay] Create with payment method error:', error);

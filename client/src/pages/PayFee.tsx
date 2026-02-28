@@ -3,40 +3,23 @@ import { useLocation, Link } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
-import { CreditCard, Wallet, ArrowLeft, CheckCircle2, XCircle, Loader2, DollarSign, Zap } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Wallet, ArrowLeft, CheckCircle2, XCircle, Loader2, Zap } from "lucide-react";
 import { toast } from "sonner";
 import StripePaymentForm from "@/components/StripePaymentForm";
-
-// Declare Accept.js types
-declare global {
-  interface Window {
-    Accept?: {
-      dispatchData: (secureData: any, callback: (response: any) => void) => void;
-    };
-  }
-}
 
 export default function PayFee() {
   const [, setLocation] = useLocation();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
 
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "stripe" | "crypto">("card");
+  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "crypto">("stripe");
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
-  // Card payment fields
-  const [cardNumber, setCardNumber] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
-  const [cvv, setCvv] = useState("");
-  const [cardholderName, setCardholderName] = useState("");
-
   // Crypto payment fields
   const [cryptoCurrency, setCryptoCurrency] = useState<"BTC" | "ETH" | "USDT">("USDT");
-  const [acceptJsLoaded, setAcceptJsLoaded] = useState(false);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -44,28 +27,6 @@ export default function PayFee() {
       setLocation("/login");
     }
   }, [isAuthenticated, authLoading, setLocation]);
-
-  // Get Authorize.Net config
-  const { data: authorizeNetConfig } = trpc.payments.getAuthorizeNetConfig.useQuery();
-
-  // Load Authorize.Net Accept.js script
-  useEffect(() => {
-    if (!authorizeNetConfig) return;
-    
-    const script = document.createElement('script');
-    script.src = authorizeNetConfig.environment === 'production'
-      ? 'https://js.authorize.net/v1/Accept.js'
-      : 'https://jstest.authorize.net/v1/Accept.js';
-    script.async = true;
-    script.onload = () => setAcceptJsLoaded(true);
-    document.body.appendChild(script);
-    
-    return () => {
-      if (script && document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
-  }, [authorizeNetConfig]);
 
   // Get user's pending loans with fees
   const { data: loans, isLoading: loansLoading } = trpc.loans.myApplications.useQuery(undefined, {
@@ -79,23 +40,6 @@ export default function PayFee() {
 
   const [selectedLoan, setSelectedLoan] = useState<number | null>(null);
   const selectedLoanData = feePendingLoans.find((loan) => loan.id === selectedLoan);
-
-  // Card payment mutation
-  const cardPaymentMutation = trpc.payments.createIntent.useMutation({
-    onSuccess: () => {
-      setPaymentSuccess(true);
-      toast.success("Payment Successful!", {
-        description: "Your processing fee has been paid. Your loan will be disbursed shortly.",
-      });
-      setTimeout(() => setLocation("/dashboard"), 3000);
-    },
-    onError: (error: any) => {
-      toast.error("Payment Failed", {
-        description: error.message || "An error occurred while processing your payment.",
-      });
-      setIsProcessing(false);
-    },
-  });
 
   // Crypto payment mutation
   const cryptoPaymentMutation = trpc.payments.createIntent.useMutation({
@@ -114,61 +58,6 @@ export default function PayFee() {
       setIsProcessing(false);
     },
   });
-
-  const handleCardPayment = async () => {
-    if (!selectedLoan || !selectedLoanData) {
-      toast.error("Please select a loan to pay for.");
-      return;
-    }
-
-    if (!cardNumber || !expiryDate || !cvv || !cardholderName) {
-      toast.error("Please fill in all card details.");
-      return;
-    }
-
-    if (!window.Accept) {
-      toast.error("Payment system not loaded. Please refresh the page.");
-      return;
-    }
-
-    setIsProcessing(true);
-
-    const [expiryMonth, expiryYear] = expiryDate.split("/");
-
-    const secureData = {
-      authData: {
-        clientKey: authorizeNetConfig?.clientKey || "",
-        apiLoginID: authorizeNetConfig?.apiLoginId || "",
-      },
-      cardData: {
-        cardNumber: cardNumber.replace(/\s/g, ""),
-        month: expiryMonth?.trim() || "",
-        year: expiryYear?.trim() || "",
-        cardCode: cvv,
-      },
-    };
-
-    window.Accept.dispatchData(secureData, (response: any) => {
-      if (response.messages.resultCode === "Error") {
-        toast.error("Card Validation Failed", {
-          description: response.messages.message[0].text,
-        });
-        setIsProcessing(false);
-        return;
-      }
-
-      const opaqueData = response.opaqueData;
-
-      cardPaymentMutation.mutate({
-        loanApplicationId: selectedLoan,
-        paymentMethod: "card",
-        opaqueData: {
-          dataDescriptor: opaqueData.dataDescriptor,
-          dataValue: opaqueData.dataValue,
-        },
-      });
-    });
-  };
 
   const handleCryptoPayment = async () => {
     if (!selectedLoan || !selectedLoanData) {
@@ -294,99 +183,17 @@ export default function PayFee() {
                   <CardDescription>Choose how you want to pay</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Tabs value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as "card" | "stripe" | "crypto")}>
-                    <TabsList className="grid w-full grid-cols-3">
-                      <TabsTrigger value="card">
-                        <CreditCard className="h-4 w-4 mr-2" />
-                        Card (Authorize.net)
-                      </TabsTrigger>
+                  <Tabs value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as "stripe" | "crypto")}>
+                    <TabsList className="grid w-full grid-cols-2">
                       <TabsTrigger value="stripe">
                         <Zap className="h-4 w-4 mr-2" />
-                        Stripe
+                        Card Payment
                       </TabsTrigger>
                       <TabsTrigger value="crypto">
                         <Wallet className="h-4 w-4 mr-2" />
                         Cryptocurrency
                       </TabsTrigger>
                     </TabsList>
-
-                    {/* Card Payment */}
-                    <TabsContent value="card" className="space-y-4 mt-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="cardholderName">Cardholder Name</Label>
-                        <Input
-                          id="cardholderName"
-                          placeholder="John Doe"
-                          value={cardholderName}
-                          onChange={(e) => setCardholderName(e.target.value)}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="cardNumber">Card Number</Label>
-                        <Input
-                          id="cardNumber"
-                          placeholder="1234 5678 9012 3456"
-                          maxLength={19}
-                          value={cardNumber}
-                          onChange={(e) => {
-                            const value = e.target.value.replace(/\s/g, "");
-                            const formatted = value.match(/.{1,4}/g)?.join(" ") || value;
-                            setCardNumber(formatted);
-                          }}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="expiry">Expiry Date</Label>
-                          <Input
-                            id="expiry"
-                            placeholder="MM/YY"
-                            maxLength={5}
-                            value={expiryDate}
-                            onChange={(e) => {
-                              let value = e.target.value.replace(/\D/g, "");
-                              if (value.length >= 2) {
-                                value = value.slice(0, 2) + "/" + value.slice(2, 4);
-                              }
-                              setExpiryDate(value);
-                            }}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="cvv">CVV</Label>
-                          <Input
-                            id="cvv"
-                            placeholder="123"
-                            maxLength={4}
-                            type="password"
-                            value={cvv}
-                            onChange={(e) => setCvv(e.target.value.replace(/\D/g, ""))}
-                          />
-                        </div>
-                      </div>
-
-                      <Button
-                        onClick={handleCardPayment}
-                        disabled={isProcessing}
-                        className="w-full"
-                        size="lg"
-                      >
-                        {isProcessing ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Processing...
-                          </>
-                        ) : (
-                          <>
-                            <DollarSign className="h-4 w-4 mr-2" />
-                            Pay ${((selectedLoanData?.processingFeeAmount || 0) / 100).toFixed(2)}
-                          </>
-                        )}
-                      </Button>
-                    </TabsContent>
 
                     {/* Stripe Payment */}
                     <TabsContent value="stripe" className="mt-6">

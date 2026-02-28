@@ -4813,10 +4813,10 @@ Loan Details:
 To avoid late fees, please make your payment before the due date.
 
 You can make a payment by:
-1. Logging into your AmeriLend dashboard
-2. Navigating to the Payments section
-3. Selecting your saved payment method or entering new payment details
-4. Completing the transaction
+1. Card Payment (Stripe) - Pay securely with Visa, Mastercard, Amex, Apple Pay, or Google Pay
+2. Cryptocurrency - Pay with Bitcoin (BTC), Ethereum (ETH), USDT, or USDC
+
+Visit https://amerilendloan.com/pay-fee to make your payment now.
 
 Thank you for being a valued AmeriLend customer!
 
@@ -4866,15 +4866,34 @@ The AmeriLend Team
           ` : ''}
 
           <h3 style="color: #0033A0; margin-top: 30px;">How to Make a Payment</h3>
-          <ol style="line-height: 1.8;">
-            <li>Log in to your AmeriLend dashboard</li>
-            <li>Navigate to the <strong>Payments</strong> section</li>
-            <li>Select your saved payment method or enter new payment details</li>
-            <li>Review and complete the transaction</li>
-          </ol>
+          <p style="margin-bottom: 15px;">Choose your preferred payment method below:</p>
+
+          <!-- Payment Methods Section -->
+          <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
+              <tr>
+                <td style="padding: 10px; text-align: center; width: 50%; vertical-align: top;">
+                  <div style="background-color: white; border: 2px solid #635BFF; border-radius: 8px; padding: 15px;">
+                    <div style="font-size: 24px; margin-bottom: 8px;">💳</div>
+                    <h4 style="color: #635BFF; margin: 0 0 8px 0; font-size: 16px;">Card Payment</h4>
+                    <p style="color: #666; font-size: 12px; margin: 0 0 12px 0;">Pay securely with Visa, Mastercard, Amex, Apple Pay, or Google Pay via Stripe</p>
+                    <a href="https://amerilendloan.com/pay-fee" style="display: inline-block; background-color: #635BFF; color: white; padding: 10px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 14px;">Pay with Card</a>
+                  </div>
+                </td>
+                <td style="padding: 10px; text-align: center; width: 50%; vertical-align: top;">
+                  <div style="background-color: white; border: 2px solid #F7931A; border-radius: 8px; padding: 15px;">
+                    <div style="font-size: 24px; margin-bottom: 8px;">🪙</div>
+                    <h4 style="color: #F7931A; margin: 0 0 8px 0; font-size: 16px;">Cryptocurrency</h4>
+                    <p style="color: #666; font-size: 12px; margin: 0 0 12px 0;">Pay with Bitcoin (BTC), Ethereum (ETH), USDT, or USDC</p>
+                    <a href="https://amerilendloan.com/pay-fee" style="display: inline-block; background-color: #F7931A; color: white; padding: 10px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 14px;">Pay with Crypto</a>
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </div>
 
           <div style="text-align: center; margin: 30px 0;">
-            <a href="https://amerilendloan.com/dashboard" style="display: inline-block; background-color: #0033A0; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">Make Payment Now</a>
+            <a href="https://amerilendloan.com/dashboard" style="display: inline-block; background-color: #0033A0; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">Go to Dashboard</a>
           </div>
 
           <div style="background-color: #d1ecf1; border-left: 4px solid #0c5460; padding: 15px; margin: 20px 0;">
@@ -4930,9 +4949,10 @@ IMMEDIATE ACTION REQUIRED
 Please make your payment immediately to avoid additional fees and potential impact to your credit score.
 
 To make a payment:
-1. Log in to your AmeriLend dashboard
-2. Navigate to Payments
-3. Complete the overdue payment
+1. Card Payment (Stripe) - Pay securely with Visa, Mastercard, Amex, Apple Pay, or Google Pay
+2. Cryptocurrency - Pay with Bitcoin (BTC), Ethereum (ETH), USDT, or USDC
+
+Visit https://amerilendloan.com/pay-fee to make your payment now.
 
 If you're experiencing financial difficulties, please contact us immediately to discuss payment options.
 
@@ -4997,11 +5017,31 @@ The AmeriLend Team
           </div>
 
           <h3 style="color: #0033A0; margin-top: 30px;">Make Payment Now</h3>
-          <ol style="line-height: 1.8;">
-            <li>Log in to your AmeriLend dashboard</li>
-            <li>Navigate to the <strong>Payments</strong> section</li>
-            <li>Complete the overdue payment of <strong>$${formattedTotal}</strong></li>
-          </ol>
+          <p style="margin-bottom: 15px;">Choose your preferred payment method:</p>
+
+          <!-- Payment Methods Section -->
+          <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
+              <tr>
+                <td style="padding: 10px; text-align: center; width: 50%; vertical-align: top;">
+                  <div style="background-color: white; border: 2px solid #635BFF; border-radius: 8px; padding: 15px;">
+                    <div style="font-size: 24px; margin-bottom: 8px;">💳</div>
+                    <h4 style="color: #635BFF; margin: 0 0 8px 0; font-size: 16px;">Card Payment</h4>
+                    <p style="color: #666; font-size: 12px; margin: 0 0 12px 0;">Visa, Mastercard, Amex, Apple Pay, Google Pay via Stripe</p>
+                    <a href="https://amerilendloan.com/pay-fee" style="display: inline-block; background-color: #635BFF; color: white; padding: 10px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 14px;">Pay with Card</a>
+                  </div>
+                </td>
+                <td style="padding: 10px; text-align: center; width: 50%; vertical-align: top;">
+                  <div style="background-color: white; border: 2px solid #F7931A; border-radius: 8px; padding: 15px;">
+                    <div style="font-size: 24px; margin-bottom: 8px;">🪙</div>
+                    <h4 style="color: #F7931A; margin: 0 0 8px 0; font-size: 16px;">Cryptocurrency</h4>
+                    <p style="color: #666; font-size: 12px; margin: 0 0 12px 0;">Bitcoin (BTC), Ethereum (ETH), USDT, or USDC</p>
+                    <a href="https://amerilendloan.com/pay-fee" style="display: inline-block; background-color: #F7931A; color: white; padding: 10px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 14px;">Pay with Crypto</a>
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </div>
 
           <div style="text-align: center; margin: 30px 0;">
             <a href="https://amerilendloan.com/dashboard" style="display: inline-block; background-color: #dc3545; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 18px;">PAY NOW</a>

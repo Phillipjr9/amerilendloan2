@@ -5,26 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { trpc } from "@/lib/trpc";
-import { Loader2, CreditCard, Bitcoin, CheckCircle, Copy, QrCode, Lock, Shield, AlertCircle, Clock, X, Zap } from "lucide-react";
+import { Loader2, Bitcoin, CheckCircle, Copy, QrCode, Lock, Shield, AlertCircle, Clock, X, Zap } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { PaymentAnimationOverlay } from "@/components/PaymentAnimationOverlay";
 import { SupportModal } from "@/components/SupportModal";
-import { SecuritySeal } from "@/components/SecuritySeal";
 import StripePaymentForm from "@/components/StripePaymentForm";
-
-// Declare Accept.js types
-declare global {
-  interface Window {
-    Accept?: {
-      dispatchData: (secureData: any, callback: (response: any) => void) => void;
-    };
-  }
-}
 
 interface PaymentVerificationState {
   status: "pending" | "verifying" | "confirmed" | "failed";
@@ -41,7 +30,7 @@ export default function EnhancedPaymentPage() {
   const [, setLocation] = useLocation();
   const applicationId = params?.id ? parseInt(params.id) : null;
 
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "stripe" | "crypto">("card");
+  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "crypto">("stripe");
   const [selectedCrypto, setSelectedCrypto] = useState<"BTC" | "ETH" | "USDT" | "USDC">("USDT");
   const [cryptoPaymentData, setCryptoPaymentData] = useState<{
     address: string;
@@ -59,13 +48,8 @@ export default function EnhancedPaymentPage() {
   const [animationStatus, setAnimationStatus] = useState<"success" | "failed" | null>(null);
   const [supportOpen, setSupportOpen] = useState(false);
   
-  // Card payment state
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvv, setCardCvv] = useState("");
-  const [cardName, setCardName] = useState("");
+  // Card processing state for Stripe
   const [processingCard, setProcessingCard] = useState(false);
-  const [acceptJsLoaded, setAcceptJsLoaded] = useState(false);
 
   const { data: application, isLoading } = trpc.loans.getById.useQuery(
     { id: applicationId! },
@@ -73,24 +57,6 @@ export default function EnhancedPaymentPage() {
   );
 
   const { data: cryptos } = trpc.payments.getSupportedCryptos.useQuery();
-  const { data: authorizeNetConfig } = trpc.payments.getAuthorizeNetConfig.useQuery();
-
-  // Load Authorize.Net Accept.js script
-  useEffect(() => {
-    if (!authorizeNetConfig) return;
-    
-    const script = document.createElement('script');
-    script.src = authorizeNetConfig.environment === 'production'
-      ? 'https://js.authorize.net/v1/Accept.js'
-      : 'https://jstest.authorize.net/v1/Accept.js';
-    script.async = true;
-    script.onload = () => setAcceptJsLoaded(true);
-    document.body.appendChild(script);
-    
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, [authorizeNetConfig]);
 
   const createPaymentMutation = trpc.payments.createIntent.useMutation({
     onSuccess: (data) => {
@@ -194,67 +160,10 @@ export default function EnhancedPaymentPage() {
     },
   });
 
-  const handleCardPayment = async () => {
-    if (!cardNumber || !cardExpiry || !cardCvv || !cardName) {
-      toast.error("Please fill in all card details");
-      return;
-    }
-
-    if (!acceptJsLoaded || !window.Accept || !authorizeNetConfig) {
-      toast.error("Payment system not ready. Please refresh and try again.");
-      return;
-    }
-
-    setProcessingCard(true);
-
-    const authData = {
-      clientKey: authorizeNetConfig.clientKey,
-      apiLoginID: authorizeNetConfig.apiLoginId,
-    };
-
-    const [month, year] = cardExpiry.split('/');
-    const cardData = {
-      cardNumber: cardNumber.replace(/\s/g, ''),
-      month: month.trim(),
-      year: `20${year.trim()}`,
-      cardCode: cardCvv,
-    };
-
-    const secureData = { authData, cardData };
-
-    window.Accept.dispatchData(secureData, (response: any) => {
-      if (response.messages.resultCode === 'Error') {
-        setProcessingCard(false);
-        toast.error(response.messages.message[0].text);
-        return;
-      }
-
-      // Success - we have the payment nonce
-      const opaqueData = response.opaqueData;
-      
-      // Process payment with backend
-      processCardPayment(opaqueData);
-    });
-  };
-
-  const processCardPayment = (opaqueData: any) => {
-    if (!applicationId) return;
-
-    createPaymentMutation.mutate({
-      loanApplicationId: applicationId,
-      paymentMethod: "card",
-      paymentProvider: "authorizenet",
-      opaqueData,
-    });
-    setProcessingCard(false);
-  };
-
   const handleInitiatePayment = () => {
     if (!applicationId) return;
 
-    if (paymentMethod === "card") {
-      handleCardPayment();
-    } else if (paymentMethod === "crypto") {
+    if (paymentMethod === "crypto") {
       createPaymentMutation.mutate({
         loanApplicationId: applicationId,
         paymentMethod: "crypto",
@@ -572,141 +481,17 @@ export default function EnhancedPaymentPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Tabs value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as "card" | "stripe" | "crypto")}>
-                    <TabsList className="grid w-full grid-cols-3 text-xs sm:text-sm">
-                      <TabsTrigger value="card" className="text-xs sm:text-sm">
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        Card
-                      </TabsTrigger>
+                  <Tabs value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as "stripe" | "crypto")}>
+                    <TabsList className="grid w-full grid-cols-2 text-xs sm:text-sm">
                       <TabsTrigger value="stripe" className="text-xs sm:text-sm">
                         <Zap className="mr-2 h-4 w-4" />
-                        Stripe
+                        Card Payment
                       </TabsTrigger>
                       <TabsTrigger value="crypto">
                         <Bitcoin className="mr-2 h-4 w-4" />
                         Crypto
                       </TabsTrigger>
                     </TabsList>
-
-                    <TabsContent value="card" className="space-y-4 mt-6">
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Shield className="h-5 w-5 text-blue-600" />
-                          <p className="text-sm text-blue-900 font-medium">
-                            Secure Card Payment via Authorize.Net
-                          </p>
-                        </div>
-                        <p className="text-sm text-blue-800">
-                          Your card information is encrypted and processed securely. We accept Visa,
-                          Mastercard, American Express, and Discover.
-                        </p>
-                      </div>
-
-                      {/* Security Seal */}
-                      <div className="flex justify-center my-3">
-                        <SecuritySeal />
-                      </div>
-
-                      {/* Card Payment Form */}
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="cardName">Cardholder Name</Label>
-                          <Input
-                            id="cardName"
-                            placeholder="John Doe"
-                            value={cardName}
-                            onChange={(e) => setCardName(e.target.value)}
-                            disabled={processingCard}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="cardNumber">Card Number</Label>
-                          <div className="relative">
-                            <Input
-                              id="cardNumber"
-                              placeholder="1234 5678 9012 3456"
-                              value={cardNumber}
-                              onChange={(e) => {
-                                const value = e.target.value.replace(/\s/g, '');
-                                const formatted = value.match(/.{1,4}/g)?.join(' ') || value;
-                                setCardNumber(formatted);
-                              }}
-                              maxLength={19}
-                              disabled={processingCard}
-                            />
-                            <CreditCard className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="cardExpiry">Expiry Date</Label>
-                            <Input
-                              id="cardExpiry"
-                              placeholder="MM/YY"
-                              value={cardExpiry}
-                              onChange={(e) => {
-                                let value = e.target.value.replace(/\D/g, '');
-                                if (value.length >= 2) {
-                                  value = value.slice(0, 2) + '/' + value.slice(2, 4);
-                                }
-                                setCardExpiry(value);
-                              }}
-                              maxLength={5}
-                              disabled={processingCard}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="cardCvv">CVV</Label>
-                            <Input
-                              id="cardCvv"
-                              type="password"
-                              placeholder="123"
-                              value={cardCvv}
-                              onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, ''))}
-                              maxLength={4}
-                              disabled={processingCard}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 p-3 rounded">
-                          <Lock className="h-4 w-4" />
-                          <span>Your payment information is encrypted and secure</span>
-                        </div>
-
-                        <Button
-                          className="w-full"
-                          size="lg"
-                          onClick={handleCardPayment}
-                          disabled={processingCard || !acceptJsLoaded}
-                        >
-                          {processingCard ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Processing Payment...
-                            </>
-                          ) : !acceptJsLoaded ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Loading Payment System...
-                            </>
-                          ) : (
-                            <>
-                              <Lock className="mr-2 h-4 w-4" />
-                              Pay ${(feeAmount / 100).toFixed(2)} Securely
-                            </>
-                          )}
-                        </Button>
-                      </div>
-
-                      <div className="flex items-center justify-center gap-4 pt-4 border-t">
-                        <img src="https://usa.visa.com/dam/VCOM/regional/ve/romania/blogs/hero-image/visa-logo-800x450.jpg" alt="Visa" className="h-6 grayscale opacity-60" />
-                        <img src="https://brand.mastercard.com/content/dam/mccom/brandcenter/thumbnails/mastercard_vrt_rev_92px_2x.png" alt="Mastercard" className="h-6 grayscale opacity-60" />
-                        <img src="https://www.aexp-static.com/cdaas/one/statics/axp-static-assets/1.8.0/package/dist/img/logos/dls-logo-bluebox-solid.svg" alt="Amex" className="h-6 grayscale opacity-60" />
-                      </div>
-                    </TabsContent>
 
                     {/* Stripe Payment */}
                     <TabsContent value="stripe" className="space-y-4 mt-6">

@@ -202,7 +202,7 @@ export async function createStripeCustomer(
 export async function attachPaymentMethodToCustomer(
   paymentMethodId: string,
   customerId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; last4?: string; brand?: string }> {
   if (!stripeClient) {
     return {
       success: false,
@@ -211,11 +211,15 @@ export async function attachPaymentMethodToCustomer(
   }
 
   try {
-    await stripeClient.paymentMethods.attach(paymentMethodId, {
+    const pm = await stripeClient.paymentMethods.attach(paymentMethodId, {
       customer: customerId,
     });
 
-    return { success: true };
+    return {
+      success: true,
+      last4: pm.card?.last4 || undefined,
+      brand: pm.card?.brand || undefined,
+    };
   } catch (error: any) {
     console.error('[Stripe] Payment method attachment failed:', error);
     return {
