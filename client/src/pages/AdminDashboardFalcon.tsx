@@ -14,7 +14,8 @@ import {
   ShieldCheck, Settings, Wallet, Search, LogOut,
   TrendingUp, Clock, AlertCircle, CheckCircle, XCircle,
   Banknote, CreditCard, Activity, Eye, MessageSquare,
-  Send, Download, Loader2, Upload, FileCheck, Zap, Bell
+  Send, Download, Loader2, Upload, FileCheck, Zap, Bell,
+  UserCheck, MessageCircle, Shield, Landmark, Megaphone, Bot
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
@@ -27,6 +28,7 @@ import AdvancedAnalytics from "@/components/AdvancedAnalytics";
 import AutomatedWorkflows from "@/components/AutomatedWorkflows";
 import AdminPaymentVerification from "@/components/AdminPaymentVerification";
 import AdminInvitations from "@/components/AdminInvitations";
+import AdminAiAssistant from "@/components/AdminAiAssistant";
 
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800 border-yellow-300",
@@ -39,7 +41,7 @@ const statusColors: Record<string, string> = {
   cancelled: "bg-gray-100 text-gray-800 border-gray-300",
 };
 
-type ViewType = "dashboard" | "applications" | "tracking" | "verification" | "support" | "audit" | "fees" | "crypto" | "workflows" | "payments" | "invitations" | "virtual_cards" | "user_management";
+type ViewType = "dashboard" | "applications" | "tracking" | "verification" | "support" | "audit" | "fees" | "crypto" | "workflows" | "payments" | "invitations" | "virtual_cards" | "user_management" | "kyc" | "live_chat" | "fraud" | "collections" | "marketing" | "settings" | "ai_assistant";
 
 export default function AdminDashboardFalcon() {
   const [, setLocation] = useLocation();
@@ -396,6 +398,13 @@ export default function AdminDashboardFalcon() {
     { id: "fees" as ViewType, icon: Settings, label: "Fee Settings" },
     { id: "crypto" as ViewType, icon: Wallet, label: "Crypto Wallet" },
     { id: "virtual_cards" as ViewType, icon: CreditCard, label: "Virtual Cards" },
+    { id: "kyc" as ViewType, icon: UserCheck, label: "KYC Management" },
+    { id: "live_chat" as ViewType, icon: MessageCircle, label: "Live Chat" },
+    { id: "fraud" as ViewType, icon: Shield, label: "Fraud Detection" },
+    { id: "collections" as ViewType, icon: Landmark, label: "Collections" },
+    { id: "marketing" as ViewType, icon: Megaphone, label: "Marketing" },
+    { id: "settings" as ViewType, icon: Settings, label: "Settings" },
+    { id: "ai_assistant" as ViewType, icon: Bot, label: "AI Assistant" },
   ];
 
   return (
@@ -689,7 +698,7 @@ export default function AdminDashboardFalcon() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => setCurrentView("applications")}
+                                  onClick={() => setLocation(`/admin/application/${app.id}`)}
                                 >
                                   <Eye className="h-4 w-4" />
                                 </Button>
@@ -1303,6 +1312,133 @@ export default function AdminDashboardFalcon() {
                   </div>
                 </CardContent>
               </Card>
+            </div>
+          )}
+
+          {/* KYC Management View */}
+          {currentView === "kyc" && (
+            <div className="space-y-6">
+              <Card className="shadow-md">
+                <CardHeader>
+                  <CardTitle>KYC Management</CardTitle>
+                  <CardDescription>Review and manage Know Your Customer verifications</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-4">
+                    <p className="text-gray-500 mb-4">Review identity documents, address proofs, and KYC compliance</p>
+                    <Button onClick={() => setLocation('/admin/kyc')} className="gap-2">
+                      <UserCheck className="w-4 h-4" /> Open KYC Management
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Live Chat View */}
+          {currentView === "live_chat" && (
+            <div className="space-y-6">
+              <Card className="shadow-md">
+                <CardHeader>
+                  <CardTitle>Live Chat</CardTitle>
+                  <CardDescription>Manage live chat sessions with borrowers</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-4">
+                    <p className="text-gray-500 mb-4">View active chat sessions, assign agents, and manage responses</p>
+                    <Button onClick={() => setLocation('/admin/chat')} className="gap-2">
+                      <MessageCircle className="w-4 h-4" /> Open Live Chat
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Fraud Detection View */}
+          {currentView === "fraud" && (
+            <div className="space-y-6">
+              <Card className="shadow-md">
+                <CardHeader>
+                  <CardTitle>Fraud Detection</CardTitle>
+                  <CardDescription>Review flagged applications and suspicious activity</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-4">
+                    <p className="text-gray-500 mb-4">Investigate alerts, review risk scores, and manage fraud cases</p>
+                    <Button onClick={() => setLocation('/admin/fraud')} className="gap-2">
+                      <Shield className="w-4 h-4" /> Open Fraud Detection
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Collections View */}
+          {currentView === "collections" && (
+            <div className="space-y-6">
+              <Card className="shadow-md">
+                <CardHeader>
+                  <CardTitle>Collections</CardTitle>
+                  <CardDescription>Manage delinquent accounts and collection actions</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-4">
+                    <p className="text-gray-500 mb-4">Track overdue payments, record collection actions, and manage promises to pay</p>
+                    <Button onClick={() => setLocation('/admin/collections')} className="gap-2">
+                      <Landmark className="w-4 h-4" /> Open Collections
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Marketing View */}
+          {currentView === "marketing" && (
+            <div className="space-y-6">
+              <Card className="shadow-md">
+                <CardHeader>
+                  <CardTitle>Marketing Campaigns</CardTitle>
+                  <CardDescription>Create and manage marketing campaigns</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-4">
+                    <p className="text-gray-500 mb-4">Design campaigns, track performance, and manage lead generation</p>
+                    <Button onClick={() => setLocation('/admin/marketing')} className="gap-2">
+                      <Megaphone className="w-4 h-4" /> Open Marketing
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Settings View */}
+          {currentView === "settings" && (
+            <div className="space-y-6">
+              <Card className="shadow-md">
+                <CardHeader>
+                  <CardTitle>System Settings</CardTitle>
+                  <CardDescription>Configure notifications, security, legal documents, and system preferences</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-4">
+                    <p className="text-gray-500 mb-4">Manage email settings, API keys, security policies, and more</p>
+                    <Button onClick={() => setLocation('/admin/settings')} className="gap-2">
+                      <Settings className="w-4 h-4" /> Open Settings
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* AI Assistant View */}
+          {currentView === "ai_assistant" && (
+            <div className="space-y-6">
+              <AdminAiAssistant />
             </div>
           )}
         </div>

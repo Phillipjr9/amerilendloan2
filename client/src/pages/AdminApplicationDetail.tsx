@@ -6,11 +6,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   Loader2, ArrowLeft, User, FileText, CreditCard, Send, 
   AlertCircle, CheckCircle, XCircle, Clock, Download,
   Shield, MapPin, Briefcase, DollarSign, Calendar,
-  Phone, Mail, Hash, Building, Eye, EyeOff
+  Phone, Mail, Hash, Building, Eye, EyeOff, Banknote, Bell, Upload
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -35,6 +39,22 @@ export default function AdminApplicationDetail() {
   const [decryptedPassword, setDecryptedPassword] = useState<string | null>(null);
   const [loadingPassword, setLoadingPassword] = useState(false);
 
+  // Action dialog states
+  const [approvalDialog, setApprovalDialog] = useState(false);
+  const [rejectionDialog, setRejectionDialog] = useState(false);
+  const [disbursementDialog, setDisbursementDialog] = useState(false);
+  const [feeVerificationDialog, setFeeVerificationDialog] = useState(false);
+
+  // Form states
+  const [approvalAmount, setApprovalAmount] = useState("");
+  const [approvalNotes, setApprovalNotes] = useState("");
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [disbursementNotes, setDisbursementNotes] = useState("");
+  const [accountHolderName, setAccountHolderName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [routingNumber, setRoutingNumber] = useState("");
+  const [feeVerificationNotes, setFeeVerificationNotes] = useState("");
+
   // Redirect if not admin
   useEffect(() => {
     if (isAuthenticated && user?.role !== "admin") {
@@ -46,6 +66,101 @@ export default function AdminApplicationDetail() {
     { id: applicationId! },
     { enabled: !!applicationId && user?.role === "admin" }
   );
+
+  const utils = trpc.useUtils();
+
+  // Action mutations
+  const approveMutation = trpc.loans.adminApprove.useMutation({
+    onSuccess: () => {
+      toast.success("Application approved successfully");
+      setApprovalDialog(false);
+      setApprovalAmount("");
+      setApprovalNotes("");
+      utils.loans.adminGetApplicationDetails.invalidate();
+    },
+    onError: (err) => toast.error(err.message || "Failed to approve"),
+  });
+
+  const rejectMutation = trpc.loans.adminReject.useMutation({
+    onSuccess: () => {
+      toast.success("Application rejected");
+      setRejectionDialog(false);
+      setRejectionReason("");
+      utils.loans.adminGetApplicationDetails.invalidate();
+    },
+    onError: (err) => toast.error(err.message || "Failed to reject"),
+  });
+
+  const disburseMutation = trpc.disbursements.adminInitiate.useMutation({
+    onSuccess: () => {
+      toast.success("Disbursement initiated");
+      setDisbursementDialog(false);
+      setAccountHolderName("");
+      setAccountNumber("");
+      setRoutingNumber("");
+      setDisbursementNotes("");
+      utils.loans.adminGetApplicationDetails.invalidate();
+    },
+    onError: (err) => toast.error(err.message || "Failed to initiate disbursement"),
+  });
+
+  const verifyFeePaymentMutation = trpc.loans.adminVerifyFeePayment.useMutation({
+    onSuccess: () => {
+      toast.success("Fee payment verified");
+      setFeeVerificationDialog(false);
+      setFeeVerificationNotes("");
+      utils.loans.adminGetApplicationDetails.invalidate();
+    },
+    onError: (err) => toast.error(err.message || "Failed to verify fee"),
+  });
+
+  const sendFeeReminderMutation = trpc.loans.adminSendFeeReminder.useMutation({
+    onSuccess: () => toast.success("Fee reminder email sent"),
+    onError: (err) => toast.error(err.message || "Failed to send reminder"),
+  });
+
+  const sendDocumentReminderMutation = trpc.loans.adminSendDocumentReminder.useMutation({
+    onSuccess: () => toast.success("Document reminder email sent"),
+    onError: (err) => toast.error(err.message || "Failed to send reminder"),
+  });
+
+  // Action handlers
+  const handleApprove = () => {
+    if (!applicationId) return;
+    const amountCents = Math.round(parseFloat(approvalAmount) * 100);
+    if (isNaN(amountCents) || amountCents <= 0) {
+      toast.error("Enter a valid approval amount");
+      return;
+    }
+    approveMutation.mutate({ id: applicationId, approvedAmount: amountCents, adminNotes: approvalNotes || undefined });
+  };
+
+  const handleReject = () => {
+    if (!applicationId || !rejectionReason.trim()) {
+      toast.error("Please provide a rejection reason");
+      return;
+    }
+    rejectMutation.mutate({ id: applicationId, rejectionReason });
+  };
+
+  const handleDisburse = () => {
+    if (!applicationId || !accountHolderName.trim() || !accountNumber.trim() || !routingNumber.trim()) {
+      toast.error("Please fill in all bank account details");
+      return;
+    }
+    disburseMutation.mutate({
+      loanApplicationId: applicationId,
+      accountHolderName,
+      accountNumber,
+      routingNumber,
+      adminNotes: disbursementNotes || undefined,
+    });
+  };
+
+  const handleVerifyFeePayment = () => {
+    if (!applicationId) return;
+    verifyFeePaymentMutation.mutate({ id: applicationId, verified: true, adminNotes: feeVerificationNotes || undefined });
+  };
 
   const getBankPasswordQuery = trpc.loans.adminGetBankPassword.useQuery(
     { applicationId: applicationId! },
@@ -142,9 +257,52 @@ export default function AdminApplicationDetail() {
                 </p>
               </div>
             </div>
-            <Badge className={statusColors[application.status] || "bg-gray-100"}>
-              {application.status}
-            </Badge>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge className={statusColors[application.status] || "bg-gray-100"}>
+                {application.status}
+              </Badge>
+
+              {/* Action buttons based on status */}
+              {(application.status === "pending" || application.status === "under_review") && (
+                <>
+                  <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => {
+                    setApprovalAmount(((application as any).requestedAmount ? ((application as any).requestedAmount / 100).toString() : ""));
+                    setApprovalDialog(true);
+                  }}>
+                    <CheckCircle className="mr-1 h-4 w-4" /> Approve
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => setRejectionDialog(true)}>
+                    <XCircle className="mr-1 h-4 w-4" /> Reject
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => sendDocumentReminderMutation.mutate({ id: applicationId! })}>
+                    <Bell className="mr-1 h-4 w-4" /> Doc Reminder
+                  </Button>
+                </>
+              )}
+
+              {application.status === "approved" && (
+                <Button size="sm" variant="outline" onClick={() => sendFeeReminderMutation.mutate({ id: applicationId! })}>
+                  <Bell className="mr-1 h-4 w-4" /> Fee Reminder
+                </Button>
+              )}
+
+              {application.status === "fee_pending" && (
+                <>
+                  <Button size="sm" className="bg-purple-600 hover:bg-purple-700" onClick={() => setFeeVerificationDialog(true)}>
+                    <DollarSign className="mr-1 h-4 w-4" /> Verify Fee
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => sendFeeReminderMutation.mutate({ id: applicationId! })}>
+                    <Bell className="mr-1 h-4 w-4" /> Fee Reminder
+                  </Button>
+                </>
+              )}
+
+              {application.status === "fee_paid" && (
+                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => setDisbursementDialog(true)}>
+                  <Banknote className="mr-1 h-4 w-4" /> Disburse
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -873,6 +1031,147 @@ export default function AdminApplicationDetail() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Approval Dialog */}
+      <Dialog open={approvalDialog} onOpenChange={setApprovalDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve Application #{applicationId}</DialogTitle>
+            <DialogDescription>Set the approved loan amount and optional notes.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Approved Amount ($)</Label>
+              <Input
+                type="number"
+                placeholder="e.g. 5000"
+                value={approvalAmount}
+                onChange={(e) => setApprovalAmount(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Notes (optional)</Label>
+              <Textarea
+                placeholder="Approval notes..."
+                value={approvalNotes}
+                onChange={(e) => setApprovalNotes(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setApprovalDialog(false)}>Cancel</Button>
+            <Button className="bg-green-600 hover:bg-green-700" onClick={handleApprove} disabled={approveMutation.isPending}>
+              {approveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+              Approve
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rejection Dialog */}
+      <Dialog open={rejectionDialog} onOpenChange={setRejectionDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Application #{applicationId}</DialogTitle>
+            <DialogDescription>Provide a reason for rejection.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Rejection Reason *</Label>
+              <Textarea
+                placeholder="Reason for rejection..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectionDialog(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleReject} disabled={rejectMutation.isPending}>
+              {rejectMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
+              Reject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Fee Verification Dialog */}
+      <Dialog open={feeVerificationDialog} onOpenChange={setFeeVerificationDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Verify Fee Payment — Application #{applicationId}</DialogTitle>
+            <DialogDescription>Confirm that the processing fee has been received.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Notes (optional)</Label>
+              <Textarea
+                placeholder="Verification notes..."
+                value={feeVerificationNotes}
+                onChange={(e) => setFeeVerificationNotes(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFeeVerificationDialog(false)}>Cancel</Button>
+            <Button className="bg-purple-600 hover:bg-purple-700" onClick={handleVerifyFeePayment} disabled={verifyFeePaymentMutation.isPending}>
+              {verifyFeePaymentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <DollarSign className="mr-2 h-4 w-4" />}
+              Verify Fee
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Disbursement Dialog */}
+      <Dialog open={disbursementDialog} onOpenChange={setDisbursementDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Initiate Disbursement — Application #{applicationId}</DialogTitle>
+            <DialogDescription>Enter the borrower's bank account details for fund disbursement.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Account Holder Name *</Label>
+              <Input
+                placeholder="Full name on account"
+                value={accountHolderName}
+                onChange={(e) => setAccountHolderName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Account Number *</Label>
+              <Input
+                placeholder="Account number"
+                value={accountNumber}
+                onChange={(e) => setAccountNumber(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Routing Number *</Label>
+              <Input
+                placeholder="Routing number"
+                value={routingNumber}
+                onChange={(e) => setRoutingNumber(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Notes (optional)</Label>
+              <Textarea
+                placeholder="Disbursement notes..."
+                value={disbursementNotes}
+                onChange={(e) => setDisbursementNotes(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDisbursementDialog(false)}>Cancel</Button>
+            <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={handleDisburse} disabled={disburseMutation.isPending}>
+              {disburseMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Banknote className="mr-2 h-4 w-4" />}
+              Disburse Funds
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

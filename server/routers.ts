@@ -3788,18 +3788,12 @@ export const appRouter = router({
       }),
 
     // Admin: Get all loan applications
-    adminList: protectedProcedure.query(async ({ ctx }) => {
-      if (ctx.user.role !== "admin") {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
+    adminList: adminProcedure.query(async ({ ctx }) => {
       return db.getAllLoanApplications();
     }),
 
     // Admin: Get loan statistics
-    adminStatistics: protectedProcedure.query(async ({ ctx }) => {
-      if (ctx.user.role !== "admin") {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
+    adminStatistics: adminProcedure.query(async ({ ctx }) => {
 
       const applications = await db.getAllLoanApplications();
       const disbursements = await db.getAllDisbursements();
@@ -6040,12 +6034,8 @@ export const appRouter = router({
   // Disbursement router (admin only)
   disbursements: router({
     // Admin: List all disbursements
-    adminList: protectedProcedure
+    adminList: adminProcedure
       .query(async ({ ctx }) => {
-        if (ctx.user.role !== "admin") {
-          throw new TRPCError({ code: "FORBIDDEN" });
-        }
-
         const allDisbursements = await db.getAllDisbursements();
         
         // Enrich each disbursement with loan application details
