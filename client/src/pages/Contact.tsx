@@ -25,7 +25,7 @@ const contactMethods = [
   {
     icon: Mail,
     title: "Email Us",
-    detail: "support@amerilend.com",
+    detail: "support@amerilendloan.com",
     sub: "We respond within 24 hours",
   },
   {

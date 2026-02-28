@@ -362,7 +362,7 @@ export default function ESignatures() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => window.open(`https://www.docusign.com/envelope/${doc.envelopeId}`, "_blank")}
+                          onClick={() => window.open(`https://app.docusign.com/documents/details/${doc.envelopeId}`, "_blank")}
                         >
                           View
                         </Button>

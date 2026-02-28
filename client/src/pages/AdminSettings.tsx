@@ -92,7 +92,7 @@ export default function AdminSettings() {
   const [smtpPort, setSmtpPort] = useState("587");
   const [smtpUser, setSmtpUser] = useState("");
   const [smtpPassword, setSmtpPassword] = useState("");
-  const [fromEmail, setFromEmail] = useState("noreply@amerilend.com");
+  const [fromEmail, setFromEmail] = useState("noreply@amerilendloan.com");
   const [fromName, setFromName] = useState("AmeriLend");
 
   // API Keys States
@@ -204,7 +204,7 @@ export default function AdminSettings() {
       setSmtpHost(emailConfig.smtpHost || "");
       setSmtpPort(String(emailConfig.smtpPort || 587));
       setSmtpUser(emailConfig.smtpUser || "");
-      setFromEmail(emailConfig.fromEmail || "noreply@amerilend.com");
+      setFromEmail(emailConfig.fromEmail || "noreply@amerilendloan.com");
       setFromName(emailConfig.fromName || "AmeriLend");
     }
   }, [emailConfig]);
@@ -548,7 +548,7 @@ export default function AdminSettings() {
                     <Label htmlFor="smtp-user">SMTP Username</Label>
                     <Input 
                       id="smtp-user" 
-                      placeholder="noreply@amerilend.com" 
+                      placeholder="noreply@amerilendloan.com" 
                       value={smtpUser}
                       onChange={(e) => setSmtpUser(e.target.value)}
                     />
@@ -568,7 +568,7 @@ export default function AdminSettings() {
                     <Input 
                       id="from-email" 
                       type="email"
-                      placeholder="noreply@amerilend.com" 
+                      placeholder="noreply@amerilendloan.com" 
                       value={fromEmail}
                       onChange={(e) => setFromEmail(e.target.value)}
                     />

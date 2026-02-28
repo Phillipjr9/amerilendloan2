@@ -172,7 +172,7 @@ By clicking "I Accept" below, you acknowledge that:
 If you have questions about this E-Sign Consent or need assistance accessing electronic Communications, please contact us:
 
 **AmeriLend**  
-Email: support@amerilend.com  
+Email: support@amerilendloan.com  
 Phone: 1-800-AMERILEND  
 Address: [Your Business Address]
 

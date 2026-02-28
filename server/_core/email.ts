@@ -6,6 +6,7 @@
 import { ENV } from "./env";
 import { getEmailHeader, getEmailFooter, COMPANY_INFO } from "./companyConfig";
 import { getLocationFromIP } from "./geolocation";
+import { logger } from "./logger";
 
 export type EmailPayload = {
   to: string;
@@ -38,9 +39,7 @@ export async function sendEmail(payload: EmailPayload): Promise<{ success: boole
     return { success: false, error: "Email service not configured" };
   }
 
-  console.log("📧 Attempting to send email via SendGrid...");
-  console.log("   To:", payload.to);
-  console.log("   From:", process.env.SENDGRID_VERIFIED_EMAIL || "noreply@amerilendloan.com");
+  logger.info("Sending email via SendGrid", { to: payload.to });
 
   try {
     const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
@@ -117,7 +116,7 @@ export async function sendEmail(payload: EmailPayload): Promise<{ success: boole
       return { success: false, error: errorMessage };
     }
 
-    console.log(`✅ Email sent successfully to ${payload.to}`);
+    logger.info("Email sent successfully", { to: payload.to });
     return { success: true };
   } catch (error) {
     console.error("Error sending email:", error);
@@ -289,10 +288,9 @@ export async function sendLoanApplicationApprovedEmail(
   approvedAmount: number,
   processingFee: number
 ): Promise<void> {
-  console.log(`[Email Debug] sendLoanApplicationApprovedEmail: approvedAmount=${approvedAmount} cents, processingFee=${processingFee} cents`);
+  logger.debug("sendLoanApplicationApprovedEmail", { approvedAmount, processingFee });
   const formattedAmount = formatCurrency(approvedAmount);
   const formattedFee = formatCurrency(processingFee);
-  console.log(`[Email Debug] Formatted values: approvedAmount=$${formattedAmount}, processingFee=$${formattedFee}`);
   const subject = "Congratulations! Your Loan Application is Approved - AmeriLend";
   const text = `Dear ${fullName},\n\nGreat news! Your loan application has been approved!\n\nApplication Details:\nTracking Number: ${trackingNumber}\nApproved Amount: $${formattedAmount}\nProcessing Fee: $${formattedFee}\n\nNext Steps:\n1. Log in to your dashboard to review the loan agreement\n2. Pay the processing fee to proceed with disbursement\n3. Once the fee is paid, your funds will be disbursed within 1-2 business days\n\nPlease log in to your account to complete the next steps.\n\nBest regards,\nThe AmeriLend Team`;
   
