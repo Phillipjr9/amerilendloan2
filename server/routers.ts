@@ -921,7 +921,12 @@ const kycRouter = router({
 
   uploadDocument: protectedProcedure
     .input(z.object({
-      documentType: z.enum(["drivers_license", "passport", "ssn", "income_verification"]),
+      documentType: z.enum([
+        "drivers_license_front", "drivers_license_back",
+        "passport", "national_id_front", "national_id_back",
+        "ssn_card", "bank_statement", "utility_bill",
+        "pay_stub", "tax_return", "other"
+      ]),
       documentUrl: z.string(),
       expiryDate: z.string().optional(),
     }))
@@ -2977,7 +2982,7 @@ export const appRouter = router({
           }
           
           // Hash the new password
-          const newPasswordHash = await bcrypt.hash(input.newPassword, 10);
+          const newPasswordHash = await bcrypt.hash(input.newPassword, 12);
           
           // Update password in database
           await db.updateUserPassword(userId, newPasswordHash);
@@ -4127,13 +4132,11 @@ export const appRouter = router({
             // If password is provided during signup, always update/store it
             // This handles both new users and users who already exist in the database
             if (input.purpose === "signup" && input.password && user) {
-              const hashedPassword = await bcrypt.hash(input.password, 10);
-              console.log(`[OTP] Storing password hash for user: ${input.identifier}`);
+              const hashedPassword = await bcrypt.hash(input.password, 12);
               await db.updateUserByOpenId(user.openId, { 
                 passwordHash: hashedPassword,
                 loginMethod: "email_password"
               });
-              console.log(`[OTP] Password hash stored successfully for user: ${input.identifier}`);
             } else if (input.purpose === "login" && user) {
               // Update lastSignedIn timestamp for login
               await db.upsertUser({ openId: user.openId, lastSignedIn: new Date() });
@@ -4214,7 +4217,7 @@ export const appRouter = router({
         }
 
         // Hash the new password
-        const newPasswordHash = await bcrypt.hash(input.newPassword, 10);
+        const newPasswordHash = await bcrypt.hash(input.newPassword, 12);
         
         // Update password in database
         await db.updateUserPassword(user.id, newPasswordHash);
@@ -4432,13 +4435,11 @@ export const appRouter = router({
               
               // Hash and store the password for the new user
               if (input.password) {
-                const hashedPassword = await bcrypt.hash(input.password, 10);
-                console.log(`[Application Submit] Storing password hash for user: ${input.email}`);
+                const hashedPassword = await bcrypt.hash(input.password, 12);
                 await db.updateUserByOpenId(newUser.openId, { 
                   passwordHash: hashedPassword,
                   loginMethod: "email_password"
                 });
-                console.log(`[Application Submit] Password hash stored successfully for user: ${input.email}`);
               }
               
               // Link referred user to referral program if referralId provided

@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import helmet from "helmet";
 import { createServer } from "http";
 import net from "net";
 import multer from "multer";
@@ -139,34 +140,30 @@ async function startServer() {
     excludeMethods: ["GET", "HEAD", "DELETE", "OPTIONS"],
   }));
   
-  // Security headers middleware
-  app.use((req, res, next) => {
-    // Content Security Policy
-    res.setHeader(
-      "Content-Security-Policy",
-      "default-src 'self'; img-src 'self' data: https:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://js.stripe.com; frame-src 'self' https://js.stripe.com https://hooks.stripe.com; connect-src 'self' https: https://api.stripe.com;"
-    );
-    
-    // XSS Protection
-    res.setHeader("X-XSS-Protection", "1; mode=block");
-    
-    // Prevent clickjacking
-    res.setHeader("X-Frame-Options", "DENY");
-    
-    // Prevent MIME type sniffing
-    res.setHeader("X-Content-Type-Options", "nosniff");
-    
-    // Strict Transport Security (HTTPS only)
-    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-    
-    // Referrer Policy
-    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    
-    // Permissions Policy (disable unused browser features)
-    res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
-    
-    next();
-  });
+  // Security headers via helmet
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        fontSrc: ["'self'", "data:"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://js.stripe.com"],
+        frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com"],
+        connectSrc: ["'self'", "https:", "https://api.stripe.com"],
+      },
+    },
+    crossOriginEmbedderPolicy: false, // Allow cross-origin resources (Stripe, fonts)
+    hsts: { maxAge: 31536000, includeSubDomains: true },
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    permissionsPolicy: {
+      features: {
+        geolocation: [],
+        microphone: [],
+        camera: [],
+      },
+    },
+  }));
 
   // Rate limiting configurations
   // General API rate limit (100 requests per 15 minutes)

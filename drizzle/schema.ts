@@ -43,7 +43,7 @@ export const users = pgTable("users", {
   firstName: varchar("firstName", { length: 100 }),
   lastName: varchar("lastName", { length: 100 }),
   phoneNumber: varchar("phoneNumber", { length: 20 }),
-  ssn: varchar("ssn", { length: 11 }), // Social Security Number (encrypted in practice)
+  ssn: varchar("ssn", { length: 255 }), // Social Security Number (encrypted — needs 255 chars for ciphertext)
   ssnLastFour: varchar("ssnLastFour", { length: 4 }), // Last 4 digits for display
   dateOfBirth: varchar("dateOfBirth", { length: 10 }), // YYYY-MM-DD format
   bio: text("bio"),
@@ -993,7 +993,8 @@ export const uploadedDocuments = pgTable("uploadedDocuments", {
   loanApplicationId: integer("loanApplicationId"), // Link to loan application
   documentType: documentTypeEnum("documentType").notNull(),
   filename: varchar("filename", { length: 255 }).notNull(),
-  fileName: varchar("file_name", { length: 255 }), // Alternative name field
+  /** @deprecated Duplicate of `filename` — use `filename` instead. Kept for migration compatibility. */
+  fileName: varchar("file_name", { length: 255 }),
   fileUrl: varchar("file_url", { length: 500 }), // Public URL or path
   storagePath: varchar("storagePath", { length: 500 }).notNull(), // S3 or file path
   fileSize: integer("fileSize").notNull(), // in bytes
