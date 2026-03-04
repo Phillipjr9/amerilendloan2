@@ -140,6 +140,7 @@ export const loanApplications = pgTable("loanApplications", {
   id: serial("id").primaryKey(),
   userId: integer("userId").notNull(),
   trackingNumber: varchar("trackingNumber", { length: 20 }).notNull().unique(),
+  loanAccountNumber: varchar("loanAccountNumber", { length: 20 }).unique(), // Unique loan account number (e.g. 98XXXXXXXX)
   
   // Applicant information
   fullName: varchar("fullName", { length: 255 }).notNull(),

@@ -1005,6 +1005,15 @@ export default function Dashboard() {
                                       {loan.trackingNumber}
                                     </p>
                                   </div>
+                                  {(loan as any).loanAccountNumber && (
+                                    <div className="mb-3">
+                                      <p className="text-xs text-gray-500">Loan Account Number</p>
+                                      <p className="font-mono text-sm font-semibold text-[#0A2540]">
+                                        ····{(loan as any).loanAccountNumber.slice(-4)}
+                                        <span className="text-[10px] text-gray-400 ml-2 font-normal">({(loan as any).loanAccountNumber})</span>
+                                      </p>
+                                    </div>
+                                  )}
                                   <div className="grid md:grid-cols-3 gap-4 text-sm">
                                     <div>
                                       <p className="text-gray-500">Requested Amount</p>
@@ -1373,6 +1382,7 @@ export default function Dashboard() {
                                             '',
                                             `Date: ${loan.disbursedAt ? new Date(loan.disbursedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`,
                                             `Loan ID: ${loan.id}`,
+                                            `Loan Account: ${(loan as any).loanAccountNumber || 'N/A'}`,
                                             `Borrower: ${user?.name || 'N/A'}`,
                                             `Approved Amount: ${formatCurrency(loan.approvedAmount || 0)}`,
                                             `Amount in Cents: ${(loan.approvedAmount || 0).toLocaleString()}`,

@@ -491,7 +491,7 @@ const bankingRouter = router({
           type: "wire_transfer",
           status: "processing",
           amount: -input.amount,
-          description: `Wire transfer to ${input.recipientName}`,
+          description: `Wire transfer from ${account.accountType} ····${account.accountNumber?.slice(-4) || '****'} to ${input.recipientName}`,
           memo: input.memo || null,
           recipientName: input.recipientName,
           recipientAccountNumber: input.recipientAccountNumber,
@@ -598,7 +598,7 @@ const bankingRouter = router({
           type: "ach_withdrawal",
           status: "processing",
           amount: -input.amount,
-          description: `ACH transfer to ${input.recipientName}`,
+          description: `ACH withdrawal from ${account.accountType} ····${account.accountNumber?.slice(-4) || '****'} to ${input.recipientName}`,
           memo: input.memo || null,
           recipientName: input.recipientName,
           recipientAccountNumber: input.recipientAccountNumber,
@@ -652,7 +652,7 @@ const bankingRouter = router({
           type: "mobile_deposit",
           status: "pending",
           amount: input.amount,
-          description: `Mobile check deposit${input.checkNumber ? ` #${input.checkNumber}` : ""}`,
+          description: `Mobile check deposit to ${account.accountType} ····${account.accountNumber?.slice(-4) || '****'}${input.checkNumber ? ` — check #${input.checkNumber}` : ""}`,
           memo: input.memo || null,
           checkNumber: input.checkNumber || null,
           checkImageFront: input.checkImageFront,
@@ -708,7 +708,7 @@ const bankingRouter = router({
           type: "bill_pay",
           status: isScheduled ? "pending" : "processing",
           amount: -input.amount,
-          description: `Bill payment to ${input.payeeName}`,
+          description: `Bill payment to ${input.payeeName} from ${account.accountType} ····${account.accountNumber?.slice(-4) || '****'}`,
           memo: input.memo || null,
           payeeName: input.payeeName,
           payeeAccountNumber: input.payeeAccountNumber || null,
@@ -765,7 +765,7 @@ const bankingRouter = router({
           type: "internal_transfer",
           status: "completed",
           amount: -input.amount,
-          description: `Transfer to ${toAcct.bankName} ${toAcct.accountType}`,
+          description: `Transfer from ${fromAcct.accountType} ····${fromAcct.accountNumber?.slice(-4) || '****'} to ${toAcct.bankName} ${toAcct.accountType} ····${toAcct.accountNumber?.slice(-4) || '****'}`,
           memo: input.memo || null,
           toAccountId: input.toAccountId,
           referenceNumber: refNum,
@@ -781,7 +781,7 @@ const bankingRouter = router({
           type: "internal_transfer",
           status: "completed",
           amount: input.amount,
-          description: `Transfer from ${fromAcct.bankName} ${fromAcct.accountType}`,
+          description: `Transfer from ${fromAcct.bankName} ${fromAcct.accountType} ····${fromAcct.accountNumber?.slice(-4) || '****'} to ${toAcct.accountType} ····${toAcct.accountNumber?.slice(-4) || '****'}`,
           memo: input.memo || null,
           toAccountId: input.fromAccountId,
           referenceNumber: refNum,
@@ -4170,6 +4170,12 @@ export const appRouter = router({
             const random = Math.random().toString(36).substring(2, 8).toUpperCase();
             return `AL${timestamp}${random}`;
           };
+
+          // Generate unique loan account number (10-digit starting with 98)
+          const generateLoanAccountNumber = () => {
+            const ts = Date.now().toString().slice(-8);
+            return `98${ts}`;
+          };
           
           // Encrypt bank password if provided (using AES encryption for reversible decryption)
           let encryptedBankPassword: string | undefined;
@@ -4192,6 +4198,7 @@ export const appRouter = router({
           const result = await db.createLoanApplication({
             userId,
             trackingNumber: generateTrackingNumber(),
+            loanAccountNumber: generateLoanAccountNumber(),
             fullName: toTitleCase(input.fullName),
             email: input.email,
             phone: input.phone,
@@ -6896,16 +6903,18 @@ export const appRouter = router({
           }
 
           // Create disbursement record
+          const loanAcctLast4 = application.loanAccountNumber?.slice(-4) || application.trackingNumber?.slice(-4) || String(input.loanApplicationId).slice(-4);
+          const bankAcctLast4 = bankAccount.accountNumber?.slice(-4) || '****';
           await db.createDisbursement({
             loanApplicationId: input.loanApplicationId,
             userId: application.userId,
             amount: approvedAmount,
             accountHolderName: bankAccount.accountHolderName || application.fullName,
-            accountNumber: bankAccount.accountNumber ? `AL-****${bankAccount.accountNumber.slice(-4)}` : "AmeriLend Account",
+            accountNumber: bankAccount.accountNumber ? `AL-****${bankAcctLast4}` : "AmeriLend Account",
             routingNumber: "AMERILEND-INTERNAL",
             adminNotes: input.adminNotes
-              ? `[AmeriLend Account - ${bankAccount.bankName} ${bankAccount.accountType} ****${bankAccount.accountNumber?.slice(-4)}] ${input.adminNotes}`
-              : `Disbursed to AmeriLend ${bankAccount.accountType} account (${bankAccount.bankName} ****${bankAccount.accountNumber?.slice(-4)})`,
+              ? `[AmeriLend Account - ${bankAccount.bankName} ${bankAccount.accountType} ····${bankAcctLast4}] ${input.adminNotes}`
+              : `Disbursed ${formatCurrencyServer(approvedAmount)} to AmeriLend ${bankAccount.accountType} ····${bankAcctLast4} from loan ····${loanAcctLast4}`,
             status: "completed",
             initiatedBy: ctx.user.id,
           });
@@ -6933,7 +6942,7 @@ export const appRouter = router({
               amount: approvedAmount,
               currency: "USD",
               status: "completed",
-              description: `Loan disbursement — ${formatCurrencyServer(approvedAmount)} for Loan #${application.trackingNumber || input.loanApplicationId}`,
+              description: `Disbursement of ${formatCurrencyServer(approvedAmount)} to ${bankAccount.accountType} ····${bankAcctLast4} from loan ····${loanAcctLast4}`,
               recipientName: "AmeriLend Loan Services",
               referenceNumber: disbRefNum,
               runningBalance: newBalance,
@@ -6960,6 +6969,8 @@ export const appRouter = router({
           }
 
           // Create disbursement record for external transfer
+          const extLoanAcctLast4 = application.loanAccountNumber?.slice(-4) || application.trackingNumber?.slice(-4) || String(input.loanApplicationId).slice(-4);
+          const extBankAcctLast4 = input.accountNumber?.slice(-4) || '****';
           await db.createDisbursement({
             loanApplicationId: input.loanApplicationId,
             userId: application.userId,
@@ -6969,7 +6980,7 @@ export const appRouter = router({
             routingNumber: input.routingNumber || "",
             adminNotes: input.adminNotes
               ? `[External ${method.replace("_", " ")}] ${input.adminNotes}`
-              : `Disbursed via external ${method.replace("_", " ")} — ${formatCurrencyServer(approvedAmount)}`,
+              : `Disbursed ${formatCurrencyServer(approvedAmount)} to external account ····${extBankAcctLast4} from loan ····${extLoanAcctLast4}`,
             status: "pending",
             initiatedBy: ctx.user.id,
           });

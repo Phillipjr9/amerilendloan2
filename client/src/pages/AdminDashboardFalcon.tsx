@@ -1667,6 +1667,12 @@ export default function AdminDashboardFalcon() {
                     <span>Amount in cents</span>
                     <span>{app.approvedAmount.toLocaleString()}¢</span>
                   </div>
+                  {app.loanAccountNumber && (
+                    <div className="flex justify-between text-xs text-gray-500 mt-1 pt-1 border-t border-gray-200">
+                      <span>Loan Account</span>
+                      <span className="font-mono">····{app.loanAccountNumber.slice(-4)} ({app.loanAccountNumber})</span>
+                    </div>
+                  )}
                 </div>
               );
             })()}

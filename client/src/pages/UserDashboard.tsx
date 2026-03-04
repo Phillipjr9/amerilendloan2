@@ -234,7 +234,12 @@ export function UserDashboard() {
                       {activeLoan.status}
                     </Badge>
                   </CardTitle>
-                  <CardDescription>Loan #{activeLoan.trackingNumber}</CardDescription>
+                  <CardDescription>
+                    Loan #{activeLoan.trackingNumber}
+                    {activeLoan.loanAccountNumber && (
+                      <span className="ml-2 text-slate-500">• Account ····{activeLoan.loanAccountNumber.slice(-4)}</span>
+                    )}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
