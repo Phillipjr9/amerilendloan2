@@ -44,6 +44,7 @@ export const users = pgTable("users", {
   lastName: varchar("lastName", { length: 100 }),
   phoneNumber: varchar("phoneNumber", { length: 20 }),
   ssn: varchar("ssn", { length: 11 }), // Social Security Number (encrypted in practice)
+  ssnLastFour: varchar("ssnLastFour", { length: 4 }), // Last 4 digits for display
   dateOfBirth: varchar("dateOfBirth", { length: 10 }), // YYYY-MM-DD format
   bio: text("bio"),
   preferredLanguage: varchar("preferredLanguage", { length: 10 }).default("en"),
@@ -814,6 +815,8 @@ export const bankAccounts = pgTable("bankAccounts", {
   accountNumber: varchar("accountNumber", { length: 50 }).notNull(), // masked display
   routingNumber: varchar("routingNumber", { length: 20 }), 
   accountHolderName: varchar("accountHolderName", { length: 255 }).notNull(),
+  balance: integer("balance").default(0).notNull(), // in cents
+  availableBalance: integer("availableBalance").default(0).notNull(), // in cents (after pending holds)
   isVerified: boolean("isVerified").default(false).notNull(),
   isPrimary: boolean("isPrimary").default(false).notNull(),
   verifiedAt: timestamp("verifiedAt"),
@@ -823,6 +826,119 @@ export const bankAccounts = pgTable("bankAccounts", {
 
 export type BankAccount = typeof bankAccounts.$inferSelect;
 export type InsertBankAccount = typeof bankAccounts.$inferInsert;
+
+// ============================================
+// BANKING TRANSACTIONS
+// ============================================
+
+export const bankingTransactionTypeEnum = pgEnum("banking_transaction_type", [
+  "wire_transfer",
+  "ach_deposit",
+  "ach_withdrawal",
+  "mobile_deposit",
+  "bill_pay",
+  "internal_transfer",
+  "direct_deposit",
+  "loan_disbursement",
+  "loan_payment",
+  "fee",
+  "interest",
+  "refund",
+]);
+
+export const bankingTransactionStatusEnum = pgEnum("banking_transaction_status", [
+  "pending",
+  "processing",
+  "completed",
+  "failed",
+  "cancelled",
+  "on_hold",
+  "returned",
+]);
+
+export const bankingTransactions = pgTable("banking_transactions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  accountId: integer("account_id").notNull().references(() => bankAccounts.id),
+  
+  // Transaction details
+  type: bankingTransactionTypeEnum("type").notNull(),
+  status: bankingTransactionStatusEnum("status").default("pending").notNull(),
+  amount: integer("amount").notNull(), // in cents, positive = credit, negative = debit
+  currency: varchar("currency", { length: 3 }).default("USD").notNull(),
+  description: text("description").notNull(),
+  memo: text("memo"),
+  
+  // Counterparty info (for transfers/payments)
+  recipientName: varchar("recipient_name", { length: 255 }),
+  recipientAccountNumber: varchar("recipient_account_number", { length: 50 }),
+  recipientRoutingNumber: varchar("recipient_routing_number", { length: 20 }),
+  recipientBankName: varchar("recipient_bank_name", { length: 255 }),
+  recipientEmail: varchar("recipient_email", { length: 320 }),
+  
+  // For bill pay
+  payeeName: varchar("payee_name", { length: 255 }),
+  payeeAccountNumber: varchar("payee_account_number", { length: 100 }),
+  billCategory: varchar("bill_category", { length: 50 }), // utilities, rent, insurance, etc.
+  
+  // For mobile deposit
+  checkImageFront: text("check_image_front"),
+  checkImageBack: text("check_image_back"),
+  checkNumber: varchar("check_number", { length: 20 }),
+  
+  // For wire transfers
+  swiftCode: varchar("swift_code", { length: 11 }),
+  wireReference: varchar("wire_reference", { length: 50 }),
+  
+  // From/to internal accounts for internal transfers
+  toAccountId: integer("to_account_id").references(() => bankAccounts.id),
+  
+  // Tracking
+  referenceNumber: varchar("reference_number", { length: 50 }).notNull(),
+  confirmationNumber: varchar("confirmation_number", { length: 50 }),
+  processingDate: timestamp("processing_date"),
+  completedAt: timestamp("completed_at"),
+  failureReason: text("failure_reason"),
+  
+  // Running balance after transaction
+  runningBalance: integer("running_balance"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("banking_tx_userId_idx").on(table.userId),
+  index("banking_tx_accountId_idx").on(table.accountId),
+  index("banking_tx_type_idx").on(table.type),
+  index("banking_tx_status_idx").on(table.status),
+  index("banking_tx_refNum_idx").on(table.referenceNumber),
+  index("banking_tx_createdAt_idx").on(table.createdAt),
+]);
+
+export type BankingTransaction = typeof bankingTransactions.$inferSelect;
+export type InsertBankingTransaction = typeof bankingTransactions.$inferInsert;
+
+// ============================================
+// RECURRING BILL PAY (scheduled payments)
+// ============================================
+
+export const recurringBillPay = pgTable("recurring_bill_pay", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  accountId: integer("account_id").notNull().references(() => bankAccounts.id),
+  payeeName: varchar("payee_name", { length: 255 }).notNull(),
+  payeeAccountNumber: varchar("payee_account_number", { length: 100 }),
+  amount: integer("amount").notNull(), // in cents
+  frequency: varchar("frequency", { length: 20 }).notNull(), // weekly, biweekly, monthly, quarterly
+  nextPaymentDate: timestamp("next_payment_date").notNull(),
+  billCategory: varchar("bill_category", { length: 50 }),
+  memo: text("memo"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type RecurringBillPay = typeof recurringBillPay.$inferSelect;
+export type InsertRecurringBillPay = typeof recurringBillPay.$inferInsert;
 
 // ============================================
 // PHASE 3: KYC/IDENTITY VERIFICATION

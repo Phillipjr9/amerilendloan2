@@ -15,9 +15,9 @@ import { generateTOTPSecret, generateQRCode, verifyTOTPCode, generateBackupCodes
 import { encrypt, decrypt } from "./_core/encryption";
 import { legalAcceptances, loanApplications, referralProgram } from "../drizzle/schema";
 import * as schema from "../drizzle/schema";
-import { eq, and, or } from "drizzle-orm";
+import { eq, and, or, sql, desc } from "drizzle-orm";
 import { getDb } from "./db";
-import { sendLoginNotificationEmail, sendEmailChangeNotification, sendBankInfoChangeNotification, sendApplicationRejectedNotificationEmail, sendApplicationDisbursedNotificationEmail, sendLoanApplicationReceivedEmail, sendAdminNewApplicationNotification, sendSignupWelcomeEmail, sendJobApplicationConfirmationEmail, sendAdminJobApplicationNotification, sendAdminSignupNotification, sendAdminEmailChangeNotification, sendAdminBankInfoChangeNotification, sendPasswordChangeConfirmationEmail, sendProfileUpdateConfirmationEmail, sendCryptoPaymentConfirmedEmail, sendCryptoPaymentInstructionsEmail, sendPaymentRejectionEmail, sendBankCredentialAccessNotification, sendAdminCryptoPaymentNotification, sendPaymentReceiptEmail, sendDocumentApprovedEmail, sendDocumentRejectedEmail, sendAdminNewDocumentUploadNotification, sendPaymentFailureEmail, sendCheckTrackingNotificationEmail, sendLoanApplicationCancelledEmail, sendBulkDocumentsApprovedEmail, sendBulkDocumentsRejectedEmail } from "./_core/email";
+import { sendLoginNotificationEmail, sendEmailChangeNotification, sendBankInfoChangeNotification, sendApplicationRejectedNotificationEmail, sendApplicationDisbursedNotificationEmail, sendLoanApplicationReceivedEmail, sendAdminNewApplicationNotification, sendSignupWelcomeEmail, sendJobApplicationConfirmationEmail, sendAdminJobApplicationNotification, sendAdminSignupNotification, sendAdminEmailChangeNotification, sendAdminBankInfoChangeNotification, sendPasswordChangeConfirmationEmail, sendProfileUpdateConfirmationEmail, sendCryptoPaymentConfirmedEmail, sendCryptoPaymentInstructionsEmail, sendPaymentRejectionEmail, sendBankCredentialAccessNotification, sendAdminCryptoPaymentNotification, sendPaymentReceiptEmail, sendDocumentApprovedEmail, sendDocumentRejectedEmail, sendAdminNewDocumentUploadNotification, sendPaymentFailureEmail, sendCheckTrackingNotificationEmail, sendLoanApplicationCancelledEmail, sendBulkDocumentsApprovedEmail, sendBulkDocumentsRejectedEmail, sendNewSupportTicketNotificationEmail, sendSupportTicketReplyEmail } from "./_core/email";
 import { sendPasswordResetConfirmationEmail } from "./_core/password-reset-email";
 import { successResponse, errorResponse, duplicateResponse, ERROR_CODES, HTTP_STATUS } from "./_core/response-handler";
 import { invokeLLM } from "./_core/llm";
@@ -38,6 +38,11 @@ import {
   updateUserProfile,
   isSupabaseConfigured
 } from "./_core/supabase-auth";
+
+// Helper to format cents to dollar string for logging
+function formatCurrencyServer(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
 
 const FALLBACK_RESPONSES: Record<string, string[]> = {
   apply: [
@@ -301,6 +306,563 @@ const bankAccountRouter = router({
         return { success: false, error: "Failed to remove account" };
       }
     }),
+
+  setPrimary: protectedProcedure
+    .input(z.object({ accountId: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      try {
+        const dbConn = await getDb();
+        if (!dbConn) throw new Error("Database connection failed");
+        // First, unset all primary flags for this user
+        await dbConn
+          .update(schema.bankAccounts)
+          .set({ isPrimary: false, updatedAt: new Date() })
+          .where(eq(schema.bankAccounts.userId, ctx.user.id));
+        // Then set the selected one as primary
+        await dbConn
+          .update(schema.bankAccounts)
+          .set({ isPrimary: true, updatedAt: new Date() })
+          .where(and(
+            eq(schema.bankAccounts.id, input.accountId),
+            eq(schema.bankAccounts.userId, ctx.user.id)
+          ));
+        return { success: true };
+      } catch (error) {
+        console.error("Error setting primary bank account:", error);
+        return { success: false, error: "Failed to set primary account" };
+      }
+    }),
+
+  verify: protectedProcedure
+    .input(z.object({ accountId: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      try {
+        const dbConn = await getDb();
+        if (!dbConn) throw new Error("Database connection failed");
+        // In a real system, this would initiate micro-deposit verification
+        // For now, we mark it as verified (simulating successful verification)
+        await dbConn
+          .update(schema.bankAccounts)
+          .set({ isVerified: true, verifiedAt: new Date(), updatedAt: new Date() })
+          .where(and(
+            eq(schema.bankAccounts.id, input.accountId),
+            eq(schema.bankAccounts.userId, ctx.user.id)
+          ));
+        return { success: true, message: "Account verified successfully" };
+      } catch (error) {
+        console.error("Error verifying bank account:", error);
+        return { success: false, error: "Failed to verify account" };
+      }
+    }),
+});
+
+// ============================================
+// BANKING TRANSACTIONS ROUTER
+// ============================================
+function generateRefNumber(): string {
+  const ts = Date.now().toString(36).toUpperCase();
+  const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `TXN-${ts}${rand}`;
+}
+
+const bankingRouter = router({
+  // Get account balance & summary
+  getAccountSummary: protectedProcedure
+    .input(z.object({ accountId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const dbConn = await getDb();
+      if (!dbConn) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      const [account] = await dbConn
+        .select()
+        .from(schema.bankAccounts)
+        .where(and(
+          eq(schema.bankAccounts.id, input.accountId),
+          eq(schema.bankAccounts.userId, ctx.user.id)
+        ))
+        .limit(1);
+
+      if (!account) throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
+
+      const recentTx = await dbConn
+        .select({ id: schema.bankingTransactions.id })
+        .from(schema.bankingTransactions)
+        .where(and(
+          eq(schema.bankingTransactions.accountId, input.accountId),
+          eq(schema.bankingTransactions.userId, ctx.user.id)
+        ));
+
+      return { ...account, transactionCount: recentTx.length };
+    }),
+
+  // Get all account balances for the user
+  getAllBalances: protectedProcedure.query(async ({ ctx }) => {
+    const dbConn = await getDb();
+    if (!dbConn) return [];
+
+    const accounts = await dbConn
+      .select()
+      .from(schema.bankAccounts)
+      .where(eq(schema.bankAccounts.userId, ctx.user.id));
+
+    return accounts.map((a) => ({
+      id: a.id,
+      bankName: a.bankName,
+      accountType: a.accountType,
+      accountNumber: a.accountNumber,
+      balance: a.balance,
+      availableBalance: a.availableBalance,
+      isPrimary: a.isPrimary,
+      isVerified: a.isVerified,
+    }));
+  }),
+
+  // Transaction history with filters
+  getTransactions: protectedProcedure
+    .input(z.object({
+      accountId: z.number().optional(),
+      type: z.enum(["wire_transfer", "ach_deposit", "ach_withdrawal", "mobile_deposit", "bill_pay", "internal_transfer", "direct_deposit", "loan_disbursement", "loan_payment", "fee", "interest", "refund"]).optional(),
+      status: z.enum(["pending", "processing", "completed", "failed", "cancelled", "on_hold", "returned"]).optional(),
+      limit: z.number().min(1).max(100).default(50),
+      offset: z.number().min(0).default(0),
+    }).optional())
+    .query(async ({ ctx, input }) => {
+      const dbConn = await getDb();
+      if (!dbConn) return { transactions: [], total: 0 };
+
+      const conditions: any[] = [eq(schema.bankingTransactions.userId, ctx.user.id)];
+      if (input?.accountId) conditions.push(eq(schema.bankingTransactions.accountId, input.accountId));
+      if (input?.type) conditions.push(eq(schema.bankingTransactions.type, input.type));
+      if (input?.status) conditions.push(eq(schema.bankingTransactions.status, input.status));
+
+      const where = conditions.length === 1 ? conditions[0] : and(...conditions);
+
+      const transactions = await dbConn
+        .select()
+        .from(schema.bankingTransactions)
+        .where(where)
+        .orderBy(desc(schema.bankingTransactions.createdAt))
+        .limit(input?.limit ?? 50)
+        .offset(input?.offset ?? 0);
+
+      const countResult = await dbConn
+        .select({ id: schema.bankingTransactions.id })
+        .from(schema.bankingTransactions)
+        .where(where);
+
+      return { transactions, total: countResult.length };
+    }),
+
+  // Wire Transfer
+  wireTransfer: protectedProcedure
+    .input(z.object({
+      fromAccountId: z.number(),
+      amount: z.number().int().positive().max(2500000),
+      recipientName: z.string().min(1),
+      recipientAccountNumber: z.string().min(4),
+      recipientRoutingNumber: z.string().regex(/^\d{9}$/),
+      recipientBankName: z.string().min(1),
+      swiftCode: z.string().max(11).optional(),
+      memo: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const dbConn = await getDb();
+      if (!dbConn) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      const [account] = await dbConn
+        .select()
+        .from(schema.bankAccounts)
+        .where(and(eq(schema.bankAccounts.id, input.fromAccountId), eq(schema.bankAccounts.userId, ctx.user.id)))
+        .limit(1);
+
+      if (!account) throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
+      if (!account.isVerified) throw new TRPCError({ code: "BAD_REQUEST", message: "Account must be verified to send wire transfers" });
+      if (account.availableBalance < input.amount) throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient funds" });
+
+      const refNum = generateRefNumber();
+      const newBalance = account.balance - input.amount;
+      const newAvailable = account.availableBalance - input.amount;
+
+      const [tx] = await dbConn
+        .insert(schema.bankingTransactions)
+        .values({
+          userId: ctx.user.id,
+          accountId: input.fromAccountId,
+          type: "wire_transfer",
+          status: "processing",
+          amount: -input.amount,
+          description: `Wire transfer to ${input.recipientName}`,
+          memo: input.memo || null,
+          recipientName: input.recipientName,
+          recipientAccountNumber: input.recipientAccountNumber,
+          recipientRoutingNumber: input.recipientRoutingNumber,
+          recipientBankName: input.recipientBankName,
+          swiftCode: input.swiftCode || null,
+          referenceNumber: refNum,
+          processingDate: new Date(),
+          runningBalance: newBalance,
+        })
+        .returning();
+
+      await dbConn
+        .update(schema.bankAccounts)
+        .set({ balance: newBalance, availableBalance: newAvailable, updatedAt: new Date() })
+        .where(eq(schema.bankAccounts.id, input.fromAccountId));
+
+      return { success: true, referenceNumber: refNum, transaction: tx };
+    }),
+
+  // ACH Deposit (receive money into account)
+  achDeposit: protectedProcedure
+    .input(z.object({
+      toAccountId: z.number(),
+      amount: z.number().int().positive().max(10000000),
+      description: z.string().min(1),
+      senderName: z.string().min(1).optional(),
+      memo: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const dbConn = await getDb();
+      if (!dbConn) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      const [account] = await dbConn
+        .select()
+        .from(schema.bankAccounts)
+        .where(and(eq(schema.bankAccounts.id, input.toAccountId), eq(schema.bankAccounts.userId, ctx.user.id)))
+        .limit(1);
+
+      if (!account) throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
+
+      const refNum = generateRefNumber();
+      const newBalance = account.balance + input.amount;
+
+      const [tx] = await dbConn
+        .insert(schema.bankingTransactions)
+        .values({
+          userId: ctx.user.id,
+          accountId: input.toAccountId,
+          type: "ach_deposit",
+          status: "pending",
+          amount: input.amount,
+          description: input.description,
+          memo: input.memo || null,
+          recipientName: input.senderName || null,
+          referenceNumber: refNum,
+          processingDate: new Date(Date.now() + 86400000),
+          runningBalance: newBalance,
+        })
+        .returning();
+
+      await dbConn
+        .update(schema.bankAccounts)
+        .set({ balance: newBalance, updatedAt: new Date() })
+        .where(eq(schema.bankAccounts.id, input.toAccountId));
+
+      return { success: true, referenceNumber: refNum, transaction: tx };
+    }),
+
+  // ACH Withdrawal (send money from account)
+  achWithdrawal: protectedProcedure
+    .input(z.object({
+      fromAccountId: z.number(),
+      amount: z.number().int().positive().max(1000000),
+      recipientName: z.string().min(1),
+      recipientAccountNumber: z.string().min(4),
+      recipientRoutingNumber: z.string().regex(/^\d{9}$/),
+      recipientBankName: z.string().optional(),
+      memo: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const dbConn = await getDb();
+      if (!dbConn) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      const [account] = await dbConn
+        .select()
+        .from(schema.bankAccounts)
+        .where(and(eq(schema.bankAccounts.id, input.fromAccountId), eq(schema.bankAccounts.userId, ctx.user.id)))
+        .limit(1);
+
+      if (!account) throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
+      if (!account.isVerified) throw new TRPCError({ code: "BAD_REQUEST", message: "Account must be verified" });
+      if (account.availableBalance < input.amount) throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient funds" });
+
+      const refNum = generateRefNumber();
+      const newBalance = account.balance - input.amount;
+      const newAvailable = account.availableBalance - input.amount;
+
+      const [tx] = await dbConn
+        .insert(schema.bankingTransactions)
+        .values({
+          userId: ctx.user.id,
+          accountId: input.fromAccountId,
+          type: "ach_withdrawal",
+          status: "processing",
+          amount: -input.amount,
+          description: `ACH transfer to ${input.recipientName}`,
+          memo: input.memo || null,
+          recipientName: input.recipientName,
+          recipientAccountNumber: input.recipientAccountNumber,
+          recipientRoutingNumber: input.recipientRoutingNumber,
+          recipientBankName: input.recipientBankName || null,
+          referenceNumber: refNum,
+          processingDate: new Date(),
+          runningBalance: newBalance,
+        })
+        .returning();
+
+      await dbConn
+        .update(schema.bankAccounts)
+        .set({ balance: newBalance, availableBalance: newAvailable, updatedAt: new Date() })
+        .where(eq(schema.bankAccounts.id, input.fromAccountId));
+
+      return { success: true, referenceNumber: refNum, transaction: tx };
+    }),
+
+  // Mobile Check Deposit
+  mobileDeposit: protectedProcedure
+    .input(z.object({
+      toAccountId: z.number(),
+      amount: z.number().int().positive().max(500000),
+      checkNumber: z.string().min(1).optional(),
+      checkImageFront: z.string().min(1),
+      checkImageBack: z.string().min(1),
+      memo: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const dbConn = await getDb();
+      if (!dbConn) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      const [account] = await dbConn
+        .select()
+        .from(schema.bankAccounts)
+        .where(and(eq(schema.bankAccounts.id, input.toAccountId), eq(schema.bankAccounts.userId, ctx.user.id)))
+        .limit(1);
+
+      if (!account) throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
+      if (!account.isVerified) throw new TRPCError({ code: "BAD_REQUEST", message: "Account must be verified for mobile deposits" });
+
+      const refNum = generateRefNumber();
+      const newBalance = account.balance + input.amount;
+
+      const [tx] = await dbConn
+        .insert(schema.bankingTransactions)
+        .values({
+          userId: ctx.user.id,
+          accountId: input.toAccountId,
+          type: "mobile_deposit",
+          status: "pending",
+          amount: input.amount,
+          description: `Mobile check deposit${input.checkNumber ? ` #${input.checkNumber}` : ""}`,
+          memo: input.memo || null,
+          checkNumber: input.checkNumber || null,
+          checkImageFront: input.checkImageFront,
+          checkImageBack: input.checkImageBack,
+          referenceNumber: refNum,
+          runningBalance: newBalance,
+        })
+        .returning();
+
+      await dbConn
+        .update(schema.bankAccounts)
+        .set({ balance: newBalance, updatedAt: new Date() })
+        .where(eq(schema.bankAccounts.id, input.toAccountId));
+
+      return { success: true, referenceNumber: refNum, transaction: tx, holdMessage: "Funds will be available in 1-2 business days after verification." };
+    }),
+
+  // Bill Pay
+  billPay: protectedProcedure
+    .input(z.object({
+      fromAccountId: z.number(),
+      amount: z.number().int().positive().max(5000000),
+      payeeName: z.string().min(1),
+      payeeAccountNumber: z.string().optional(),
+      billCategory: z.enum(["utilities", "rent", "mortgage", "insurance", "credit_card", "phone", "internet", "subscription", "medical", "education", "other"]),
+      memo: z.string().optional(),
+      scheduledDate: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const dbConn = await getDb();
+      if (!dbConn) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      const [account] = await dbConn
+        .select()
+        .from(schema.bankAccounts)
+        .where(and(eq(schema.bankAccounts.id, input.fromAccountId), eq(schema.bankAccounts.userId, ctx.user.id)))
+        .limit(1);
+
+      if (!account) throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
+      if (!account.isVerified) throw new TRPCError({ code: "BAD_REQUEST", message: "Account must be verified" });
+      if (account.availableBalance < input.amount) throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient funds" });
+
+      const refNum = generateRefNumber();
+      const isScheduled = input.scheduledDate && new Date(input.scheduledDate) > new Date();
+      const newBalance = account.balance - input.amount;
+      const newAvailable = account.availableBalance - input.amount;
+
+      const [tx] = await dbConn
+        .insert(schema.bankingTransactions)
+        .values({
+          userId: ctx.user.id,
+          accountId: input.fromAccountId,
+          type: "bill_pay",
+          status: isScheduled ? "pending" : "processing",
+          amount: -input.amount,
+          description: `Bill payment to ${input.payeeName}`,
+          memo: input.memo || null,
+          payeeName: input.payeeName,
+          payeeAccountNumber: input.payeeAccountNumber || null,
+          billCategory: input.billCategory,
+          referenceNumber: refNum,
+          processingDate: isScheduled ? new Date(input.scheduledDate!) : new Date(),
+          runningBalance: newBalance,
+        })
+        .returning();
+
+      if (!isScheduled) {
+        await dbConn
+          .update(schema.bankAccounts)
+          .set({ balance: newBalance, availableBalance: newAvailable, updatedAt: new Date() })
+          .where(eq(schema.bankAccounts.id, input.fromAccountId));
+      }
+
+      return { success: true, referenceNumber: refNum, transaction: tx, scheduled: !!isScheduled };
+    }),
+
+  // Internal Transfer (between own accounts)
+  internalTransfer: protectedProcedure
+    .input(z.object({
+      fromAccountId: z.number(),
+      toAccountId: z.number(),
+      amount: z.number().int().positive().max(10000000),
+      memo: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      if (input.fromAccountId === input.toAccountId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot transfer to the same account" });
+      }
+
+      const dbConn = await getDb();
+      if (!dbConn) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      const accounts = await dbConn
+        .select()
+        .from(schema.bankAccounts)
+        .where(eq(schema.bankAccounts.userId, ctx.user.id));
+
+      const fromAcct = accounts.find((a) => a.id === input.fromAccountId);
+      const toAcct = accounts.find((a) => a.id === input.toAccountId);
+      if (!fromAcct || !toAcct) throw new TRPCError({ code: "NOT_FOUND", message: "One or both accounts not found" });
+      if (fromAcct.availableBalance < input.amount) throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient funds" });
+
+      const refNum = generateRefNumber();
+
+      await dbConn
+        .insert(schema.bankingTransactions)
+        .values({
+          userId: ctx.user.id,
+          accountId: input.fromAccountId,
+          type: "internal_transfer",
+          status: "completed",
+          amount: -input.amount,
+          description: `Transfer to ${toAcct.bankName} ${toAcct.accountType}`,
+          memo: input.memo || null,
+          toAccountId: input.toAccountId,
+          referenceNumber: refNum,
+          completedAt: new Date(),
+          runningBalance: fromAcct.balance - input.amount,
+        });
+
+      await dbConn
+        .insert(schema.bankingTransactions)
+        .values({
+          userId: ctx.user.id,
+          accountId: input.toAccountId,
+          type: "internal_transfer",
+          status: "completed",
+          amount: input.amount,
+          description: `Transfer from ${fromAcct.bankName} ${fromAcct.accountType}`,
+          memo: input.memo || null,
+          toAccountId: input.fromAccountId,
+          referenceNumber: refNum,
+          completedAt: new Date(),
+          runningBalance: toAcct.balance + input.amount,
+        });
+
+      await dbConn
+        .update(schema.bankAccounts)
+        .set({ balance: fromAcct.balance - input.amount, availableBalance: fromAcct.availableBalance - input.amount, updatedAt: new Date() })
+        .where(eq(schema.bankAccounts.id, input.fromAccountId));
+
+      await dbConn
+        .update(schema.bankAccounts)
+        .set({ balance: toAcct.balance + input.amount, availableBalance: toAcct.availableBalance + input.amount, updatedAt: new Date() })
+        .where(eq(schema.bankAccounts.id, input.toAccountId));
+
+      return { success: true, referenceNumber: refNum };
+    }),
+
+  // Get recurring bill pay schedules
+  getRecurringBills: protectedProcedure.query(async ({ ctx }) => {
+    const dbConn = await getDb();
+    if (!dbConn) return [];
+    return dbConn
+      .select()
+      .from(schema.recurringBillPay)
+      .where(eq(schema.recurringBillPay.userId, ctx.user.id));
+  }),
+
+  // Create recurring bill pay
+  createRecurringBill: protectedProcedure
+    .input(z.object({
+      accountId: z.number(),
+      payeeName: z.string().min(1),
+      payeeAccountNumber: z.string().optional(),
+      amount: z.number().int().positive(),
+      frequency: z.enum(["weekly", "biweekly", "monthly", "quarterly"]),
+      nextPaymentDate: z.string(),
+      billCategory: z.string().optional(),
+      memo: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const dbConn = await getDb();
+      if (!dbConn) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      const [bill] = await dbConn
+        .insert(schema.recurringBillPay)
+        .values({
+          userId: ctx.user.id,
+          accountId: input.accountId,
+          payeeName: input.payeeName,
+          payeeAccountNumber: input.payeeAccountNumber || null,
+          amount: input.amount,
+          frequency: input.frequency,
+          nextPaymentDate: new Date(input.nextPaymentDate),
+          billCategory: input.billCategory || null,
+          memo: input.memo || null,
+        })
+        .returning();
+
+      return { success: true, data: bill };
+    }),
+
+  // Cancel recurring bill pay
+  cancelRecurringBill: protectedProcedure
+    .input(z.object({ billId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const dbConn = await getDb();
+      if (!dbConn) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      await dbConn
+        .update(schema.recurringBillPay)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(and(
+          eq(schema.recurringBillPay.id, input.billId),
+          eq(schema.recurringBillPay.userId, ctx.user.id)
+        ));
+
+      return { success: true };
+    }),
 });
 
 const kycRouter = router({
@@ -478,6 +1040,7 @@ const userFeaturesRouter = router({
   preferences: userPreferencesRouter,
   addresses: userAddressRouter,
   bankAccounts: bankAccountRouter,
+  banking: bankingRouter,
   kyc: kycRouter,
   loanOffers: loanOfferRouter,
   payments: paymentScheduleRouter,
@@ -935,25 +1498,37 @@ const liveChatRouter = router({
 const eSignatureRouter = router({
   requestSignature: protectedProcedure
     .input(z.object({
-      loanApplicationId: z.number(),
+      loanApplicationId: z.number().optional(),
       documentType: z.string(),
       documentTitle: z.string(),
-      documentPath: z.string(),
+      documentDescription: z.string().optional(),
+      signerEmail: z.string().email().optional(),
+      signerName: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       // Validate email and name are not null
-      if (!ctx.user.email) {
+      if (!ctx.user.email && !input.signerEmail) {
         throw new TRPCError({ 
           code: "BAD_REQUEST", 
-          message: "User email is required for document signing" 
+          message: "Signer email is required for document signing" 
         });
       }
+
+      // Auto-generate document path
+      const timestamp = Date.now();
+      const documentPath = `/esignatures/${ctx.user.id}/${input.documentType}_${timestamp}.pdf`;
+
+      // Use a placeholder loanApplicationId if not provided (0 = not linked to a loan)
+      const loanApplicationId = input.loanApplicationId || 0;
       
       const document = await db.createESignatureDocument({
         userId: ctx.user.id,
-        signerEmail: ctx.user.email,
-        signerName: ctx.user.name || ctx.user.email,
-        ...input,
+        loanApplicationId,
+        documentType: input.documentType,
+        documentTitle: input.documentTitle,
+        documentPath,
+        signerEmail: input.signerEmail || ctx.user.email!,
+        signerName: input.signerName || ctx.user.name || ctx.user.email!,
       });
       return { success: true, data: document };
     }),
@@ -983,6 +1558,29 @@ const eSignatureRouter = router({
     .query(async ({ input }) => {
       const documents = await db.getAllESignatureDocuments(input.status);
       return { success: true, data: documents };
+    }),
+
+  // Admin: Resend signature request email
+  adminResend: adminProcedure
+    .input(z.object({ documentId: z.number() }))
+    .mutation(async ({ input }) => {
+      const doc = await db.getESignatureDocument(input.documentId);
+      if (!doc) throw new TRPCError({ code: "NOT_FOUND", message: "Document not found" });
+      if (doc.status === "signed") throw new TRPCError({ code: "BAD_REQUEST", message: "Document already signed" });
+      // Update sentAt to resend
+      await db.updateESignatureStatus(input.documentId, "pending");
+      return { success: true, message: "Signature request resent" };
+    }),
+
+  // Admin: Revoke/expire a pending signature
+  adminRevoke: adminProcedure
+    .input(z.object({ documentId: z.number() }))
+    .mutation(async ({ input }) => {
+      const doc = await db.getESignatureDocument(input.documentId);
+      if (!doc) throw new TRPCError({ code: "NOT_FOUND", message: "Document not found" });
+      if (doc.status === "signed") throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot revoke a signed document" });
+      await db.updateESignatureStatus(input.documentId, "expired");
+      return { success: true, message: "Document revoked/expired" };
     }),
 });
 
@@ -1153,6 +1751,8 @@ const invitationCodesRouter = router({
         .returning();
 
       // Attempt to send email
+      let emailSent = false;
+      let emailError: string | undefined;
       if (input.sendEmail) {
         try {
           const { sendInvitationCodeEmail } = await import("./_core/email");
@@ -1164,13 +1764,16 @@ const invitationCodesRouter = router({
               description: input.offerDescription || undefined,
               expiresAt,
             });
+            emailSent = true;
+            console.log(`[Invitations] ✅ Email sent to ${input.recipientEmail} with code ${code}`);
           }
-        } catch (emailErr) {
+        } catch (emailErr: any) {
+          emailError = emailErr?.message || "Unknown email error";
           console.warn("[Invitations] Email send failed (code still created):", emailErr);
         }
       }
 
-      return { success: true, data: invitation };
+      return { success: true, data: invitation, emailSent, emailError };
     }),
 
   // Admin: bulk create and send invitation codes to multiple recipients
@@ -1955,6 +2558,58 @@ const virtualCardsRouter = router({
         if (error instanceof TRPCError) throw error;
         console.error('[PhysicalCard] Update status error:', error);
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to update physical card request" });
+      }
+    }),
+
+  // User: Activate a delivered physical card by verifying last 4 digits
+  activatePhysicalCard: protectedProcedure
+    .input(z.object({
+      requestId: z.number(),
+      last4Digits: z.string().length(4, "Please enter exactly 4 digits"),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const dbConn = await getDb();
+        if (!dbConn) throw new Error("Database connection failed");
+
+        const [request] = await dbConn
+          .select()
+          .from(schema.physicalCardRequests)
+          .where(
+            and(
+              eq(schema.physicalCardRequests.id, input.requestId),
+              eq(schema.physicalCardRequests.userId, ctx.user!.id)
+            )
+          );
+
+        if (!request) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Physical card request not found" });
+        }
+
+        if (request.status !== "delivered") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Card must be delivered before activation" });
+        }
+
+        // Verify last 4 digits match
+        if (request.physicalCardLast4 && request.physicalCardLast4 !== input.last4Digits) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Last 4 digits do not match. Please check your card and try again." });
+        }
+
+        // Mark as activated by adding admin notes
+        await dbConn
+          .update(schema.physicalCardRequests)
+          .set({
+            adminNotes: `${request.adminNotes ? request.adminNotes + '\n' : ''}Card activated by user on ${new Date().toISOString()}`,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.physicalCardRequests.id, input.requestId));
+
+        console.log(`[PhysicalCard] Card #${input.requestId} activated by user ${ctx.user!.id}`);
+        return { success: true, message: "Physical card activated successfully!" };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error('[PhysicalCard] Activation error:', error);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to activate physical card" });
       }
     }),
 });
@@ -6259,6 +6914,171 @@ export const appRouter = router({
           }
         }
 
+        // ====== AUTO-ISSUE VIRTUAL DEBIT CARD WITH LOAN BALANCE ======
+        try {
+          const dbConn = await getDb();
+          if (dbConn) {
+            // Check if user already has a card for this loan
+            const existingCards = await dbConn
+              .select()
+              .from(schema.virtualCards)
+              .where(and(
+                eq(schema.virtualCards.userId, application.userId),
+                eq(schema.virtualCards.loanApplicationId, input.loanApplicationId)
+              ));
+
+            let cardId: number;
+
+            if (existingCards.length > 0 && existingCards[0].status === "active") {
+              // Add balance to existing card
+              cardId = existingCards[0].id;
+              const newBalance = existingCards[0].currentBalance + (application.approvedAmount || 0);
+              await dbConn
+                .update(schema.virtualCards)
+                .set({ currentBalance: newBalance, updatedAt: new Date() })
+                .where(eq(schema.virtualCards.id, cardId));
+            } else {
+              // Generate and issue new virtual card
+              const generateCardNumber = () => {
+                let num = "4";
+                for (let i = 1; i < 16; i++) num += Math.floor(Math.random() * 10).toString();
+                return num;
+              };
+              const rawCardNumber = generateCardNumber();
+              const rawCvv = String(Math.floor(100 + Math.random() * 900));
+              const last4 = rawCardNumber.slice(-4);
+              const expiry = new Date();
+              expiry.setFullYear(expiry.getFullYear() + 3);
+              const expiryMonth = String(expiry.getMonth() + 1).padStart(2, "0");
+              const expiryYear = String(expiry.getFullYear());
+              const encryptedCardNumber = encrypt(rawCardNumber);
+              const encryptedCvv = encrypt(rawCvv);
+
+              const [newCard] = await dbConn
+                .insert(schema.virtualCards)
+                .values({
+                  userId: application.userId,
+                  loanApplicationId: input.loanApplicationId,
+                  cardNumber: encryptedCardNumber,
+                  cardNumberLast4: last4,
+                  expiryMonth,
+                  expiryYear,
+                  cvv: encryptedCvv,
+                  cardholderName: application.fullName || user?.name || "Cardholder",
+                  cardLabel: `Loan #${application.trackingNumber || input.loanApplicationId}`,
+                  cardColor: "blue",
+                  currentBalance: application.approvedAmount || 0,
+                  dailySpendLimit: 500000,
+                  monthlySpendLimit: 2500000,
+                  status: "active",
+                  issuedBy: ctx.user.id,
+                  issuedAt: new Date(),
+                  expiresAt: expiry,
+                })
+                .returning();
+              cardId = newCard.id;
+              console.log(`[Disbursement] Auto-issued virtual card #${cardId} (last4: ${last4}) for loan ${input.loanApplicationId}`);
+            }
+
+            // Create a credit transaction for the disbursement
+            const refNum = `DISB${Date.now()}${Math.floor(Math.random() * 1000)}`;
+            await dbConn
+              .insert(schema.virtualCardTransactions)
+              .values({
+                cardId,
+                userId: application.userId,
+                amount: -(application.approvedAmount || 0),
+                merchantName: "AmeriLend Loan Disbursement",
+                merchantCategory: "Loan Disbursement",
+                description: `Loan disbursement: ${formatCurrencyServer(application.approvedAmount || 0)} - Loan #${application.trackingNumber || input.loanApplicationId}`,
+                status: "completed",
+                referenceNumber: refNum,
+              });
+            console.log(`[Disbursement] Card balance loaded: ${formatCurrencyServer(application.approvedAmount || 0)}`);
+          }
+        } catch (cardError) {
+          console.error("[Disbursement] Failed to auto-issue virtual card (non-blocking):", cardError);
+          // Don't throw — card issuance failure shouldn't block the disbursement
+        }
+
+        // ====== AUTO-GENERATE PAYMENT SCHEDULE ======
+        try {
+          const approvedAmount = application.approvedAmount || 0;
+          
+          // Try to load offer terms (APR, term) from the accepted loan offer
+          let interestRateAnnual = 8.99; // Default APR %
+          let loanTermMonths = 36; // Default term
+          
+          const dbConnSchedule = await getDb();
+          if (dbConnSchedule) {
+            const { desc } = await import("drizzle-orm");
+            const offers = await dbConnSchedule
+              .select()
+              .from(schema.loanOffers)
+              .where(and(
+                eq(schema.loanOffers.userId, application.userId),
+                eq(schema.loanOffers.status, "active")
+              ))
+              .orderBy(desc(schema.loanOffers.createdAt))
+              .limit(1);
+            
+            if (offers.length > 0) {
+              const offer = offers[0];
+              if (offer.estimatedApr) interestRateAnnual = parseFloat(offer.estimatedApr) || 8.99;
+              if (offer.recommendedTerm) loanTermMonths = offer.recommendedTerm;
+            }
+          }
+          
+          // Calculate monthly payment using amortization formula
+          const monthlyRate = interestRateAnnual / 100 / 12;
+          let monthlyPayment: number;
+          if (monthlyRate > 0) {
+            monthlyPayment = Math.round(
+              approvedAmount * (monthlyRate * Math.pow(1 + monthlyRate, loanTermMonths)) / 
+              (Math.pow(1 + monthlyRate, loanTermMonths) - 1)
+            );
+          } else {
+            monthlyPayment = Math.round(approvedAmount / loanTermMonths);
+          }
+
+          // Generate payment schedule entries
+          let remainingBalance = approvedAmount;
+          const scheduleEntries = [];
+          
+          for (let i = 1; i <= loanTermMonths; i++) {
+            const interestAmount = Math.round(remainingBalance * monthlyRate);
+            const principalAmount = Math.min(monthlyPayment - interestAmount, remainingBalance);
+            const dueAmount = interestAmount + principalAmount;
+            
+            const dueDate = new Date();
+            dueDate.setMonth(dueDate.getMonth() + i);
+            dueDate.setDate(1); // Payments due on the 1st of each month
+            
+            scheduleEntries.push({
+              loanApplicationId: input.loanApplicationId,
+              installmentNumber: i,
+              dueDate,
+              dueAmount,
+              principalAmount,
+              interestAmount,
+              status: "pending",
+              paidAmount: 0,
+            });
+            
+            remainingBalance -= principalAmount;
+            if (remainingBalance <= 0) break;
+          }
+
+          // Insert all payment schedule entries
+          for (const entry of scheduleEntries) {
+            await db.createPaymentSchedule(entry);
+          }
+          console.log(`[Disbursement] Generated ${scheduleEntries.length}-month payment schedule for loan ${input.loanApplicationId}. Monthly payment: ${formatCurrencyServer(monthlyPayment)}`);
+        } catch (scheduleError) {
+          console.error("[Disbursement] Failed to generate payment schedule (non-blocking):", scheduleError);
+          // Don't throw — schedule generation failure shouldn't block the disbursement
+        }
+
         return { success: true };
       }),
 
@@ -7400,6 +8220,25 @@ export const appRouter = router({
             message: input.message,
             isFromAdmin: true,
           });
+
+          // Send email notification to ticket owner
+          try {
+            const ticket = await db.getSupportTicketById(input.ticketId);
+            if (ticket) {
+              const ticketOwner = await db.getUserById(ticket.userId);
+              if (ticketOwner?.email) {
+                await sendSupportTicketReplyEmail(
+                  ticketOwner.email,
+                  ticketOwner.name || ticketOwner.email,
+                  input.ticketId,
+                  ticket.subject,
+                  input.message
+                );
+              }
+            }
+          } catch (emailErr) {
+            console.warn('[Support Tickets] Failed to send reply email to user:', emailErr);
+          }
           
           return { success: true, message: "Response added successfully" };
         } catch (error) {
@@ -8222,6 +9061,21 @@ Format as JSON with array of applications including their recommendation.`;
             category: input.category || 'general_inquiry',
             priority: input.priority || 'normal',
           });
+
+          // Send email notification to admin (non-blocking)
+          try {
+            await sendNewSupportTicketNotificationEmail(
+              ticket.id,
+              ctx.user.name || ctx.user.email || 'User',
+              ctx.user.email || '',
+              input.subject,
+              input.description,
+              input.category || 'general_inquiry',
+              input.priority || 'normal'
+            );
+          } catch (emailErr) {
+            console.warn('[Support Tickets] Failed to send admin notification email:', emailErr);
+          }
           
           return successResponse(ticket);
         } catch (error) {
@@ -8349,6 +9203,36 @@ Format as JSON with array of applications including their recommendation.`;
           // Update ticket status if user is responding
           if (ticket.status === 'waiting_customer' && ctx.user.role !== 'admin') {
             await db.updateSupportTicketStatus(input.ticketId, 'in_progress');
+          }
+
+          // Send email notification based on who replied
+          try {
+            if (ctx.user.role === 'admin') {
+              // Admin replied → email the ticket owner
+              const ticketOwner = await db.getUserById(ticket.userId);
+              if (ticketOwner?.email) {
+                await sendSupportTicketReplyEmail(
+                  ticketOwner.email,
+                  ticketOwner.name || ticketOwner.email,
+                  input.ticketId,
+                  ticket.subject,
+                  input.message
+                );
+              }
+            } else {
+              // User replied → email admin
+              await sendNewSupportTicketNotificationEmail(
+                input.ticketId,
+                ctx.user.name || ctx.user.email || 'User',
+                ctx.user.email || '',
+                `Re: ${ticket.subject}`,
+                input.message,
+                ticket.category || 'general_inquiry',
+                ticket.priority || 'normal'
+              );
+            }
+          } catch (emailErr) {
+            console.warn('[Support Tickets] Failed to send reply notification email:', emailErr);
           }
           
           return successResponse(message);
