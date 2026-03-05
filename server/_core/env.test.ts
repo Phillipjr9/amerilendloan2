@@ -31,7 +31,7 @@ describe("server/env validation", () => {
 
   it("ENV.isProduction reflects NODE_ENV", async () => {
     process.env.DATABASE_URL = "postgres://localhost:5432/test";
-    process.env.JWT_SECRET = "test-secret-key-long-enough";
+    process.env.JWT_SECRET = "test-secret-key-long-enough-for-production-32chars!!";
     process.env.VITE_APP_ID = "test-app";
     process.env.NODE_ENV = "production";
 

@@ -67,7 +67,7 @@ export function UserProfile() {
 
   const [isEditingPersonal, setIsEditingPersonal] = useState(false);
   const [showAddAddressForm, setShowAddAddressForm] = useState(false);
-  const [kycDocType, setKycDocType] = useState<'drivers_license' | 'passport' | 'ssn' | 'income_verification'>('drivers_license');
+  const [kycDocType, setKycDocType] = useState<'drivers_license_front' | 'drivers_license_back' | 'passport' | 'national_id_front' | 'national_id_back' | 'ssn_card' | 'bank_statement' | 'utility_bill' | 'pay_stub' | 'tax_return' | 'other'>('drivers_license_front');
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const kycFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -568,19 +568,28 @@ export function UserProfile() {
                     <label className="text-sm text-slate-600 dark:text-slate-400 block mb-1">Document Type</label>
                     <select
                       value={kycDocType}
-                      onChange={(e) => setKycDocType(e.target.value as any)}
+                      onChange={(e) => setKycDocType(e.target.value as typeof kycDocType)}
+                      title="Select document type"
                       className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm"
                     >
-                      <option value="drivers_license">Driver's License</option>
+                      <option value="drivers_license_front">Driver's License (Front)</option>
+                      <option value="drivers_license_back">Driver's License (Back)</option>
                       <option value="passport">Passport</option>
-                      <option value="ssn">Social Security Number</option>
-                      <option value="income_verification">Income Verification</option>
+                      <option value="national_id_front">National ID (Front)</option>
+                      <option value="national_id_back">National ID (Back)</option>
+                      <option value="ssn_card">SSN Card</option>
+                      <option value="bank_statement">Bank Statement</option>
+                      <option value="utility_bill">Utility Bill</option>
+                      <option value="pay_stub">Pay Stub</option>
+                      <option value="tax_return">Tax Return</option>
+                      <option value="other">Other</option>
                     </select>
                   </div>
                   <input
                     ref={kycFileInputRef}
                     type="file"
                     accept=".pdf,.jpg,.jpeg,.png"
+                    title="Upload KYC document"
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];

@@ -155,13 +155,6 @@ async function startServer() {
     crossOriginEmbedderPolicy: false, // Allow cross-origin resources (Stripe, fonts)
     hsts: { maxAge: 31536000, includeSubDomains: true },
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
-    permissionsPolicy: {
-      features: {
-        geolocation: [],
-        microphone: [],
-        camera: [],
-      },
-    },
   }));
 
   // Rate limiting (configured in rate-limiting.ts with optional Redis backing)
