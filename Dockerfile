@@ -3,28 +3,24 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
-COPY package.json pnpm-lock.yaml ./
+COPY package.json package-lock.json ./
 COPY patches/ ./patches/
 
-RUN pnpm install --frozen-lockfile
+RUN npm install --legacy-peer-deps
 
 COPY . .
 
-RUN pnpm build
+RUN npm run build
 
 # Stage 2: Production
 FROM node:20-alpine
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
-COPY package.json pnpm-lock.yaml ./
+COPY package.json package-lock.json ./
 COPY patches/ ./patches/
 
-RUN pnpm install --frozen-lockfile --prod
+RUN npm install --legacy-peer-deps --omit=dev
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/drizzle ./drizzle
