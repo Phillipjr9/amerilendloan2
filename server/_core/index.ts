@@ -168,6 +168,7 @@ async function startServer() {
   
   // Health check endpoints (Priority 5)
   app.get("/health", healthCheck);
+  app.get("/api/health", healthCheck);
   app.get("/health/readiness", readinessCheck);
   app.get("/health/liveness", livenessCheck);
   app.get("/metrics", metricsEndpoint);
