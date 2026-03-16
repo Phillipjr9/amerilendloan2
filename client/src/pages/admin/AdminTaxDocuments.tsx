@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  FileText, Loader2, ArrowLeft, Download, Calendar,
+  FileText, Loader2, ArrowLeft, Calendar,
   Receipt, Search
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -12,7 +12,7 @@ import { useLocation } from "wouter";
 
 export default function AdminTaxDocuments() {
   const [, setLocation] = useLocation();
-  const [selectedDocument, setSelectedDocument] = useState<any>(null);
+  const [selectedDocument, setSelectedDocument] = useState<Record<string, unknown> | null>(null);
   const [taxYearFilter, setTaxYearFilter] = useState<number | undefined>(undefined);
   const [userIdFilter, setUserIdFilter] = useState<string>("");
 
@@ -74,7 +74,7 @@ export default function AdminTaxDocuments() {
           <Card className="bg-slate-800 border-slate-700">
             <CardContent className="pt-6 text-center">
               <p className="text-3xl font-bold text-blue-400">
-                {documents.filter((d: any) => d.documentType === "1098").length}
+                {documents.filter((d) => d.documentType === "1098").length}
               </p>
               <p className="text-slate-400 text-sm">Form 1098</p>
             </CardContent>
@@ -82,7 +82,7 @@ export default function AdminTaxDocuments() {
           <Card className="bg-slate-800 border-slate-700">
             <CardContent className="pt-6 text-center">
               <p className="text-3xl font-bold text-purple-400">
-                {documents.filter((d: any) => d.documentType === "1099_c").length}
+                {documents.filter((d) => d.documentType === "1099_c").length}
               </p>
               <p className="text-slate-400 text-sm">Form 1099-C</p>
             </CardContent>
@@ -152,7 +152,7 @@ export default function AdminTaxDocuments() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {documents.map((doc: any) => (
+                    {documents.map((doc) => (
                       <div
                         key={doc.id}
                         onClick={() => setSelectedDocument(doc)}

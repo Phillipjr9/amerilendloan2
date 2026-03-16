@@ -9,12 +9,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Download, Filter, TrendingUp, CreditCard, Trash2 } from "lucide-react";
+import { Download, Filter, TrendingUp, CreditCard, Trash2, LogIn } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 interface Payment {
   id: string;
@@ -31,16 +32,20 @@ interface Payment {
 }
 
 export function PaymentHistory() {
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [filterStatus, setFilterStatus] = useState<"all" | "paid" | "pending" | "failed">("all");
   const [showFilterPopover, setShowFilterPopover] = useState(false);
   const [detailPayment, setDetailPayment] = useState<Payment | null>(null);
   const [, setLocation] = useLocation();
 
-  // Fetch real payment history from backend
-  const { data: paymentsData = [], isLoading } = trpc.payments.getHistory.useQuery();
+  // Only fetch data when authenticated to avoid auth redirect
+  const { data: paymentsData = [], isLoading } = trpc.payments.getHistory.useQuery(undefined, {
+    enabled: isAuthenticated && !authLoading,
+  });
 
-  // Fetch real bank accounts
-  const { data: bankAccounts = [] } = trpc.userFeatures.bankAccounts.list.useQuery();
+  const { data: bankAccounts = [] } = trpc.userFeatures.bankAccounts.list.useQuery(undefined, {
+    enabled: isAuthenticated && !authLoading,
+  });
 
   // Remove bank account mutation
   const removeBankAccountMutation = trpc.userFeatures.bankAccounts.remove.useMutation({
@@ -115,6 +120,38 @@ export function PaymentHistory() {
         return "💰";
     }
   };
+
+  // Show unauthenticated fallback
+  if (!authLoading && !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 p-4 md:p-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-2">
+              <CreditCard className="w-8 h-8 text-green-400" />
+              <h1 className="text-3xl font-bold text-white">Payment History</h1>
+            </div>
+            <p className="text-slate-400">View and manage all your loan payments</p>
+          </div>
+          <Card className="bg-slate-800 border-slate-700">
+            <CardContent className="pt-12 pb-12">
+              <div className="text-center">
+                <CreditCard className="w-16 h-16 text-slate-500 mx-auto mb-4 opacity-50" />
+                <h2 className="text-xl font-semibold text-white mb-2">No payments yet</h2>
+                <p className="text-slate-400 mb-6">Sign in to view your payment history and make a payment.</p>
+                <Link href="/login">
+                  <Button className="bg-blue-600 hover:bg-blue-700">
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Sign In
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 p-4 md:p-8">
@@ -256,7 +293,11 @@ export function PaymentHistory() {
                 ) : filteredPayments.length === 0 ? (
                   <div className="text-center py-12">
                     <CreditCard className="w-12 h-12 text-slate-500 mx-auto mb-4 opacity-50" />
-                    <p className="text-slate-400">No payments found</p>
+                    <p className="text-slate-400 text-lg font-medium mb-2">No payments yet</p>
+                    <p className="text-slate-500 text-sm mb-4">When you make a payment, it will appear here.</p>
+                    <Link href="/dashboard">
+                      <Button variant="outline" size="sm">Make a payment</Button>
+                    </Link>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">

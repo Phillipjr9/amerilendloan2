@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
   Loader2, ArrowLeft, Plus, Trash2, Edit, Save,
-  Zap, Settings2, X, CheckCircle
+  Zap, Settings2, X
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -26,7 +26,7 @@ interface ActionConfig {
 export default function AdminAutomationRules() {
   const [, setLocation] = useLocation();
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingRule, setEditingRule] = useState<any>(null);
+  const [editingRule, setEditingRule] = useState<Record<string, unknown> | null>(null);
 
   // Form state
   const [name, setName] = useState("");
@@ -76,7 +76,7 @@ export default function AdminAutomationRules() {
     setAction({ type: "send_notification", value: "" });
   };
 
-  const startEdit = (rule: any) => {
+  const startEdit = (rule: Record<string, unknown>) => {
     setEditingRule(rule);
     setShowCreateForm(true);
     setName(rule.name);
@@ -204,7 +204,7 @@ export default function AdminAutomationRules() {
           <Card className="bg-slate-800 border-slate-700">
             <CardContent className="pt-6 text-center">
               <p className="text-3xl font-bold text-green-400">
-                {rules.filter((r: any) => r.enabled).length}
+                {rules.filter((r) => r.enabled).length}
               </p>
               <p className="text-slate-400 text-sm">Active</p>
             </CardContent>
@@ -212,7 +212,7 @@ export default function AdminAutomationRules() {
           <Card className="bg-slate-800 border-slate-700">
             <CardContent className="pt-6 text-center">
               <p className="text-3xl font-bold text-slate-500">
-                {rules.filter((r: any) => !r.enabled).length}
+                {rules.filter((r) => !r.enabled).length}
               </p>
               <p className="text-slate-400 text-sm">Disabled</p>
             </CardContent>
@@ -376,7 +376,7 @@ export default function AdminAutomationRules() {
               </div>
             ) : (
               <div className="space-y-3">
-                {rules.map((rule: any) => (
+                {rules.map((rule) => (
                   <div
                     key={rule.id}
                     className="p-4 rounded-lg bg-slate-700/50 border border-slate-600 hover:bg-slate-700 transition-colors"

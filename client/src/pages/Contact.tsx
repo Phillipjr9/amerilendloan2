@@ -238,6 +238,7 @@ export default function Contact() {
                       <option value="payment">Payment Issue</option>
                       <option value="technical">Technical Support</option>
                       <option value="complaint">File a Complaint</option>
+                      <option value="partnership">Partnership</option>
                     </select>
                   </div>
                 </div>

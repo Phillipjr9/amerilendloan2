@@ -2,9 +2,9 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  FileText, Loader2, ArrowLeft, PenTool, Clock,
+  Loader2, ArrowLeft, PenTool, Clock,
   CheckCircle, Search, FileSignature, RefreshCw, XCircle, Download
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -13,7 +13,7 @@ import { toast } from "sonner";
 
 export default function AdminESignatures() {
   const [, setLocation] = useLocation();
-  const [selectedDocument, setSelectedDocument] = useState<any>(null);
+  const [selectedDocument, setSelectedDocument] = useState<Record<string, unknown> | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
 
   const { data: docsData, isLoading, refetch } = trpc.eSignature.adminGetAll.useQuery(
@@ -25,7 +25,7 @@ export default function AdminESignatures() {
       toast.success("Signature request resent");
       refetch();
     },
-    onError: (err: any) => toast.error(err.message || "Failed to resend"),
+    onError: (err: { message?: string }) => toast.error(err.message || "Failed to resend"),
   });
 
   const revokeMutation = trpc.eSignature.adminRevoke.useMutation({
@@ -34,13 +34,13 @@ export default function AdminESignatures() {
       refetch();
       setSelectedDocument(null);
     },
-    onError: (err: any) => toast.error(err.message || "Failed to revoke"),
+    onError: (err: { message?: string }) => toast.error(err.message || "Failed to revoke"),
   });
 
   const documents = docsData?.data ?? [];
-  const pending = documents.filter((d: any) => d.status === "pending");
-  const signed = documents.filter((d: any) => d.status === "signed");
-  const expired = documents.filter((d: any) => d.status === "expired");
+  const pending = documents.filter((d) => d.status === "pending");
+  const signed = documents.filter((d) => d.status === "signed");
+  const expired = documents.filter((d) => d.status === "expired");
 
   const statusBadge = (status: string) => {
     switch (status) {
@@ -133,7 +133,7 @@ export default function AdminESignatures() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {documents.map((doc: any) => (
+                    {documents.map((doc) => (
                       <div
                         key={doc.id}
                         onClick={() => setSelectedDocument(doc)}

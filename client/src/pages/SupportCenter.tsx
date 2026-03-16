@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, MessageSquare, Clock, CheckCircle, AlertCircle, ChevronRight, Send } from "lucide-react";
+import { Plus, MessageSquare, Clock, CheckCircle, AlertCircle, ChevronRight, Send, LogIn } from "lucide-react";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,8 @@ import { z } from "zod";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { Link } from "wouter";
 
 interface SupportTicket {
   id: string;
@@ -35,13 +37,16 @@ const ticketFormSchema = z.object({
 type TicketFormData = z.infer<typeof ticketFormSchema>;
 
 export function SupportCenter() {
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [filter, setFilter] = useState<"all" | "open" | "resolved">("all");
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [showNewTicket, setShowNewTicket] = useState(false);
   const [replyMessage, setReplyMessage] = useState("");
 
-  // Fetch tickets from backend
-  const { data: ticketsData, refetch } = trpc.supportTickets.getUserTickets.useQuery();
+  // Only fetch tickets when authenticated to avoid auth redirect
+  const { data: ticketsData, refetch } = trpc.supportTickets.getUserTickets.useQuery(undefined, {
+    enabled: isAuthenticated && !authLoading,
+  });
   const tickets = ticketsData?.data || [];
 
   // Create ticket mutation
@@ -156,6 +161,57 @@ export function SupportCenter() {
         return null;
     }
   };
+
+  // Show unauthenticated fallback with FAQ and contact info
+  if (!authLoading && !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 p-4 md:p-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-2">
+              <MessageSquare className="w-8 h-8 text-blue-400" />
+              <h1 className="text-3xl font-bold text-white">Support Center</h1>
+            </div>
+            <p className="text-slate-400">Get help and manage your support tickets</p>
+          </div>
+          <Card className="bg-slate-800 border-slate-700 mb-6">
+            <CardContent className="pt-12 pb-12">
+              <div className="text-center">
+                <MessageSquare className="w-16 h-16 text-slate-500 mx-auto mb-4 opacity-50" />
+                <h2 className="text-xl font-semibold text-white mb-2">Sign in to manage support tickets</h2>
+                <p className="text-slate-400 mb-6">Create and track your support requests after signing in.</p>
+                <Link href="/login">
+                  <Button className="bg-blue-600 hover:bg-blue-700">
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Sign In
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <CardTitle>Frequently Asked Questions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {[
+                  { q: "How long does payment processing take?", a: "Most payments are processed within 2-3 business days." },
+                  { q: "What documents do I need for KYC verification?", a: "You'll need a valid ID and proof of address. Upload via your profile." },
+                  { q: "Can I reschedule my payment date?", a: "Yes, contact support or use the payment schedule adjustment feature." },
+                ].map((faq, idx) => (
+                  <div key={idx} className="border-t border-slate-600 pt-4">
+                    <h4 className="text-white font-medium mb-2">{faq.q}</h4>
+                    <p className="text-slate-400 text-sm">{faq.a}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 p-4 md:p-8">

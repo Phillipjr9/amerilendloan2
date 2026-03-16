@@ -50,6 +50,7 @@ import AdminTaxDocuments from "./pages/admin/AdminTaxDocuments";
 import AdminESignatures from "./pages/admin/AdminESignatures";
 import AdminAutomationRules from "./pages/admin/AdminAutomationRules";
 import AdminInvitationCodes from "./pages/admin/AdminInvitationCodes";
+import AdminJobApplications from "./pages/admin/AdminJobApplications";
 import NotificationSettings from "./pages/NotificationSettings";
 import About from "./pages/About";
 import HowItWorksPage from "./pages/HowItWorks";
@@ -105,6 +106,7 @@ function Router() {
       <Route path={"/admin/e-signatures"} component={AdminESignatures} />
       <Route path={"/admin/automation"} component={AdminAutomationRules} />
       <Route path={"/admin/invitations"} component={AdminInvitationCodes} />
+      <Route path={"/admin/job-applications"} component={AdminJobApplications} />
       <Route path={"/payment/:id"} component={PaymentPage} />
       <Route path={"/pay-fee"} component={PayFee} />
       <Route path={"/otp-login"} component={OTPLogin} />

@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SubmissionAnimationOverlay } from "@/components/SubmissionAnimationOverlay";
-import { SkeletonApplyForm } from "@/components/SkeletonCard";
 import { trpc } from "@/lib/trpc";
 import { CheckCircle2, Loader2, Phone, ArrowLeft, Save, Eye, EyeOff, Calculator } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -792,23 +791,8 @@ export default function ApplyLoan() {
     if (currentStep > 1) setCurrentStep(currentStep - 1);
   };
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <div className="h-8 bg-gray-300 rounded w-1/3 mb-4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-          </div>
-          <Card>
-            <CardContent className="p-6">
-              <SkeletonApplyForm />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+  // Don't block the form behind auth loading — render immediately
+  // Auth info (name, email) will be pre-filled when auth resolves via useEffect
 
   // Show success screen if application was submitted
   if (submittedTrackingNumber) {

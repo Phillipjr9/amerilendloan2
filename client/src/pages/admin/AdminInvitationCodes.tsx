@@ -2,12 +2,12 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
-  Loader2, ArrowLeft, Plus, Mail, Copy, RefreshCw,
+  Loader2, ArrowLeft, Plus, Copy, RefreshCw,
   XCircle, CheckCircle, Clock, Ticket, Search, Send, X
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -17,7 +17,7 @@ import { useLocation } from "wouter";
 export default function AdminInvitationCodes() {
   const [, setLocation] = useLocation();
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [selectedCode, setSelectedCode] = useState<any>(null);
+  const [selectedCode, setSelectedCode] = useState<Record<string, unknown> | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
 
   // Create form state
@@ -32,7 +32,7 @@ export default function AdminInvitationCodes() {
   const [sendEmail, setSendEmail] = useState(true);
 
   const { data: codesData, isLoading } = trpc.invitations.list.useQuery(
-    statusFilter ? { status: statusFilter as any } : undefined
+    statusFilter ? { status: statusFilter as "active" | "redeemed" | "expired" | "revoked" } : undefined
   );
   const utils = trpc.useUtils();
 
@@ -68,10 +68,10 @@ export default function AdminInvitationCodes() {
   });
 
   const codes = codesData?.data ?? [];
-  const active = codes.filter((c: any) => c.status === "active");
-  const redeemed = codes.filter((c: any) => c.status === "redeemed");
-  const expired = codes.filter((c: any) => c.status === "expired");
-  const revoked = codes.filter((c: any) => c.status === "revoked");
+  const active = codes.filter((c) => c.status === "active");
+  const redeemed = codes.filter((c) => c.status === "redeemed");
+  const expired = codes.filter((c) => c.status === "expired");
+  const revoked = codes.filter((c) => c.status === "revoked");
 
   const resetForm = () => {
     setShowCreateForm(false);
@@ -343,7 +343,7 @@ export default function AdminInvitationCodes() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {codes.map((code: any) => (
+                    {codes.map((code) => (
                       <div
                         key={code.id}
                         onClick={() => setSelectedCode(code)}

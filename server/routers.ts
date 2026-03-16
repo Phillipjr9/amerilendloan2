@@ -9462,6 +9462,16 @@ Format as JSON with array of applications including their recommendation.`;
       }))
       .mutation(async ({ input }) => {
         try {
+          // Persist to database
+          await db.createJobApplication({
+            fullName: input.fullName,
+            email: input.email,
+            phone: input.phone,
+            position: input.position,
+            resumeFileName: input.resumeFileName,
+            coverLetter: input.coverLetter,
+          });
+
           // Send confirmation email to applicant
           await sendJobApplicationConfirmationEmail(input.email, input.fullName, input.position);
 
@@ -9483,6 +9493,38 @@ Format as JSON with array of applications including their recommendation.`;
             message: "Failed to submit application. Please try again later."
           });
         }
+      }),
+  }),
+
+  // Job Applications admin router
+  jobApplications: router({
+    list: adminProcedure
+      .query(async () => {
+        return await db.getAllJobApplications();
+      }),
+
+    getById: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const app = await db.getJobApplicationById(input.id);
+        if (!app) throw new TRPCError({ code: "NOT_FOUND", message: "Application not found" });
+        return app;
+      }),
+
+    updateStatus: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(["pending", "under_review", "approved", "rejected"]),
+        adminNotes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const updated = await db.updateJobApplicationStatus(
+          input.id,
+          input.status,
+          ctx.user.id,
+          input.adminNotes,
+        );
+        return { success: true, application: updated };
       }),
   }),
 

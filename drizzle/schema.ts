@@ -2006,3 +2006,46 @@ export const automationRules = pgTable("automation_rules", {
 
 export type AutomationRule = typeof automationRules.$inferSelect;
 export type InsertAutomationRule = typeof automationRules.$inferInsert;
+
+/**
+ * Email reminder log — tracks which reminders have been sent to prevent duplicates
+ */
+export const emailReminderLog = pgTable("email_reminder_log", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  reminderType: varchar("reminder_type", { length: 80 }).notNull(),
+  entityId: integer("entity_id"), // e.g. loanApplicationId, nullable for user-level reminders
+  reminderCount: integer("reminder_count").default(1).notNull(),
+  lastSentAt: timestamp("last_sent_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type EmailReminderLog = typeof emailReminderLog.$inferSelect;
+export type InsertEmailReminderLog = typeof emailReminderLog.$inferInsert;
+
+// Job Applications (Careers / Hiring)
+export const jobApplicationStatusEnum = pgEnum("job_application_status", [
+  "pending",
+  "under_review",
+  "approved",
+  "rejected",
+]);
+
+export const jobApplications = pgTable("job_applications", {
+  id: serial("id").primaryKey(),
+  fullName: varchar("full_name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  phone: varchar("phone", { length: 50 }).notNull(),
+  position: varchar("position", { length: 255 }).notNull(),
+  resumeFileName: varchar("resume_file_name", { length: 500 }),
+  coverLetter: text("cover_letter").notNull(),
+  status: jobApplicationStatusEnum("status").default("pending").notNull(),
+  adminNotes: text("admin_notes"),
+  reviewedBy: integer("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type JobApplication = typeof jobApplications.$inferSelect;
+export type InsertJobApplication = typeof jobApplications.$inferInsert;

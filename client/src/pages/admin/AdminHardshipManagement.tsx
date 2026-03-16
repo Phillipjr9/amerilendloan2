@@ -2,12 +2,12 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import {
-  CheckCircle, XCircle, Clock, FileText, Filter, Loader2,
-  ShieldCheck, ArrowLeft, AlertTriangle, HandHeart
+  CheckCircle, XCircle, Clock, FileText, Loader2,
+  ArrowLeft, AlertTriangle, HandHeart
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -15,7 +15,7 @@ import { useLocation } from "wouter";
 
 export default function AdminHardshipManagement() {
   const [, setLocation] = useLocation();
-  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [selectedRequest, setSelectedRequest] = useState<Record<string, unknown> | null>(null);
   const [adminNotes, setAdminNotes] = useState("");
   const [approvedDuration, setApprovedDuration] = useState("");
   const [approvedPaymentAmount, setApprovedPaymentAmount] = useState("");
@@ -39,9 +39,9 @@ export default function AdminHardshipManagement() {
   });
 
   const requests = requestsData?.data ?? [];
-  const pending = requests.filter((r: any) => r.status === "pending");
-  const approved = requests.filter((r: any) => r.status === "approved");
-  const rejected = requests.filter((r: any) => r.status === "rejected");
+  const pending = requests.filter((r) => r.status === "pending");
+  const approved = requests.filter((r) => r.status === "approved");
+  const rejected = requests.filter((r) => r.status === "rejected");
 
   const handleReview = (status: "approved" | "rejected") => {
     if (!selectedRequest) return;
@@ -154,7 +154,7 @@ export default function AdminHardshipManagement() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {requests.map((req: any) => (
+                    {requests.map((req) => (
                       <div
                         key={req.id}
                         onClick={() => setSelectedRequest(req)}

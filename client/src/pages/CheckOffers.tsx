@@ -282,7 +282,8 @@ export default function CheckOffers() {
     const income = Number(formData.annualIncome);
     const score = Number(formData.creditScore);
 
-    if (income < 15000 || score < 300) {
+    // Deny offers for high-risk profiles: very low income or very poor credit
+    if (income < 15000 || score < 450) {
       setStep("no-offers");
       return;
     }
@@ -354,14 +355,14 @@ export default function CheckOffers() {
             <div className="flex justify-center mb-4">
               <AlertCircle className="w-16 h-16 text-amber-500" />
             </div>
-            <CardTitle className="text-amber-600">No Offers Available</CardTitle>
+            <CardTitle className="text-amber-600">No Pre-Qualified Offers</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <p className="text-center text-slate-700">
-              We weren't able to match you with a loan offer at this time. This could be due to income or credit requirements.
+              Unfortunately, we have no pre-qualified offers for you at this time. This could be due to income or credit requirements.
             </p>
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-2">
-              <p className="text-sm font-semibold text-blue-800">What you can do:</p>
+              <p className="text-sm font-semibold text-blue-800">We suggest the following steps:</p>
               <ul className="text-sm text-blue-700 space-y-1 list-disc pl-4">
                 <li>Improve your credit score and check again</li>
                 <li>Add a co-signer to strengthen your application</li>
@@ -745,11 +746,11 @@ export default function CheckOffers() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="firstName">First Name</Label>
-                <Input id="firstName" name="firstName" placeholder="John" value={formData.firstName} onChange={handleInput} />
+                <Input id="firstName" name="firstName" placeholder="First name" value={formData.firstName} onChange={handleInput} autoComplete="given-name" />
               </div>
               <div>
                 <Label htmlFor="lastName">Last Name</Label>
-                <Input id="lastName" name="lastName" placeholder="Doe" value={formData.lastName} onChange={handleInput} />
+                <Input id="lastName" name="lastName" placeholder="Last name" value={formData.lastName} onChange={handleInput} autoComplete="family-name" />
               </div>
             </div>
 

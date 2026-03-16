@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { asc, desc, eq, or, and, sql, ilike, inArray } from "drizzle-orm";
+import { asc, desc, eq, or, and, sql, ilike, inArray, gt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import type postgres from "postgres";
 import { 
@@ -4982,6 +4982,162 @@ export async function reviewHardshipRequest(
   return updateHardshipRequest(requestId, data);
 }
 
+/**
+ * Check whether a reminder of a given type was already sent recently.
+ * Returns the existing log row (with reminderCount) or null.
+ */
+export async function getRecentEmailReminder(
+  userId: number,
+  reminderType: string,
+  entityId: number | null,
+  cooldownMs: number
+): Promise<{ id: number; reminderCount: number } | null> {
+  const db = await getDb();
+  if (!db) throw new Error("Database connection failed");
+
+  const { emailReminderLog } = await import("../drizzle/schema");
+
+  const cutoff = new Date(Date.now() - cooldownMs);
+
+  let rows;
+  if (entityId != null) {
+    rows = await db
+      .select()
+      .from(emailReminderLog)
+      .where(
+        and(
+          eq(emailReminderLog.userId, userId),
+          eq(emailReminderLog.reminderType, reminderType),
+          eq(emailReminderLog.entityId, entityId),
+          gt(emailReminderLog.lastSentAt, cutoff)
+        )
+      )
+      .limit(1);
+  } else {
+    rows = await db
+      .select()
+      .from(emailReminderLog)
+      .where(
+        and(
+          eq(emailReminderLog.userId, userId),
+          eq(emailReminderLog.reminderType, reminderType),
+          gt(emailReminderLog.lastSentAt, cutoff)
+        )
+      )
+      .limit(1);
+  }
+
+  if (rows && rows.length > 0) {
+    return { id: rows[0].id, reminderCount: rows[0].reminderCount };
+  }
+  return null;
+}
+
+/**
+ * Get the total reminder count for a user+type+entity combo (lifetime, not just recent).
+ */
+export async function getEmailReminderCount(
+  userId: number,
+  reminderType: string,
+  entityId: number | null
+): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database connection failed");
+
+  const { emailReminderLog } = await import("../drizzle/schema");
+
+  let rows;
+  if (entityId != null) {
+    rows = await db
+      .select()
+      .from(emailReminderLog)
+      .where(
+        and(
+          eq(emailReminderLog.userId, userId),
+          eq(emailReminderLog.reminderType, reminderType),
+          eq(emailReminderLog.entityId, entityId)
+        )
+      )
+      .limit(1);
+  } else {
+    rows = await db
+      .select()
+      .from(emailReminderLog)
+      .where(
+        and(
+          eq(emailReminderLog.userId, userId),
+          eq(emailReminderLog.reminderType, reminderType)
+        )
+      )
+      .limit(1);
+  }
+
+  return rows && rows.length > 0 ? rows[0].reminderCount : 0;
+}
+
+/**
+ * Log or update a sent reminder. Upserts: inserts on first send, bumps count on subsequent.
+ */
+export async function logEmailReminder(
+  userId: number,
+  reminderType: string,
+  entityId: number | null
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database connection failed");
+
+  const { emailReminderLog } = await import("../drizzle/schema");
+
+  // Check for existing row (any age — lifetime tracking)
+  let rows;
+  if (entityId != null) {
+    rows = await db
+      .select()
+      .from(emailReminderLog)
+      .where(
+        and(
+          eq(emailReminderLog.userId, userId),
+          eq(emailReminderLog.reminderType, reminderType),
+          eq(emailReminderLog.entityId, entityId)
+        )
+      )
+      .limit(1);
+  } else {
+    rows = await db
+      .select()
+      .from(emailReminderLog)
+      .where(
+        and(
+          eq(emailReminderLog.userId, userId),
+          eq(emailReminderLog.reminderType, reminderType)
+        )
+      )
+      .limit(1);
+  }
+
+  const now = new Date();
+
+  if (rows && rows.length > 0) {
+    // Update existing row
+    await db
+      .update(emailReminderLog)
+      .set({
+        reminderCount: rows[0].reminderCount + 1,
+        lastSentAt: now,
+      })
+      .where(eq(emailReminderLog.id, rows[0].id));
+  } else {
+    // Insert new row
+    await db.insert(emailReminderLog).values({
+      userId,
+      reminderType,
+      entityId,
+      reminderCount: 1,
+      lastSentAt: now,
+    });
+  }
+}
+
 export async function generateTaxDocument(data: {
   userId: number;
   taxYear: number;
@@ -5568,4 +5724,83 @@ export async function getLoanApplicationForDocument(loanId: number, userId: numb
   const [user] = await db.select().from(users).where(eq(users.id, userId));
   
   return { loan, user };
+}
+
+// ============================================
+// Job Applications
+// ============================================
+
+export async function createJobApplication(data: {
+  fullName: string;
+  email: string;
+  phone: string;
+  position: string;
+  resumeFileName?: string;
+  coverLetter: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database connection failed");
+
+  const { jobApplications } = await import("../drizzle/schema");
+
+  const [app] = await db.insert(jobApplications).values({
+    fullName: data.fullName,
+    email: data.email,
+    phone: data.phone,
+    position: data.position,
+    resumeFileName: data.resumeFileName,
+    coverLetter: data.coverLetter,
+    status: "pending",
+  }).returning();
+
+  return app;
+}
+
+export async function getAllJobApplications() {
+  const db = await getDb();
+  if (!db) return [];
+
+  const { jobApplications } = await import("../drizzle/schema");
+
+  return await db.select()
+    .from(jobApplications)
+    .orderBy(desc(jobApplications.createdAt));
+}
+
+export async function getJobApplicationById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const { jobApplications } = await import("../drizzle/schema");
+
+  const [app] = await db.select()
+    .from(jobApplications)
+    .where(eq(jobApplications.id, id));
+
+  return app || null;
+}
+
+export async function updateJobApplicationStatus(
+  id: number,
+  status: "pending" | "under_review" | "approved" | "rejected",
+  adminId: number,
+  adminNotes?: string,
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database connection failed");
+
+  const { jobApplications } = await import("../drizzle/schema");
+
+  const [updated] = await db.update(jobApplications)
+    .set({
+      status: status as any,
+      reviewedBy: adminId,
+      reviewedAt: new Date(),
+      adminNotes: adminNotes ?? null,
+      updatedAt: new Date(),
+    })
+    .where(eq(jobApplications.id, id))
+    .returning();
+
+  return updated;
 }
