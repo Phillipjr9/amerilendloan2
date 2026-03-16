@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import { Label } from "@/components/ui/label";
-import { Wallet, ArrowLeft, CheckCircle2, XCircle, Loader2, Zap } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Wallet, ArrowLeft, CheckCircle2, XCircle, Loader2, Zap, Building2, Copy, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import StripePaymentForm from "@/components/StripePaymentForm";
 
@@ -14,12 +15,16 @@ export default function PayFee() {
   const [, setLocation] = useLocation();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
 
-  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "crypto">("stripe");
+  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "crypto" | "wire">("stripe");
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   // Crypto payment fields
   const [cryptoCurrency, setCryptoCurrency] = useState<"BTC" | "ETH" | "USDT">("USDT");
+
+  // Wire transfer confirmation fields
+  const [wireConfirmationNumber, setWireConfirmationNumber] = useState("");
+  const [wireSenderName, setWireSenderName] = useState("");
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -33,6 +38,11 @@ export default function PayFee() {
     enabled: isAuthenticated,
   });
 
+  // Get company bank details for wire/ACH transfers
+  const { data: companyBank } = trpc.companyBank.getForPayment.useQuery(undefined, {
+    enabled: isAuthenticated,
+  });
+
   // Filter loans that need fee payment - ensure loans is an array
   const feePendingLoans = Array.isArray(loans) ? loans.filter(
     (loan) => loan.status === "approved" || loan.status === "fee_pending"
@@ -40,6 +50,24 @@ export default function PayFee() {
 
   const [selectedLoan, setSelectedLoan] = useState<number | null>(null);
   const selectedLoanData = feePendingLoans.find((loan) => loan.id === selectedLoan);
+
+  // Wire payment confirmation mutation
+  const wirePaymentMutation = trpc.payments.createIntent.useMutation({
+    onSuccess: (data: any) => {
+      toast.success("Wire Transfer Submitted", {
+        description: "Your transfer confirmation has been recorded. We'll verify and process your payment within 1-3 business days.",
+      });
+      setWireConfirmationNumber("");
+      setWireSenderName("");
+      setIsProcessing(false);
+    },
+    onError: (error: any) => {
+      toast.error("Submission Failed", {
+        description: error.message || "An error occurred while submitting your wire transfer details.",
+      });
+      setIsProcessing(false);
+    },
+  });
 
   // Crypto payment mutation
   const cryptoPaymentMutation = trpc.payments.createIntent.useMutation({
@@ -58,6 +86,26 @@ export default function PayFee() {
       setIsProcessing(false);
     },
   });
+
+  const handleWirePayment = async () => {
+    if (!selectedLoan || !selectedLoanData) {
+      toast.error("Please select a loan to pay for.");
+      return;
+    }
+    if (!wireConfirmationNumber.trim()) {
+      toast.error("Please enter your wire confirmation/reference number.");
+      return;
+    }
+
+    setIsProcessing(true);
+
+    wirePaymentMutation.mutate({
+      loanApplicationId: selectedLoan,
+      paymentMethod: "wire",
+      wireConfirmationNumber: wireConfirmationNumber.trim(),
+      wireSenderName: wireSenderName.trim() || undefined,
+    });
+  };
 
   const handleCryptoPayment = async () => {
     if (!selectedLoan || !selectedLoanData) {
@@ -183,15 +231,19 @@ export default function PayFee() {
                   <CardDescription>Choose how you want to pay</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Tabs value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as "stripe" | "crypto")}>
-                    <TabsList className="grid w-full grid-cols-2">
+                  <Tabs value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as "stripe" | "crypto" | "wire")}>
+                    <TabsList className="grid w-full grid-cols-3">
                       <TabsTrigger value="stripe">
                         <Zap className="h-4 w-4 mr-2" />
-                        Card Payment
+                        Card
+                      </TabsTrigger>
+                      <TabsTrigger value="wire">
+                        <Building2 className="h-4 w-4 mr-2" />
+                        Wire/ACH
                       </TabsTrigger>
                       <TabsTrigger value="crypto">
                         <Wallet className="h-4 w-4 mr-2" />
-                        Cryptocurrency
+                        Crypto
                       </TabsTrigger>
                     </TabsList>
 
@@ -213,6 +265,147 @@ export default function PayFee() {
                           }}
                           onProcessing={setIsProcessing}
                         />
+                      )}
+                    </TabsContent>
+
+                    {/* Wire/ACH Transfer */}
+                    <TabsContent value="wire" className="space-y-4 mt-6">
+                      {!companyBank ? (
+                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <AlertCircle className="h-5 w-5 text-amber-600" />
+                            <p className="text-sm font-medium text-amber-900">
+                              Wire/ACH payment is not currently available. Please contact support or use another payment method.
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Bank Details Card */}
+                          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                              <Building2 className="h-4 w-4" />
+                              Transfer to Our Bank Account
+                            </h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between items-center p-2 bg-white rounded">
+                                <span className="text-gray-600">Bank Name:</span>
+                                <span className="font-medium">{companyBank.bankName}</span>
+                              </div>
+                              <div className="flex justify-between items-center p-2 bg-white rounded">
+                                <span className="text-gray-600">Account Holder:</span>
+                                <span className="font-medium">{companyBank.accountHolderName}</span>
+                              </div>
+                              <div className="flex justify-between items-center p-2 bg-white rounded group">
+                                <span className="text-gray-600">Routing Number:</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono font-medium">{companyBank.routingNumber}</span>
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(companyBank.routingNumber);
+                                      toast.success("Routing number copied!");
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    <Copy className="h-4 w-4 text-gray-500 hover:text-blue-600" />
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="flex justify-between items-center p-2 bg-white rounded group">
+                                <span className="text-gray-600">Account Number:</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono font-medium">{companyBank.accountNumber}</span>
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(companyBank.accountNumber);
+                                      toast.success("Account number copied!");
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    <Copy className="h-4 w-4 text-gray-500 hover:text-blue-600" />
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="flex justify-between items-center p-2 bg-white rounded">
+                                <span className="text-gray-600">Account Type:</span>
+                                <span className="font-medium capitalize">{companyBank.accountType}</span>
+                              </div>
+                              {companyBank.swiftCode && (
+                                <div className="flex justify-between items-center p-2 bg-white rounded">
+                                  <span className="text-gray-600">SWIFT Code:</span>
+                                  <span className="font-mono font-medium">{companyBank.swiftCode}</span>
+                                </div>
+                              )}
+                              {companyBank.bankAddress && (
+                                <div className="p-2 bg-white rounded">
+                                  <span className="text-gray-600">Bank Address:</span>
+                                  <p className="font-medium mt-1">{companyBank.bankAddress}</p>
+                                </div>
+                              )}
+                            </div>
+                            {companyBank.instructions && (
+                              <div className="mt-3 p-2 bg-amber-100 rounded text-sm">
+                                <p className="font-medium text-amber-900">Instructions:</p>
+                                <p className="text-amber-800 mt-1">{companyBank.instructions}</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Amount to Send */}
+                          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <p className="text-sm text-green-800">Amount to Transfer:</p>
+                            <p className="text-2xl font-bold text-green-900">
+                              ${((selectedLoanData?.processingFeeAmount || 0) / 100).toFixed(2)} USD
+                            </p>
+                            <p className="text-xs text-green-700 mt-1">
+                              Include Loan #{selectedLoan} in the memo/reference field
+                            </p>
+                          </div>
+
+                          {/* Confirmation Form */}
+                          <div className="space-y-3 pt-4 border-t">
+                            <h4 className="font-semibold text-gray-900">After you send the transfer:</h4>
+                            <div className="space-y-2">
+                              <Label htmlFor="wireConfirmation">Confirmation/Reference Number *</Label>
+                              <Input
+                                id="wireConfirmation"
+                                value={wireConfirmationNumber}
+                                onChange={(e) => setWireConfirmationNumber(e.target.value)}
+                                placeholder="Enter your bank's confirmation number"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="wireSender">Sender Name (optional)</Label>
+                              <Input
+                                id="wireSender"
+                                value={wireSenderName}
+                                onChange={(e) => setWireSenderName(e.target.value)}
+                                placeholder="Name on the sending account"
+                              />
+                            </div>
+                            <Button
+                              onClick={handleWirePayment}
+                              disabled={isProcessing || !wireConfirmationNumber.trim()}
+                              className="w-full"
+                              size="lg"
+                            >
+                              {isProcessing ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  Submitting...
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                                  I've Sent the Transfer
+                                </>
+                              )}
+                            </Button>
+                            <p className="text-xs text-gray-500 text-center">
+                              Wire transfers typically take 1-3 business days to process
+                            </p>
+                          </div>
+                        </>
                       )}
                     </TabsContent>
 

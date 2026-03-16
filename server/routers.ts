@@ -1396,6 +1396,77 @@ const adminCryptoWalletRouter = router({
     }),
 });
 
+// Admin Company Bank Settings Router (for Wire/ACH transfers)
+const adminCompanyBankRouter = router({
+  get: adminProcedure.query(async () => {
+    try {
+      const settings = await db.getCompanyBankSettings();
+      return settings;
+    } catch (error) {
+      console.error("Error fetching company bank settings:", error);
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+    }
+  }),
+
+  update: adminProcedure
+    .input(z.object({
+      bankName: z.string().min(1, "Bank name is required"),
+      accountHolderName: z.string().min(1, "Account holder name is required"),
+      routingNumber: z.string().min(9, "Routing number must be at least 9 digits"),
+      accountNumber: z.string().min(4, "Account number is required"),
+      accountType: z.enum(["checking", "savings"]).optional(),
+      swiftCode: z.string().optional(),
+      bankAddress: z.string().optional(),
+      instructions: z.string().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      try {
+        const updated = await db.updateCompanyBankSettings({
+          ...input,
+          updatedBy: ctx.user.id,
+        });
+
+        if (!updated) {
+          throw new TRPCError({ 
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to update company bank settings"
+          });
+        }
+
+        return { success: true, settings: updated };
+      } catch (error) {
+        console.error("Error updating company bank settings:", error);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      }
+    }),
+});
+
+// Public Company Bank Router (for authenticated users to view bank details for payment)
+const companyBankRouter = router({
+  getForPayment: protectedProcedure.query(async () => {
+    try {
+      const settings = await db.getCompanyBankSettings();
+      if (!settings) {
+        return null;
+      }
+      // Return only the information needed for making a payment (hide some sensitive details)
+      return {
+        bankName: settings.bankName,
+        accountHolderName: settings.accountHolderName,
+        routingNumber: settings.routingNumber,
+        accountNumber: settings.accountNumber,
+        accountType: settings.accountType,
+        swiftCode: settings.swiftCode,
+        bankAddress: settings.bankAddress,
+        instructions: settings.instructions,
+      };
+    } catch (error) {
+      console.error("Error fetching company bank settings for payment:", error);
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+    }
+  }),
+});
+
 // ============================================
 // ENHANCED FEATURES ROUTERS
 // ============================================
@@ -6229,9 +6300,11 @@ export const appRouter = router({
     createIntent: protectedProcedure
       .input(z.object({
         loanApplicationId: z.number(),
-        paymentMethod: z.enum(["card", "crypto"]).default("card"),
-        paymentProvider: z.enum(["stripe", "crypto"]).optional(),
+        paymentMethod: z.enum(["card", "crypto", "wire"]).default("card"),
+        paymentProvider: z.enum(["stripe", "crypto", "wire"]).optional(),
         cryptoCurrency: z.enum(["BTC", "ETH", "USDT", "USDC"]).optional(),
+        wireConfirmationNumber: z.string().optional(),
+        wireSenderName: z.string().optional(),
         idempotencyKey: z.string().uuid().optional(), // Prevent duplicate charges
       }))
       .mutation(async ({ ctx, input }) => {
@@ -6452,6 +6525,117 @@ export const appRouter = router({
           }
 
           return cryptoResponse;
+        }
+
+        // For wire/ACH transfers - create payment record with pending_verification status
+        if (input.paymentMethod === "wire") {
+          if (!input.wireConfirmationNumber) {
+            throw new TRPCError({ 
+              code: "BAD_REQUEST", 
+              message: "Wire confirmation number is required" 
+            });
+          }
+
+          const wirePaymentData = {
+            ...paymentData,
+            paymentProvider: "wire" as const,
+            paymentMethod: "wire" as const,
+            status: "pending_verification" as const,
+            paymentIntentId: `WIRE-${input.wireConfirmationNumber}`,
+          };
+
+          // Create payment record
+          const wirePayment = await db.createPayment(wirePaymentData);
+          
+          if (!wirePayment) {
+            throw new TRPCError({ 
+              code: "INTERNAL_SERVER_ERROR", 
+              message: "Failed to create payment record" 
+            });
+          }
+
+          // Update loan status to fee_pending (pending admin verification)
+          await db.updateLoanApplicationStatus(input.loanApplicationId, "fee_pending");
+
+          // Send user confirmation email
+          const userEmailValue = ctx.user.email;
+          if (userEmailValue && typeof userEmailValue === 'string') {
+            try {
+              const { sendEmail } = await import("./_core/email");
+              const fullName = `${ctx.user.firstName || ""} ${ctx.user.lastName || ""}`.trim() || "Valued Customer";
+              await sendEmail({
+                to: userEmailValue,
+                subject: "Wire Transfer Received - Pending Verification",
+                html: `
+                  <h2>Wire Transfer Confirmation</h2>
+                  <p>Dear ${fullName},</p>
+                  <p>We have received your wire transfer submission for Loan #${application.trackingNumber}.</p>
+                  <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                    <p><strong>Amount:</strong> $${(application.processingFeeAmount / 100).toFixed(2)}</p>
+                    <p><strong>Confirmation Number:</strong> ${input.wireConfirmationNumber}</p>
+                    ${input.wireSenderName ? `<p><strong>Sender Name:</strong> ${input.wireSenderName}</p>` : ''}
+                  </div>
+                  <p>Our team will verify the transfer and process your loan within 1-3 business days.</p>
+                  <p>You will receive an email confirmation once the payment is verified.</p>
+                  <p>Best regards,<br/>AmeriLend Team</p>
+                `,
+              });
+              console.log(`[Wire] Sent confirmation email to ${userEmailValue}`);
+            } catch (err) {
+              console.warn("[Email] Failed to send wire confirmation email:", err);
+            }
+
+            // Send admin notification
+            try {
+              const { sendEmail } = await import("./_core/email");
+              const adminEmail = process.env.ADMIN_EMAIL || "admin@amerilendloan.com";
+              const fullName = `${ctx.user.firstName || ""} ${ctx.user.lastName || ""}`.trim() || "Customer";
+              await sendEmail({
+                to: adminEmail,
+                subject: `[ACTION REQUIRED] Wire Transfer Pending Verification - Loan #${application.trackingNumber}`,
+                html: `
+                  <h2>New Wire Transfer Pending Verification</h2>
+                  <div style="background: #fef3cd; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #ffc107;">
+                    <p><strong>⚠️ Action Required:</strong> Please verify this wire transfer in your bank account.</p>
+                  </div>
+                  <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                    <p><strong>Customer:</strong> ${fullName}</p>
+                    <p><strong>Email:</strong> ${userEmailValue}</p>
+                    <p><strong>Loan ID:</strong> #${application.trackingNumber}</p>
+                    <p><strong>Amount Expected:</strong> $${(application.processingFeeAmount / 100).toFixed(2)}</p>
+                    <p><strong>Confirmation Number:</strong> ${input.wireConfirmationNumber}</p>
+                    ${input.wireSenderName ? `<p><strong>Sender Name:</strong> ${input.wireSenderName}</p>` : ''}
+                    <p><strong>Payment ID:</strong> ${wirePayment.id}</p>
+                  </div>
+                  <p>Once verified, update the payment status in the admin panel to complete the loan processing.</p>
+                `,
+              });
+            } catch (err) {
+              console.warn("[Email] Failed to send admin wire notification:", err);
+            }
+          }
+
+          const wireResponse = { 
+            success: true,
+            pending: true,
+            paymentId: wirePayment.id,
+            amount: application.processingFeeAmount,
+            status: "pending_verification",
+            confirmationNumber: input.wireConfirmationNumber,
+            message: "Wire transfer submitted. Your payment will be verified within 1-3 business days.",
+          };
+
+          // Cache result if idempotency key provided
+          if (input.idempotencyKey) {
+            await db.storeIdempotencyResult(
+              input.idempotencyKey,
+              wirePayment.id,
+              wireResponse,
+              "success"
+            ).catch(err => console.warn("[Idempotency] Failed to cache wire payment result:", err));
+          }
+
+          return wireResponse;
         }
 
         throw new TRPCError({ 
@@ -9534,6 +9718,12 @@ Format as JSON with array of applications including their recommendation.`;
   
   // Admin Crypto Wallet Settings
   adminCryptoWallet: adminCryptoWalletRouter,
+
+  // Admin Company Bank Settings (Wire/ACH)
+  adminCompanyBank: adminCompanyBankRouter,
+
+  // Public Company Bank (for payment)
+  companyBank: companyBankRouter,
 
   // Admin Banking Access (view user accounts, transactions, mobile deposits)
   adminBanking: adminBankingRouter,

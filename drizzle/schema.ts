@@ -236,14 +236,15 @@ export const feeConfiguration = pgTable("feeConfiguration", {
 export type FeeConfiguration = typeof feeConfiguration.$inferSelect;
 export type InsertFeeConfiguration = typeof feeConfiguration.$inferInsert;
 
-export const paymentProviderEnum = pgEnum("payment_provider", ["stripe", "authorizenet", "crypto"]);
-export const paymentMethodEnum = pgEnum("payment_method", ["card", "crypto"]);
+export const paymentProviderEnum = pgEnum("payment_provider", ["stripe", "authorizenet", "crypto", "wire"]);
+export const paymentMethodEnum = pgEnum("payment_method", ["card", "crypto", "wire"]);
 export const paymentStatusEnum = pgEnum("payment_status", [
-  "pending",      // Payment initiated
-  "processing",   // Payment being processed
-  "succeeded",    // Payment successful
-  "failed",       // Payment failed
-  "cancelled"     // Payment cancelled
+  "pending",              // Payment initiated
+  "processing",           // Payment being processed
+  "pending_verification", // Wire/ACH transfer submitted, awaiting admin verification
+  "succeeded",            // Payment successful
+  "failed",               // Payment failed
+  "cancelled"             // Payment cancelled
 ]);
 
 /**
@@ -1304,6 +1305,26 @@ export const cryptoWalletSettings = pgTable("crypto_wallet_settings", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   updatedBy: integer("updated_by").references(() => users.id),
 });
+
+// Company Bank Settings for Wire/ACH transfers
+export const companyBankSettings = pgTable("company_bank_settings", {
+  id: serial("id").primaryKey(),
+  bankName: varchar("bank_name", { length: 255 }).notNull(),
+  accountHolderName: varchar("account_holder_name", { length: 255 }).notNull(),
+  routingNumber: varchar("routing_number", { length: 20 }).notNull(),
+  accountNumber: varchar("account_number", { length: 50 }).notNull(),
+  accountType: varchar("account_type", { length: 20 }).default("checking").notNull(), // checking, savings
+  swiftCode: varchar("swift_code", { length: 20 }), // for international wire
+  bankAddress: text("bank_address"),
+  instructions: text("instructions"), // special instructions for transfers
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  updatedBy: integer("updated_by").references(() => users.id),
+});
+
+export type CompanyBankSettings = typeof companyBankSettings.$inferSelect;
+export type InsertCompanyBankSettings = typeof companyBankSettings.$inferInsert;
 
 // Auto-Pay Settings for recurring loan payments
 export const autoPaySettings = pgTable("auto_pay_settings", {

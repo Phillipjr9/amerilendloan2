@@ -2917,6 +2917,74 @@ export async function updateCryptoWalletSettings(data: {
   }
 }
 
+/**
+ * Company Bank Settings Management (for Wire/ACH transfers)
+ */
+export async function getCompanyBankSettings() {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const { companyBankSettings } = await import("../drizzle/schema");
+  
+  try {
+    const [settings] = await db.select().from(companyBankSettings).where(eq(companyBankSettings.isActive, true)).limit(1);
+    return settings || null;
+  } catch (error) {
+    console.error("[db.getCompanyBankSettings] Error:", error);
+    return null;
+  }
+}
+
+export async function updateCompanyBankSettings(data: {
+  bankName: string;
+  accountHolderName: string;
+  routingNumber: string;
+  accountNumber: string;
+  accountType?: string;
+  swiftCode?: string;
+  bankAddress?: string;
+  instructions?: string;
+  updatedBy?: number;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const { companyBankSettings } = await import("../drizzle/schema");
+  
+  try {
+    const existing = await getCompanyBankSettings();
+    
+    if (existing) {
+      await db.update(companyBankSettings)
+        .set({
+          ...data,
+          updatedAt: new Date(),
+        })
+        .where(eq(companyBankSettings.id, existing.id));
+      
+      return await getCompanyBankSettings();
+    } else {
+      await db.insert(companyBankSettings).values({
+        bankName: data.bankName,
+        accountHolderName: data.accountHolderName,
+        routingNumber: data.routingNumber,
+        accountNumber: data.accountNumber,
+        accountType: data.accountType || "checking",
+        swiftCode: data.swiftCode || null,
+        bankAddress: data.bankAddress || null,
+        instructions: data.instructions || null,
+        isActive: true,
+        updatedBy: data.updatedBy,
+      });
+      
+      return await getCompanyBankSettings();
+    }
+  } catch (error) {
+    console.error("[db.updateCompanyBankSettings] Error:", error);
+    return null;
+  }
+}
+
 // ============================================================================
 // Support Tickets Functions
 // ============================================================================
