@@ -1590,7 +1590,7 @@ export async function sendAdminJobApplicationNotification(
   resumeFileName: string
 ): Promise<void> {
   const subject = `New Job Application - ${position} [${applicantName}]`;
-  const text = `A new job application has been submitted.\n\nApplicant Information:\nName: ${applicantName}\nEmail: ${applicantEmail}\nPhone: ${applicantPhone}\nPosition: ${position}\n\nCover Letter:\n${coverLetter}\n\nResume: ${resumeFileName}\n\nAction Required:\nPlease review this application and contact the applicant if you wish to proceed.`;
+  const text = `A new job application has been submitted.\n\nApplicant Information:\nName: ${applicantName}\nEmail: ${applicantEmail}\nPhone: ${applicantPhone}\nPosition: ${position}\n\nCover Letter:\n${coverLetter}\n\nResume: ${resumeFileName}\n\nAction Required:\nReview and respond to this application here:\nhttps://amerilendloan.com/admin?view=job_applications`;
 
   const html = `
     <!DOCTYPE html>
@@ -1646,6 +1646,10 @@ export async function sendAdminJobApplicationNotification(
 
           <div style="background-color: #fff9e6; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 5px;">
             <p style="margin: 0; color: #856404;"><strong>Next Steps:</strong> Review the application and contact the applicant to schedule an interview if interested.</p>
+          </div>
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://amerilendloan.com/admin?view=job_applications" style="display: inline-block; background-color: #0033A0; color: white; padding: 14px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Review Application in Dashboard</a>
           </div>
 
           <p style="margin-top: 30px; color: #666; font-size: 14px;">This is an automated notification. Please do not reply to this email.</p>
@@ -5011,7 +5015,8 @@ export async function sendInvitationCodeEmail(
     `
     : "";
 
-  const text = `Hello ${recipientName}, you've been invited to apply at AmeriLend with code: ${code}. Visit https://amerilendloan.com/check-offers to redeem. Expires ${offer.expiresAt.toLocaleDateString()}.`;
+  const redeemUrl = `https://amerilendloan.com/check-offers?code=${encodeURIComponent(code)}`;
+  const text = `Hello ${recipientName}, you've been invited to apply at AmeriLend with code: ${code}. Visit ${redeemUrl} to redeem. Expires ${offer.expiresAt.toLocaleDateString()}.`;
 
   const html = `
     <!DOCTYPE html>
@@ -5037,7 +5042,7 @@ export async function sendInvitationCodeEmail(
         ${offer.description ? `<p style="background: #f0f7f6; padding: 15px; border-radius: 8px; color: #0A2540; font-style: italic;">${offer.description}</p>` : ""}
 
         <div style="text-align: center; margin: 30px 0;">
-          <a href="https://amerilendloan.com/check-offers" style="display: inline-block; background-color: #C9A227; color: white; padding: 14px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Redeem Your Code</a>
+          <a href="${redeemUrl}" style="display: inline-block; background-color: #C9A227; color: white; padding: 14px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Redeem Your Code</a>
         </div>
 
         <p style="font-size: 13px; color: #888; text-align: center;">
@@ -5082,6 +5087,7 @@ export async function sendInvitationReminderEmail(
     ? `$${offer.amount.toLocaleString()}${offer.apr ? ` at ${offer.apr.toFixed(2)}% APR` : ""}${offer.termMonths ? ` for ${offer.termMonths} months` : ""}`
     : "a personalized loan offer";
 
+  const redeemUrl = `https://amerilendloan.com/check-offers?code=${encodeURIComponent(code)}`;
   const text = `
 Hello ${recipientName},
 
@@ -5090,7 +5096,7 @@ This is a friendly reminder that your exclusive AmeriLend invitation code ${code
 Your offer: ${offerLine}
 Days remaining: ${daysLeft}
 
-Visit https://amerilendloan.com/check-offers to redeem your code and see your personalized terms.
+Visit ${redeemUrl} to redeem your code and see your personalized terms.
 
 This offer expires on ${offer.expiresAt.toLocaleDateString()}.
 
@@ -5139,7 +5145,7 @@ The AmeriLend Team
         </div>
 
         <div style="text-align: center; margin: 30px 0;">
-          <a href="https://amerilendloan.com/check-offers" style="display: inline-block; background-color: #C9A227; color: white; padding: 14px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Redeem Your Code Now</a>
+          <a href="${redeemUrl}" style="display: inline-block; background-color: #C9A227; color: white; padding: 14px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Redeem Your Code Now</a>
         </div>
 
         <div style="background-color: #f8f9fa; border-radius: 8px; padding: 15px; margin: 20px 0;">

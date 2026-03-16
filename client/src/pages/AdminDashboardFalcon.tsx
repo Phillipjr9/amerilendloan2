@@ -51,7 +51,14 @@ export default function AdminDashboardFalcon() {
   // Navigation states
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<ViewType>("dashboard");
+
+  // Read ?view= URL param on mount so email deep-links land on the right panel
+  const getInitialView = (): ViewType => {
+    const param = new URLSearchParams(window.location.search).get("view");
+    const valid: ViewType[] = ["dashboard","applications","tracking","verification","support","audit","fees","crypto","workflows","payments","invitations","virtual_cards","user_management","kyc","live_chat","fraud","collections","marketing","settings","ai_assistant","job_applications"];
+    return (valid.includes(param as ViewType) ? param : "dashboard") as ViewType;
+  };
+  const [currentView, setCurrentView] = useState<ViewType>(getInitialView);
 
   // Dialog states
   const [approvalDialog, setApprovalDialog] = useState<{ open: boolean; applicationId: number | null }>({ open: false, applicationId: null });

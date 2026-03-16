@@ -441,6 +441,36 @@ export default function Home() {
       </section>
 
       {/* ════════════════════════════════════════════════════
+          WE'RE HIRING
+         ════════════════════════════════════════════════════ */}
+      <section className="py-16 md:py-20 bg-white">
+        <div className="container mx-auto px-4 max-w-4xl text-center">
+          <span className="inline-block bg-[#C9A227]/10 text-[#C9A227] text-xs font-semibold uppercase tracking-widest px-4 py-1.5 rounded-full mb-4">
+            We&apos;re Hiring
+          </span>
+          <h2 className="text-3xl md:text-4xl font-bold text-[#0A2540] mb-4">
+            Join the AmeriLend Team
+          </h2>
+          <p className="text-gray-500 text-lg mb-8 max-w-2xl mx-auto">
+            We&apos;re growing fast and looking for passionate people to help us shape the future of personal lending.
+            Great culture, competitive pay, and real impact.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/careers">
+              <Button size="lg" className="bg-[#C9A227] hover:bg-[#b8922a] text-white font-semibold rounded-full px-10 text-base shadow-lg">
+                View Open Positions <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+            <Link href="/about">
+              <Button size="lg" variant="outline" className="rounded-full px-10 text-base border-[#0A2540] text-[#0A2540] hover:bg-[#0A2540] hover:text-white">
+                Learn About Us
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════════
           TESTIMONIALS
          ════════════════════════════════════════════════════ */}
       <TestimonialsSection />
@@ -492,6 +522,7 @@ export default function Home() {
                 <li><Link href="/rates" className="hover:text-white transition-colors">Rates & Terms</Link></li>
                 <li><Link href="/resources" className="hover:text-white transition-colors">Resources</Link></li>
                 <li><Link href="/contact" className="hover:text-white transition-colors">Contact</Link></li>
+                <li><Link href="/careers" className="hover:text-white transition-colors">Careers</Link></li>
               </ul>
             </div>
 

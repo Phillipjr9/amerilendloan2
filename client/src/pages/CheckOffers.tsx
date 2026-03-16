@@ -26,7 +26,7 @@ import {
   Ticket,
   Gift,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -176,6 +176,30 @@ export default function CheckOffers() {
   const [codeOffer, setCodeOffer] = useState<any>(null);
 
   const utils = trpc.useUtils();
+
+  // Auto-validate invitation code from URL ?code= param
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const codeParam = params.get("code");
+    if (!codeParam) return;
+    const normalized = codeParam.trim().toUpperCase();
+    setInviteCode(normalized);
+    setShowCodeInput(true);
+    setCodeValidating(true);
+    utils.invitations.validate
+      .fetch({ code: normalized })
+      .then((result) => {
+        if (result?.valid && result.invitation) {
+          setCodeOffer(result.invitation);
+          setStep("code-offer");
+          toast.success("Code verified! Here's your personalized offer.");
+        } else {
+          toast.error(result?.message || "Invalid invitation code");
+        }
+      })
+      .catch(() => toast.error("Could not validate code. Please try again."))
+      .finally(() => setCodeValidating(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const redeemCodeMutation = trpc.invitations.redeem.useMutation({
     onSuccess: () => {},
