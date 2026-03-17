@@ -78,6 +78,13 @@
       "when": 1764460159736,
       "tag": "0010_lucky_forge",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1773765549804,
+      "tag": "0011_mighty_kid_colt",
+      "breakpoints": true
     }
   ]
 }
