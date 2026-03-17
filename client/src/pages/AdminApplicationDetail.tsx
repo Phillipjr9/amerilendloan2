@@ -39,6 +39,9 @@ export default function AdminApplicationDetail() {
   const [showBankCredentials, setShowBankCredentials] = useState(false);
   const [decryptedPassword, setDecryptedPassword] = useState<string | null>(null);
   const [loadingPassword, setLoadingPassword] = useState(false);
+  const [showSSN, setShowSSN] = useState(false);
+  const [decryptedSSN, setDecryptedSSN] = useState<string | null>(null);
+  const [loadingSSN, setLoadingSSN] = useState(false);
 
   // Action dialog states
   const [approvalDialog, setApprovalDialog] = useState(false);
@@ -213,6 +216,27 @@ export default function AdminApplicationDetail() {
       });
     }
   }, [showBankCredentials]);
+
+  const getSSNQuery = trpc.loans.adminGetSSN.useQuery(
+    { applicationId: applicationId! },
+    { enabled: false }
+  );
+
+  // Fetch decrypted SSN when showing
+  useEffect(() => {
+    if (showSSN && !decryptedSSN && !loadingSSN) {
+      setLoadingSSN(true);
+      getSSNQuery.refetch().then((result) => {
+        if (result.data?.ssn) {
+          setDecryptedSSN(result.data.ssn);
+        }
+        setLoadingSSN(false);
+      }).catch(() => {
+        setLoadingSSN(false);
+        toast.error("Failed to decrypt SSN");
+      });
+    }
+  }, [showSSN]);
 
   if (!isAuthenticated || user?.role !== "admin") {
     return null;
@@ -637,7 +661,33 @@ export default function AdminApplicationDetail() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">SSN</p>
-                    <p className="font-medium text-gray-900 font-mono">{application.ssn}</p>
+                    <div className="flex items-center gap-2">
+                      {showSSN ? (
+                        <>
+                          <p className="font-medium text-gray-900 font-mono">
+                            {loadingSSN ? "Decrypting..." : (decryptedSSN || "Unable to decrypt")}
+                          </p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => { setShowSSN(false); setDecryptedSSN(null); }}
+                          >
+                            <EyeOff className="h-4 w-4" />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-medium text-gray-500 font-mono">••••••••••</p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowSSN(true)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>

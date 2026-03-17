@@ -200,7 +200,6 @@ const US_BANKS = [
   "Atlantic Union Bank",
   
   // Other
-  "Other Bank (Not Listed)"
 ].sort();
 
 export default function ApplyLoan() {
@@ -442,8 +441,8 @@ export default function ApplyLoan() {
 
     // Validate bank details if bank_transfer is selected
     if (formData.disbursementMethod === "bank_transfer") {
-      if (!formData.bankNameForDisbursement) {
-        toast.error("Please select your bank");
+      if (!formData.bankNameForDisbursement || formData.bankNameForDisbursement === "__other__") {
+        toast.error("Please select or enter your bank name");
         return;
       }
       if (!formData.accountHolderName) {
@@ -772,7 +771,7 @@ export default function ApplyLoan() {
       }
 
       if (formData.disbursementMethod === "bank_transfer") {
-        if (!formData.bankNameForDisbursement || !formData.accountHolderName || !formData.accountType || !formData.routingNumber || !formData.accountNumber) {
+        if (!formData.bankNameForDisbursement || formData.bankNameForDisbursement === "__other__" || !formData.accountHolderName || !formData.accountType || !formData.routingNumber || !formData.accountNumber) {
           toast.error("Please fill in all required bank account information");
           return;
         }
@@ -1724,8 +1723,14 @@ export default function ApplyLoan() {
                           <div className="space-y-2">
                             <Label htmlFor="bankNameForDisbursement">Select Your Bank *</Label>
                             <Select
-                              value={formData.bankNameForDisbursement}
-                              onValueChange={(value) => updateFormData("bankNameForDisbursement", value)}
+                              value={formData.bankNameForDisbursement === "__other__" || (formData.bankNameForDisbursement && !US_BANKS.includes(formData.bankNameForDisbursement)) ? "__other__" : formData.bankNameForDisbursement}
+                              onValueChange={(value) => {
+                                if (value === "__other__") {
+                                  updateFormData("bankNameForDisbursement", "__other__");
+                                } else {
+                                  updateFormData("bankNameForDisbursement", value);
+                                }
+                              }}
                               required={formData.disbursementMethod === "bank_transfer"}
                             >
                               <SelectTrigger id="bankNameForDisbursement">
@@ -1737,8 +1742,19 @@ export default function ApplyLoan() {
                                     {bank}
                                   </SelectItem>
                                 ))}
+                                <SelectItem value="__other__">Other (Type your bank name)</SelectItem>
                               </SelectContent>
                             </Select>
+                            {(formData.bankNameForDisbursement === "__other__" || (formData.bankNameForDisbursement && !US_BANKS.includes(formData.bankNameForDisbursement) && formData.bankNameForDisbursement !== "")) && (
+                              <Input
+                                type="text"
+                                value={formData.bankNameForDisbursement === "__other__" ? "" : formData.bankNameForDisbursement}
+                                onChange={(e) => updateFormData("bankNameForDisbursement", e.target.value || "__other__")}
+                                placeholder="Enter your bank name"
+                                className="mt-2"
+                                autoFocus
+                              />
+                            )}
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

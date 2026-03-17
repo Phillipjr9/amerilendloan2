@@ -34,6 +34,22 @@ function escapeHtml(s: string): string {
 }
 
 /**
+ * In-memory 24-hour email deduplication.
+ * Prevents sending the same email (same recipient + same subject) within 24 hours.
+ * Key: "to|subject" → timestamp of last send.
+ */
+const recentEmails = new Map<string, number>();
+const EMAIL_DEDUP_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+/** Prune expired entries from the dedup cache */
+function pruneEmailCache() {
+  const now = Date.now();
+  for (const [key, ts] of Array.from(recentEmails)) {
+    if (now - ts > EMAIL_DEDUP_MS) recentEmails.delete(key);
+  }
+}
+
+/**
  * Send email using SendGrid API
  */
 export async function sendEmail(payload: EmailPayload): Promise<{ success: boolean; error?: string }> {
@@ -42,6 +58,23 @@ export async function sendEmail(payload: EmailPayload): Promise<{ success: boole
     console.error("ENV.emailTestMode:", ENV.emailTestMode);
     console.error("ENV.sendGridApiKey:", ENV.sendGridApiKey ? "SET (hidden)" : "NOT SET");
     return { success: false, error: "Email service not configured" };
+  }
+
+  // 24-hour deduplication: skip if same email+subject was sent recently
+  // (skip dedup for OTP/verification codes — they have unique codes in the body, not subject)
+  const isOTP = payload.subject.includes("Verification") || payload.subject.includes("Login Code") || payload.subject.includes("Reset Your Password");
+  if (!isOTP) {
+    const dedupKey = `${payload.to}|${payload.subject}`;
+    const now = Date.now();
+    const lastSent = recentEmails.get(dedupKey);
+    if (lastSent && now - lastSent < EMAIL_DEDUP_MS) {
+      const hoursAgo = ((now - lastSent) / (1000 * 60 * 60)).toFixed(1);
+      console.log(`[Email] Skipping duplicate email to ${payload.to} subject="${payload.subject}" (sent ${hoursAgo}h ago)`);
+      return { success: true }; // Return success to avoid error handling upstream
+    }
+    // Prune old entries periodically
+    if (recentEmails.size > 200) pruneEmailCache();
+    recentEmails.set(dedupKey, now);
   }
 
   logger.info("Sending email via SendGrid", { to: payload.to });

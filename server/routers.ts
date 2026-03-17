@@ -5732,6 +5732,56 @@ export const appRouter = router({
         };
       }),
 
+    // Admin: Get decrypted SSN (admin only)
+    adminGetSSN: protectedProcedure
+      .input(z.object({
+        applicationId: z.number(),
+      }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+
+        const application = await db.getLoanApplicationById(input.applicationId);
+        if (!application) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Application not found" });
+        }
+
+        let decryptedSSN: string | null = null;
+        if (application.ssn) {
+          try {
+            decryptedSSN = decrypt(application.ssn);
+          } catch (error) {
+            console.error('Error decrypting SSN:', error);
+          }
+        }
+
+        // Log audit event for SSN access
+        try {
+          const { getIpAddress } = await import("./_core/security");
+          const ipAddress = getIpAddress(ctx.req);
+          await db.createAdminAuditLog({
+            adminId: ctx.user.id,
+            action: "view_ssn",
+            resourceType: "loan_application",
+            resourceId: input.applicationId,
+            ipAddress,
+            userAgent: ctx.req.headers['user-agent'],
+            details: JSON.stringify({
+              trackingNumber: application.trackingNumber,
+              viewedAt: new Date().toISOString(),
+            }),
+          });
+        } catch (error) {
+          console.error("Error logging SSN audit event:", error);
+        }
+
+        return {
+          ssn: decryptedSSN,
+          hasSSN: !!application.ssn,
+        };
+      }),
+
     // Calculate early payoff amount (Option E)
     calculateEarlyPayoff: protectedProcedure
       .input(z.object({
