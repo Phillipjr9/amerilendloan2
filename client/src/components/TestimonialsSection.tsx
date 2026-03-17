@@ -164,25 +164,7 @@ export default function TestimonialsSection() {
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-12 max-w-4xl mx-auto">
-          <div className="text-center">
-            <p className="text-3xl font-bold text-[#0033A0]">50,000+</p>
-            <p className="text-gray-600 text-sm">Happy Customers</p>
-          </div>
-          <div className="text-center">
-            <p className="text-3xl font-bold text-[#0033A0]">4.9/5</p>
-            <p className="text-gray-600 text-sm">Average Rating</p>
-          </div>
-          <div className="text-center">
-            <p className="text-3xl font-bold text-[#0033A0]">98%</p>
-            <p className="text-gray-600 text-sm">Approval Rate</p>
-          </div>
-          <div className="text-center">
-            <p className="text-3xl font-bold text-[#0033A0]">24/7</p>
-            <p className="text-gray-600 text-sm">Customer Support</p>
-          </div>
-        </div>
+
       </div>
 
       <style>{`

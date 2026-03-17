@@ -189,7 +189,7 @@ export default function Home() {
                 </li>
               </ul>
 
-              <div className="flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center md:justify-start relative z-30">
                 <Link href="/check-offers">
                   <Button size="lg" className="bg-[#C9A227] hover:bg-[#b8922a] text-white font-semibold rounded-full px-8 text-base shadow-md w-full sm:w-auto">
                     See My Loan Offers <ArrowRight className="w-4 h-4 ml-2" />
@@ -347,7 +347,7 @@ export default function Home() {
             {[
               { value: "250K+", label: "Loans Funded" },
               { value: "40%", label: "Return Customers" },
-              { value: "$1.3B+", label: "Total Approved" },
+              { value: "$1.8B+", label: "Total Approved" },
               { value: "4.8★", label: "Customer Rating" },
             ].map((stat, i) => (
               <div key={i}>
