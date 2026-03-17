@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { formatCurrency } from "@/lib/utils";
 import {
   LineChart, Line, BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -138,11 +139,11 @@ export default function AdminAnalyticsDashboard() {
   const amountDistribution = useMemo(() => {
     if (!allApplications?.length) return [];
     const ranges = [
-      { range: "$0-5K", min: 0, max: 5000 },
-      { range: "$5K-10K", min: 5000, max: 10000 },
-      { range: "$10K-25K", min: 10000, max: 25000 },
-      { range: "$25K-50K", min: 25000, max: 50000 },
-      { range: "$50K+", min: 50000, max: Infinity },
+      { range: "$0-5K", min: 0, max: 500000 },
+      { range: "$5K-10K", min: 500000, max: 1000000 },
+      { range: "$10K-25K", min: 1000000, max: 2500000 },
+      { range: "$25K-50K", min: 2500000, max: 5000000 },
+      { range: "$50K+", min: 5000000, max: Infinity },
     ];
     return ranges.map(({ range, min, max }) => {
       const inRange = allApplications.filter((a: any) => {
@@ -161,9 +162,9 @@ export default function AdminAnalyticsDashboard() {
         `Total Applications,${metrics.totalApplications}`,
         `Approved Applications,${metrics.approvedApplications}`,
         `Approval Rate,${metrics.approvalRate}%`,
-        `Total Disbursed,$${(metrics.totalDisbursed / 100).toLocaleString()}`,
+        `Total Disbursed,${formatCurrency(metrics.totalDisbursed)}`,
         `Active Loans,${metrics.activeLoans}`,
-        `Average Loan Amount,$${(metrics.averageLoanAmount / 100).toLocaleString()}`,
+        `Average Loan Amount,${formatCurrency(metrics.averageLoanAmount)}`,
         `Conversion Rate,${metrics.conversionRate}%`,
         `Default Rate,${metrics.defaultRate}%`,
         `Total Users,${metrics.totalUsers}`,
@@ -237,59 +238,43 @@ export default function AdminAnalyticsDashboard() {
         <MetricCard
           title="Total Applications"
           value={metrics.totalApplications.toLocaleString()}
-          change="+12.3%"
           icon={<Activity className="w-5 h-5" />}
-          trend="up"
         />
         <MetricCard
           title="Approval Rate"
           value={`${metrics.approvalRate}%`}
-          change="+2.1%"
           icon={<CheckCircle className="w-5 h-5" />}
-          trend="up"
         />
         <MetricCard
           title="Total Disbursed"
-          value={`$${(metrics.totalDisbursed / 100).toLocaleString()}`}
-          change="+18.4%"
+          value={formatCurrency(metrics.totalDisbursed)}
           icon={<DollarSign className="w-5 h-5" />}
-          trend="up"
         />
         <MetricCard
           title="Active Loans"
           value={metrics.activeLoans.toLocaleString()}
-          change="+5.7%"
           icon={<CreditCard className="w-5 h-5" />}
-          trend="up"
         />
         <MetricCard
           title="Total Users"
           value={metrics.totalUsers.toLocaleString()}
-          change={`+${metrics.newUsersThisMonth} this month`}
+          subtitle={`+${metrics.newUsersThisMonth} this month`}
           icon={<Users className="w-5 h-5" />}
-          trend="up"
         />
         <MetricCard
           title="Avg Loan Amount"
-          value={`$${metrics.averageLoanAmount.toLocaleString()}`}
-          change="-3.2%"
+          value={formatCurrency(metrics.averageLoanAmount)}
           icon={<DollarSign className="w-5 h-5" />}
-          trend="down"
         />
         <MetricCard
           title="Conversion Rate"
           value={`${metrics.conversionRate}%`}
-          change="+4.1%"
           icon={<TrendingUp className="w-5 h-5" />}
-          trend="up"
         />
         <MetricCard
           title="Default Rate"
           value={`${metrics.defaultRate}%`}
-          change="-0.8%"
           icon={<AlertTriangle className="w-5 h-5" />}
-          trend="down"
-          trendIsGood="down"
         />
       </div>
 
@@ -421,11 +406,11 @@ export default function AdminAnalyticsDashboard() {
                   <XAxis dataKey="month" style={{ fontSize: "12px" }} />
                   <YAxis
                     style={{ fontSize: "12px" }}
-                    tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`}
+                    tickFormatter={(v) => `$${(v / 100000).toFixed(0)}K`}
                   />
                   <Tooltip
                     contentStyle={{ borderRadius: "8px", border: "1px solid #E5E7EB" }}
-                    formatter={(value: number) => [`$${value.toLocaleString()}`, undefined]}
+                    formatter={(value: number) => [formatCurrency(value), undefined]}
                   />
                   <Legend />
                   <Area
@@ -543,13 +528,13 @@ export default function AdminAnalyticsDashboard() {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Total Collected</span>
                 <span className="font-bold text-green-600">
-                  ${(paymentMetrics.totalCollected / 100).toLocaleString()}
+                  {formatCurrency(paymentMetrics.totalCollected)}
                 </span>
               </div>
               <div className="flex items-center justify-between mt-2">
                 <span className="text-sm text-gray-600">Outstanding</span>
                 <span className="font-bold text-amber-600">
-                  ${(paymentMetrics.outstanding / 100).toLocaleString()}
+                  {formatCurrency(paymentMetrics.outstanding)}
                 </span>
               </div>
             </div>
@@ -576,7 +561,7 @@ export default function AdminAnalyticsDashboard() {
               </div>
               <div className="text-center p-4 bg-amber-50 rounded-lg">
                 <TrendingUp className="w-8 h-8 text-amber-600 mx-auto mb-2" />
-                <p className="text-3xl font-bold text-amber-900">${(totalRevenue / 100).toLocaleString()}</p>
+                <p className="text-3xl font-bold text-amber-900">{formatCurrency(totalRevenue)}</p>
                 <p className="text-sm text-amber-700 mt-1">Estimated Revenue (5% fees)</p>
               </div>
             </div>
@@ -590,15 +575,11 @@ export default function AdminAnalyticsDashboard() {
 interface MetricCardProps {
   title: string;
   value: string;
-  change: string;
+  subtitle?: string;
   icon: React.ReactNode;
-  trend: "up" | "down";
-  trendIsGood?: "up" | "down";
 }
 
-function MetricCard({ title, value, change, icon, trend, trendIsGood = "up" }: MetricCardProps) {
-  const isPositive = trend === trendIsGood;
-  
+function MetricCard({ title, value, subtitle, icon }: MetricCardProps) {
   return (
     <Card>
       <CardContent className="pt-6">
@@ -606,11 +587,9 @@ function MetricCard({ title, value, change, icon, trend, trendIsGood = "up" }: M
           <div className="flex-1">
             <p className="text-sm text-gray-600 mb-1">{title}</p>
             <p className="text-2xl font-bold text-gray-900">{value}</p>
-            <p className={`text-xs mt-1 flex items-center gap-1 ${
-              isPositive ? "text-green-600" : "text-red-600"
-            }`}>
-              {trend === "up" ? "↑" : "↓"} {change}
-            </p>
+            {subtitle && (
+              <p className="text-xs mt-1 text-gray-500">{subtitle}</p>
+            )}
           </div>
           <div className="p-3 bg-blue-100 rounded-lg text-[#0A2540]">
             {icon}
