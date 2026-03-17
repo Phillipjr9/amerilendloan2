@@ -162,7 +162,7 @@ export default function Home() {
           HERO
          ════════════════════════════════════════════════════ */}
       <section className="relative bg-gradient-to-br from-[#f0f7f6] to-white pb-0 pt-16 md:pt-24 overflow-hidden">
-        <div className="container mx-auto px-4 relative z-10">
+        <div className="container mx-auto px-4 relative z-20">
           <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-10 md:gap-16">
             {/* Left – Copy */}
             <div className="flex-1 text-center md:text-left pb-16 md:pb-24">
@@ -218,7 +218,7 @@ export default function Home() {
         </div>
 
         {/* Full-width curved divider — edge to edge, overlaps bottom of hero image */}
-        <div className="absolute bottom-0 left-0 w-full z-10">
+        <div className="absolute bottom-0 left-0 w-full z-10 pointer-events-none">
           <svg
             viewBox="0 0 1440 160"
             preserveAspectRatio="none"
