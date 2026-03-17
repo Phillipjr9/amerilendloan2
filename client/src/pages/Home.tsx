@@ -12,6 +12,12 @@ import {
   Shield,
   FileText,
   ArrowRight,
+  Heart,
+  Hammer,
+  Wrench,
+  Package,
+  Zap,
+  Wallet,
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
@@ -245,7 +251,9 @@ export default function Home() {
             Getting a loan shouldn't be complicated. Here's how it works.
           </p>
 
-          <div className="grid grid-cols-3 gap-4 md:gap-10">
+          <div className="grid grid-cols-3 gap-4 md:gap-10 relative">
+            {/* Connecting line between steps */}
+            <div className="hidden md:block absolute top-8 left-[20%] right-[20%] border-t-2 border-dashed border-[#C9A227]/30" />
             {[
               {
                 step: "1",
@@ -285,22 +293,56 @@ export default function Home() {
           YOUR LOAN, YOUR WAY
          ════════════════════════════════════════════════════ */}
       <section className="py-16 md:py-24 bg-[#f8f9fa]">
-        <div className="container mx-auto px-4 max-w-4xl text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-[#0A2540] mb-6">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <h2 className="text-3xl md:text-4xl font-bold text-[#0A2540] text-center mb-4">
             Your loan, your way
           </h2>
-          <p className="text-gray-600 text-lg leading-relaxed mb-6 max-w-2xl mx-auto">
-            Choose the amount you need, pick the terms that fit your budget, and review everything before you commit.
-            You're never locked in until you sign — and there are no hidden fees.
+          <p className="text-center text-gray-500 mb-10 sm:mb-14 text-lg max-w-2xl mx-auto">
+            Choose the amount, pick the terms, and review everything before you commit. No surprises.
           </p>
-          <p className="text-gray-600 text-lg leading-relaxed max-w-2xl mx-auto mb-10">
-            Apply online in minutes, get a decision fast, and have funds deposited directly to your account.
-          </p>
-          <Link href="/check-offers">
-            <Button size="lg" className="bg-[#C9A227] hover:bg-[#b8922a] text-white font-semibold rounded-full px-10 text-base shadow-md">
-              Check My Offers <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </Link>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 md:gap-6">
+            {[
+              {
+                icon: <Shield className="w-6 h-6" />,
+                title: "No hidden fees",
+                desc: "What you see is what you get — no origination fees, no prepayment penalties.",
+              },
+              {
+                icon: <Clock className="w-6 h-6" />,
+                title: "Same-day funding",
+                desc: "Apply before noon CT and get approved funds deposited the same business day.¹",
+              },
+              {
+                icon: <DollarSign className="w-6 h-6" />,
+                title: "Fixed rates from 5.99%",
+                desc: "Lock in a rate that won't change. Budget with confidence over your full loan term.",
+              },
+              {
+                icon: <CheckCircle2 className="w-6 h-6" />,
+                title: "No credit score impact",
+                desc: "Checking your offers uses a soft pull — your FICO score stays completely untouched.²",
+              },
+            ].map((feature, i) => (
+              <div key={i} className="bg-white rounded-2xl p-6 md:p-8 flex gap-5 items-start shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div className="w-12 h-12 rounded-xl bg-[#0A2540]/5 text-[#0A2540] flex items-center justify-center flex-shrink-0">
+                  {feature.icon}
+                </div>
+                <div>
+                  <h3 className="font-bold text-[#0A2540] text-lg mb-1">{feature.title}</h3>
+                  <p className="text-gray-600 text-sm leading-relaxed">{feature.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-10">
+            <Link href="/check-offers">
+              <Button size="lg" className="bg-[#C9A227] hover:bg-[#b8922a] text-white font-semibold rounded-full px-10 text-base shadow-md">
+                Check My Offers <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -335,23 +377,71 @@ export default function Home() {
       </section>
 
       {/* ════════════════════════════════════════════════════
+          USE YOUR LOAN FOR
+         ════════════════════════════════════════════════════ */}
+      <section className="py-16 md:py-24 bg-[#f8f9fa]">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <h2 className="text-3xl md:text-4xl font-bold text-[#0A2540] text-center mb-4">
+            What you can use it for
+          </h2>
+          <p className="text-center text-gray-500 mb-10 sm:mb-14 text-lg max-w-2xl mx-auto">
+            From planned projects to unexpected expenses — a personal loan gives you flexibility.
+          </p>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+            {[
+              { icon: <Wallet className="w-6 h-6" />, title: "Debt Consolidation", desc: "Combine multiple payments into one with a lower rate." },
+              { icon: <Heart className="w-6 h-6" />, title: "Medical Bills", desc: "Cover healthcare costs without the high-interest credit card." },
+              { icon: <Hammer className="w-6 h-6" />, title: "Home Improvement", desc: "Fund repairs, renovations, or upgrades to your home." },
+              { icon: <Wrench className="w-6 h-6" />, title: "Auto Repairs", desc: "Get back on the road without draining your savings." },
+              { icon: <Package className="w-6 h-6" />, title: "Moving Costs", desc: "Relocate without the financial stress of upfront expenses." },
+              { icon: <Zap className="w-6 h-6" />, title: "Emergency Expenses", desc: "Handle the unexpected with fast, reliable funding." },
+            ].map((useCase, i) => (
+              <div key={i} className="bg-white rounded-2xl p-5 md:p-6 text-center shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
+                <div className="w-12 h-12 rounded-full bg-[#C9A227]/10 text-[#C9A227] flex items-center justify-center mx-auto mb-4 group-hover:bg-[#C9A227]/20 transition-colors">
+                  {useCase.icon}
+                </div>
+                <h3 className="font-bold text-[#0A2540] mb-1.5">{useCase.title}</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">{useCase.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════════
           WHY AMERILEND
          ════════════════════════════════════════════════════ */}
       <section id="why-amerilend" className="py-16 md:py-24 bg-white">
-        <div className="container mx-auto px-4 max-w-4xl">
-          <h2 className="text-3xl md:text-4xl font-bold text-[#0A2540] text-center mb-6">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <h2 className="text-3xl md:text-4xl font-bold text-[#0A2540] text-center mb-14">
             Why AmeriLend?
           </h2>
 
-          <div className="space-y-6 text-gray-600 text-lg leading-relaxed text-center max-w-3xl mx-auto mb-12">
-            <p>
-              At AmeriLend, we believe personal loans should be simple, transparent, and built around you.
-              We look at more than just your credit score — because your financial story is bigger than a number.
-            </p>
-            <p>
-              With fast approvals, same-day funding options, clear terms, and a dedicated support team ready to help,
-              we're here to make borrowing stress-free. No surprises, no hidden fees — just honest lending.
-            </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-center mb-12">
+            {/* Left – Quote */}
+            <div className="relative">
+              <div className="absolute -top-4 -left-2 text-6xl text-[#C9A227]/20 font-serif leading-none select-none" aria-hidden="true">&ldquo;</div>
+              <blockquote className="text-xl md:text-2xl text-[#0A2540] font-medium leading-relaxed pl-6 border-l-4 border-[#C9A227]">
+                We believe personal loans should be simple, transparent, and built around you — because your financial story is bigger than a number.
+              </blockquote>
+            </div>
+
+            {/* Right – Benefits list */}
+            <div className="space-y-4">
+              {[
+                "Fast approvals — often within minutes",
+                "Same-day funding for qualifying applicants",
+                "Clear terms with no hidden fees",
+                "No prepayment penalties, ever",
+                "Dedicated U.S.-based support team",
+              ].map((benefit, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-[#00875A] flex-shrink-0 mt-0.5" />
+                  <span className="text-gray-700">{benefit}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Trust Badges */}
