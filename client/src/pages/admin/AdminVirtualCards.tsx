@@ -91,7 +91,7 @@ function AdminVirtualCards() {
 
   const addBalanceMutation = trpc.virtualCards.addBalance.useMutation({
     onSuccess: (data) => {
-      toast.success(`Balance added! New balance: ${formatCurrency(data.newBalance / 100)}`);
+      toast.success(`Balance added! New balance: ${formatCurrency(data.newBalance)}`);
       setAddBalanceDialog({ open: false, cardId: null });
       setAddBalanceAmount("");
       refetch();
@@ -277,7 +277,7 @@ function AdminVirtualCards() {
             <CardContent className="pt-5 pb-4">
               <p className="text-xs text-gray-500 mb-1">Total Balance</p>
               <p className="text-2xl font-bold">
-                {formatCurrency((cards?.reduce((sum: number, c: any) => sum + (c.currentBalance || 0), 0) || 0) / 100)}
+                {formatCurrency(cards?.reduce((sum: number, c: any) => sum + (c.currentBalance || 0), 0) || 0)}
               </p>
             </CardContent>
           </Card>
@@ -343,7 +343,7 @@ function AdminVirtualCards() {
                         </td>
                         <td className="px-4 py-3 font-medium">{card.cardholderName}</td>
                         <td className="px-4 py-3 font-mono font-medium">
-                          {formatCurrency((card.currentBalance || 0) / 100)}
+                          {formatCurrency(card.currentBalance || 0)}
                         </td>
                         <td className="px-4 py-3">
                           <Badge variant="outline" className={statusColors[card.status] || ""}>

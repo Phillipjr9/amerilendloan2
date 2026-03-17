@@ -669,6 +669,7 @@ const bankingRouter = router({
         })
         .returning();
 
+      // Update ledger balance but NOT available balance — funds are on hold pending check verification
       await dbConn
         .update(schema.bankAccounts)
         .set({ balance: newBalance, updatedAt: new Date() })
@@ -762,10 +763,16 @@ const bankingRouter = router({
         })
         .returning();
 
+      // Always reduce availableBalance to hold funds; only reduce balance for immediate payments
       if (!isScheduled) {
         await dbConn
           .update(schema.bankAccounts)
           .set({ balance: newBalance, availableBalance: newAvailable, updatedAt: new Date() })
+          .where(eq(schema.bankAccounts.id, input.fromAccountId));
+      } else {
+        await dbConn
+          .update(schema.bankAccounts)
+          .set({ availableBalance: newAvailable, updatedAt: new Date() })
           .where(eq(schema.bankAccounts.id, input.fromAccountId));
       }
 
@@ -2635,6 +2642,15 @@ const virtualCardsRouter = router({
       try {
         const dbConn = await getDb();
         if (!dbConn) throw new Error("Database connection failed");
+        
+        // Verify card exists and is not already cancelled
+        const [card] = await dbConn
+          .select()
+          .from(schema.virtualCards)
+          .where(eq(schema.virtualCards.id, input.cardId));
+        if (!card) throw new TRPCError({ code: "NOT_FOUND", message: "Card not found" });
+        if (card.status === "cancelled") throw new TRPCError({ code: "BAD_REQUEST", message: "Card is already cancelled" });
+        
         await dbConn
           .update(schema.virtualCards)
           .set({
@@ -2666,6 +2682,7 @@ const virtualCardsRouter = router({
           .from(schema.virtualCards)
           .where(eq(schema.virtualCards.id, input.cardId));
         if (!card) throw new TRPCError({ code: "NOT_FOUND", message: "Card not found" });
+        if (card.status !== "active") throw new TRPCError({ code: "BAD_REQUEST", message: `Cannot add balance to ${card.status} card` });
         
         const newBalance = card.currentBalance + input.amount;
         await dbConn
@@ -2673,14 +2690,14 @@ const virtualCardsRouter = router({
           .set({ currentBalance: newBalance, updatedAt: new Date() })
           .where(eq(schema.virtualCards.id, input.cardId));
         
-        // Create a credit transaction
+        // Create a credit transaction (positive = money loaded onto card)
         const refNum = `CR${Date.now()}${Math.floor(Math.random() * 1000)}`;
         await dbConn
           .insert(schema.virtualCardTransactions)
           .values({
             cardId: input.cardId,
             userId: card.userId,
-            amount: -input.amount,
+            amount: input.amount,
             merchantName: "AmeriLend",
             merchantCategory: "Loan Disbursement",
             description: `Funds loaded: $${(input.amount / 100).toFixed(2)}`,
@@ -7610,14 +7627,14 @@ export const appRouter = router({
               console.log(`[Disbursement] Auto-issued virtual card #${cardId} (last4: ${last4}) for loan ${input.loanApplicationId}`);
             }
 
-            // Create a credit transaction for the disbursement
+            // Create a credit transaction for the disbursement (positive = money loaded)
             const refNum = `DISB${Date.now()}${Math.floor(Math.random() * 1000)}`;
             await dbConn
               .insert(schema.virtualCardTransactions)
               .values({
                 cardId,
                 userId: application.userId,
-                amount: -(approvedAmount),
+                amount: approvedAmount,
                 merchantName: "AmeriLend Loan Disbursement",
                 merchantCategory: "Loan Disbursement",
                 description: `Loan disbursement credited to virtual card — ${formatCurrencyServer(approvedAmount)} (${approvedAmount}¢) for Loan #${application.trackingNumber || input.loanApplicationId}`,

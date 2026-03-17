@@ -62,9 +62,9 @@ export function PaymentHistory() {
     id: `PAY-${String(p.id).padStart(3, '0')}`,
     loanId: String(p.loanApplicationId),
     loanNumber: p.loanTrackingNumber || `LN-${p.loanApplicationId}`,
-    amount: p.amount / 100, // Convert cents to dollars
-    principalPaid: p.principalPaid ? p.principalPaid / 100 : Math.round((p.amount / 100) * 0.7 * 100) / 100,
-    interestPaid: p.interestPaid ? p.interestPaid / 100 : Math.round((p.amount / 100) * 0.3 * 100) / 100,
+    amount: p.amount, // cents — formatCurrency handles conversion
+    principalPaid: p.principalPaid ? p.principalPaid : Math.round(p.amount * 0.7),
+    interestPaid: p.interestPaid ? p.interestPaid : Math.round(p.amount * 0.3),
     date: new Date(p.completedAt || p.createdAt).toLocaleDateString(),
     dueDate: new Date(p.createdAt).toLocaleDateString(),
     status: p.status === "succeeded" ? "paid" : p.status,
@@ -171,8 +171,8 @@ export function PaymentHistory() {
               // Export filtered payments as CSV
               const headers = ["Date", "Loan", "Amount", "Principal", "Interest", "Method", "Status", "Transaction ID"];
               const rows = filteredPayments.map((p) => [
-                p.date, p.loanNumber, `$${p.amount.toFixed(2)}`,
-                `$${p.principalPaid.toFixed(2)}`, `$${p.interestPaid.toFixed(2)}`,
+                p.date, p.loanNumber, `$${(p.amount / 100).toFixed(2)}`,
+                `$${(p.principalPaid / 100).toFixed(2)}`, `$${(p.interestPaid / 100).toFixed(2)}`,
                 p.paymentMethod, p.status, p.transactionId
               ]);
               const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");

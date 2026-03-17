@@ -410,7 +410,7 @@ function VirtualDebitCard() {
                   <CardContent className="pt-5 pb-4">
                     <p className="text-xs text-gray-500 font-medium mb-1">Available Balance</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {formatCurrency((selectedCard?.currentBalance || 0) / 100)}
+                      {formatCurrency(selectedCard?.currentBalance || 0)}
                     </p>
                   </CardContent>
                 </Card>
@@ -418,10 +418,10 @@ function VirtualDebitCard() {
                   <CardContent className="pt-5 pb-4">
                     <p className="text-xs text-gray-500 font-medium mb-1">Daily Spent</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {formatCurrency((selectedCard?.dailySpent || 0) / 100)}
+                      {formatCurrency(selectedCard?.dailySpent || 0)}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      of {formatCurrency((selectedCard?.dailySpendLimit || 500000) / 100)} limit
+                      of {formatCurrency(selectedCard?.dailySpendLimit || 500000)} limit
                     </p>
                   </CardContent>
                 </Card>
@@ -429,10 +429,10 @@ function VirtualDebitCard() {
                   <CardContent className="pt-5 pb-4">
                     <p className="text-xs text-gray-500 font-medium mb-1">Monthly Spent</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {formatCurrency((selectedCard?.monthlySpent || 0) / 100)}
+                      {formatCurrency(selectedCard?.monthlySpent || 0)}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      of {formatCurrency((selectedCard?.monthlySpendLimit || 2500000) / 100)} limit
+                      of {formatCurrency(selectedCard?.monthlySpendLimit || 2500000)} limit
                     </p>
                   </CardContent>
                 </Card>
@@ -842,7 +842,7 @@ function VirtualDebitCard() {
                             </div>
                             <div className="text-right">
                               <p className={`font-semibold text-sm ${isCredit ? "text-green-600" : "text-gray-900"}`}>
-                                {isCredit ? "+" : "-"}{formatCurrency(Math.abs(tx.amount) / 100)}
+                                {isCredit ? "+" : "-"}{formatCurrency(Math.abs(tx.amount))}
                               </p>
                               <Badge variant="outline" className={`text-[10px] ${
                                 tx.status === "completed" ? "text-green-600 border-green-200" :
@@ -943,7 +943,7 @@ function VirtualDebitCard() {
                     <div className="flex items-center justify-between mb-1">
                       <Label className="text-sm">Daily Limit</Label>
                       <span className="text-sm font-medium text-gray-900">
-                        {formatCurrency((selectedCard?.dailySpendLimit || 500000) / 100)}
+                        {formatCurrency(selectedCard?.dailySpendLimit || 500000)}
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
@@ -955,14 +955,14 @@ function VirtualDebitCard() {
                       />
                     </div>
                     <p className="text-xs text-gray-400 mt-1">
-                      {formatCurrency((selectedCard?.dailySpent || 0) / 100)} spent today
+                      {formatCurrency(selectedCard?.dailySpent || 0)} spent today
                     </p>
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <Label className="text-sm">Monthly Limit</Label>
                       <span className="text-sm font-medium text-gray-900">
-                        {formatCurrency((selectedCard?.monthlySpendLimit || 2500000) / 100)}
+                        {formatCurrency(selectedCard?.monthlySpendLimit || 2500000)}
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
@@ -974,7 +974,7 @@ function VirtualDebitCard() {
                       />
                     </div>
                     <p className="text-xs text-gray-400 mt-1">
-                      {formatCurrency((selectedCard?.monthlySpent || 0) / 100)} spent this month
+                      {formatCurrency(selectedCard?.monthlySpent || 0)} spent this month
                     </p>
                   </div>
                 </CardContent>
