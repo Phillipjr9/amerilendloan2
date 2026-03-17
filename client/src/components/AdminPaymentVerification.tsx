@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatCurrency } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -321,7 +322,7 @@ export default function AdminPaymentVerification() {
                       </td>
                       <td className="py-3 px-4">
                         <p className="text-sm font-semibold text-gray-900">
-                          ${(payment.amount / 100).toFixed(2)}
+                          {formatCurrency(payment.amount)}
                         </p>
                         {payment.paymentMethod === "crypto" && payment.cryptoAmount && (
                           <p className="text-xs text-gray-500">
@@ -412,7 +413,7 @@ export default function AdminPaymentVerification() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Amount:</span>
-                      <span className="font-medium">${(selectedPayment.amount / 100).toFixed(2)}</span>
+                      <span className="font-medium">{formatCurrency(selectedPayment.amount)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Status:</span>
@@ -612,7 +613,7 @@ export default function AdminPaymentVerification() {
                 <div className="flex justify-between">
                   <span className="text-gray-600">Amount:</span>
                   <span className="font-medium">
-                    ${(verificationDialog.payment.amount / 100).toFixed(2)}
+                    {formatCurrency(verificationDialog.payment.amount)}
                   </span>
                 </div>
                 {verificationDialog.payment.cryptoTxHash && (

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatCurrency } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 
 export interface Notification {
@@ -47,9 +48,7 @@ export function useNotifications() {
           id: app.id,
           type: "application",
           title: "New Loan Application",
-          message: `${app.fullName} applied for $${(
-            app.requestedAmount / 100
-          ).toFixed(2)}`,
+          message: `${app.fullName} applied for ${formatCurrency(app.requestedAmount)}`,
           read: false,
           createdAt: new Date(app.createdAt),
           actionUrl: `/admin`,

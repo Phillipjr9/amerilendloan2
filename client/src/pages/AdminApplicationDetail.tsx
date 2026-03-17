@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { formatCurrency } from "@/lib/utils";
 import { useRoute, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -365,14 +366,14 @@ export default function AdminApplicationDetail() {
                     <div>
                       <p className="text-sm text-gray-600">Requested Amount</p>
                       <p className="text-xl font-bold text-gray-900">
-                        ${(application.requestedAmount / 100).toLocaleString()}
+                        {formatCurrency(application.requestedAmount)}
                       </p>
                     </div>
                     {application.approvedAmount && (
                       <div>
                         <p className="text-sm text-gray-600">Approved Amount</p>
                         <p className="text-xl font-bold text-green-600">
-                          ${(application.approvedAmount / 100).toLocaleString()}
+                          {formatCurrency(application.approvedAmount)}
                         </p>
                       </div>
                     )}
@@ -383,7 +384,7 @@ export default function AdminApplicationDetail() {
                       <span className="text-sm font-medium text-gray-700">Processing Fee</span>
                       <div className="text-right">
                         <p className="font-bold text-blue-900">
-                          ${(application.processingFeeAmount / 100).toFixed(2)}
+                          {formatCurrency(application.processingFeeAmount)}
                         </p>
                         {application.feePaymentVerified ? (
                           <Badge className="mt-1 bg-green-100 text-green-800 text-xs">
@@ -574,7 +575,7 @@ export default function AdminApplicationDetail() {
                   <div>
                     <p className="text-sm text-gray-600">Monthly Income</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      ${(application.monthlyIncome / 100).toLocaleString()}
+                      {formatCurrency(application.monthlyIncome)}
                     </p>
                   </div>
 
@@ -602,7 +603,7 @@ export default function AdminApplicationDetail() {
                           {payments.map((payment) => (
                             <div key={payment.id} className="flex justify-between text-sm p-2 bg-gray-50 rounded">
                               <span className="capitalize">{payment.paymentMethod.replace('_', ' ')}</span>
-                              <span className="font-medium">${(payment.amount / 100).toFixed(2)}</span>
+                              <span className="font-medium">{formatCurrency(payment.amount)}</span>
                             </div>
                           ))}
                         </div>
@@ -861,7 +862,7 @@ export default function AdminApplicationDetail() {
                           </div>
                           <div className="text-right">
                             <p className="text-xl font-bold text-gray-900">
-                              ${(payment.amount / 100).toFixed(2)}
+                              {formatCurrency(payment.amount)}
                             </p>
                             <Badge className={
                               payment.status === 'completed' ? 'bg-green-100 text-green-800' :
@@ -935,7 +936,7 @@ export default function AdminApplicationDetail() {
                       <div>
                         <p className="text-sm text-gray-600">Amount</p>
                         <p className="text-xl font-bold text-gray-900">
-                          ${(disbursement.amount / 100).toLocaleString()}
+                          {formatCurrency(disbursement.amount)}
                         </p>
                       </div>
                       <div>
@@ -1237,7 +1238,7 @@ export default function AdminApplicationDetail() {
                             </span>
                           </div>
                           <div className="text-right">
-                            <div className="text-sm font-medium">${(acct.balance / 100).toFixed(2)}</div>
+                            <div className="text-sm font-medium">{formatCurrency(acct.balance)}</div>
                             {acct.isVerified && (
                               <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-300">Verified</Badge>
                             )}
@@ -1279,10 +1280,7 @@ export default function AdminApplicationDetail() {
               <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 border">
                 <div className="text-xs text-muted-foreground mb-1">Approved Loan Amount</div>
                 <div className="text-xl font-bold text-emerald-600">
-                  ${(data.application.approvedAmount / 100).toFixed(2)}
-                </div>
-                <div className="text-[11px] text-muted-foreground">
-                  {data.application.approvedAmount.toLocaleString()} cents
+                  {formatCurrency(data.application.approvedAmount)}
                 </div>
                 {data.application.loanAccountNumber && (
                   <div className="text-[11px] text-muted-foreground mt-1 pt-1 border-t">

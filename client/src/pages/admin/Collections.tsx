@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -203,7 +204,7 @@ export default function Collections() {
                   <TableCell>#{record.loanApplicationId}</TableCell>
                   <TableCell>{getStatusBadge(record.status)}</TableCell>
                   <TableCell>{record.daysDelinquent} days</TableCell>
-                  <TableCell>${(record.totalAmountDue / 100).toLocaleString()}</TableCell>
+                  <TableCell>{formatCurrency(record.totalAmountDue)}</TableCell>
                   <TableCell className="text-sm">
                     {record.lastContactDate
                       ? format(new Date(record.lastContactDate), "MMM d, yyyy")
@@ -259,7 +260,7 @@ export default function Collections() {
                   <div>
                     <p className="text-muted-foreground">Total Amount Due</p>
                     <p className="font-medium text-lg">
-                      ${(selectedRecord.totalAmountDue / 100).toLocaleString()}
+                      {formatCurrency(selectedRecord.totalAmountDue)}
                     </p>
                   </div>
                   <div>
@@ -291,8 +292,7 @@ export default function Collections() {
                 {selectedRecord.promiseToPayDate ? (
                   <div className="mb-3 p-3 bg-blue-50 rounded-lg">
                     <p className="text-sm">
-                      <strong>Promised Amount:</strong> $
-                      {(selectedRecord.promiseToPayAmount / 100).toLocaleString()}
+                      <strong>Promised Amount:</strong> {formatCurrency(selectedRecord.promiseToPayAmount)}
                     </p>
                     <p className="text-sm">
                       <strong>Promised Date:</strong>{" "}

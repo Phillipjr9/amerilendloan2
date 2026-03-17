@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -423,7 +424,7 @@ export default function AdminInvitations() {
                         <td className="px-4 py-3">
                           {inv.offerAmount ? (
                             <div>
-                              <p className="font-medium">${(inv.offerAmount / 100).toLocaleString()}</p>
+                              <p className="font-medium">{formatCurrency(inv.offerAmount)}</p>
                               {inv.offerApr && (
                                 <p className="text-xs text-gray-500">{(inv.offerApr / 100).toFixed(2)}% APR</p>
                               )}

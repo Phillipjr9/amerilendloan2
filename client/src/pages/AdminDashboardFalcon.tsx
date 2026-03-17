@@ -1,4 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -724,7 +725,7 @@ export default function AdminDashboardFalcon() {
                                   <p className="text-sm text-gray-500">{app.email}</p>
                                 </div>
                               </td>
-                              <td className="py-3 px-4 font-medium">${(app.requestedAmount / 100).toFixed(2)}</td>
+                              <td className="py-3 px-4 font-medium">{formatCurrency(app.requestedAmount)}</td>
                               <td className="py-3 px-4">
                                 <Badge className={statusColors[app.status]}>{app.status}</Badge>
                               </td>
@@ -885,7 +886,7 @@ export default function AdminDashboardFalcon() {
                               <td className="py-3 px-4 font-mono text-sm text-gray-600">#{app.id}</td>
                               <td className="py-3 px-4 font-medium text-gray-900">{app.fullName}</td>
                               <td className="py-3 px-4 text-gray-600">{app.email}</td>
-                              <td className="py-3 px-4 font-semibold text-gray-900">${(app.requestedAmount / 100).toFixed(2)}</td>
+                              <td className="py-3 px-4 font-semibold text-gray-900">{formatCurrency(app.requestedAmount)}</td>
                               <td className="py-3 px-4">
                                 <Badge className={statusColors[app.status]}>{app.status}</Badge>
                               </td>
@@ -1038,7 +1039,7 @@ export default function AdminDashboardFalcon() {
                             <tr key={disb.id} className="border-b hover:bg-gray-50">
                               <td className="py-3 px-4 font-mono text-sm">#{disb.id}</td>
                               <td className="py-3 px-4 font-mono text-sm">#{disb.loanApplicationId}</td>
-                              <td className="py-3 px-4 font-semibold">${(disb.amount / 100).toFixed(2)}</td>
+                              <td className="py-3 px-4 font-semibold">{formatCurrency(disb.amount)}</td>
                               <td className="py-3 px-4">{disb.accountHolderName}</td>
                               <td className="py-3 px-4">
                                 <Badge className={disb.status === "completed" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}>
@@ -1285,7 +1286,7 @@ export default function AdminDashboardFalcon() {
                       <div className="bg-gray-50 p-4 rounded-lg space-y-2">
                         <p><span className="font-medium">Mode:</span> {feeConfig.calculationMode}</p>
                         <p><span className="font-medium">Percentage Rate:</span> {(feeConfig.percentageRate / 100).toFixed(2)}%</p>
-                        <p><span className="font-medium">Fixed Fee:</span> ${(feeConfig.fixedFeeAmount / 100).toFixed(2)}</p>
+                        <p><span className="font-medium">Fixed Fee:</span> {formatCurrency(feeConfig.fixedFeeAmount)}</p>
                       </div>
                     )}
                   </div>
@@ -1624,7 +1625,7 @@ export default function AdminDashboardFalcon() {
                           <div className="font-medium text-sm">{acc.bankName} — {acc.accountType}</div>
                           <div className="text-xs text-gray-500">****{acc.accountNumberLast4} {acc.isPrimary ? "• Primary" : ""}</div>
                           <div className="text-xs text-gray-400 mt-0.5">
-                            Balance: ${((acc.balance || 0) / 100).toFixed(2)} • Available: ${((acc.availableBalance || 0) / 100).toFixed(2)}
+                            Balance: {formatCurrency(acc.balance || 0)} • Available: {formatCurrency(acc.availableBalance || 0)}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1677,11 +1678,7 @@ export default function AdminDashboardFalcon() {
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Approved Amount</span>
-                    <span className="font-bold text-green-700">${(app.approvedAmount / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-400 mt-1">
-                    <span>Amount in cents</span>
-                    <span>{app.approvedAmount.toLocaleString()}¢</span>
+                    <span className="font-bold text-green-700">{formatCurrency(app.approvedAmount)}</span>
                   </div>
                   {app.loanAccountNumber && (
                     <div className="flex justify-between text-xs text-gray-500 mt-1 pt-1 border-t border-gray-200">
