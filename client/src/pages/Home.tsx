@@ -451,11 +451,11 @@ export default function Home() {
       <TestimonialsSection />
 
       {/* ════════════════════════════════════════════════════
-          BOTTOM CTA
+          BOTTOM CTA + STATS
          ════════════════════════════════════════════════════ */}
-      <section className="py-16 md:py-20 bg-[#0A2540]">
+      <section className="py-16 md:py-20 bg-[#0A2540] text-white">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">
             Check your loan offers now
           </h2>
           <p className="text-gray-300 text-lg mb-8 max-w-xl mx-auto">
@@ -466,30 +466,22 @@ export default function Home() {
               See My Loan Offers <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </Link>
-        </div>
-      </section>
 
-      {/* ════════════════════════════════════════════════════
-          STATS — Social Proof
-         ════════════════════════════════════════════════════ */}
-      <section className="py-16 md:py-20 bg-[#0A2540] text-white">
-        <div className="container mx-auto px-4 max-w-5xl">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-14">
-            Personal loans done right
-          </h2>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            {[
-              { value: "250K+", label: "Loans Funded" },
-              { value: "90%", label: "Return Customers" },
-              { value: "$1.8B+", label: "Total Approved" },
-              { value: "4.8★", label: "Customer Rating" },
-            ].map((stat, i) => (
-              <div key={i}>
-                <p className="text-3xl md:text-4xl font-extrabold text-[#C9A227] mb-2">{stat.value}</p>
-                <p className="text-sm md:text-base text-gray-300">{stat.label}</p>
-              </div>
-            ))}
+          {/* Stats */}
+          <div className="mt-16 pt-12 border-t border-white/10 max-w-5xl mx-auto">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+              {[
+                { value: "250K+", label: "Loans Funded" },
+                { value: "90%", label: "Return Customers" },
+                { value: "$1.8B+", label: "Total Approved" },
+                { value: "4.8★", label: "Customer Rating" },
+              ].map((stat, i) => (
+                <div key={i}>
+                  <p className="text-3xl md:text-4xl font-extrabold text-[#C9A227] mb-2">{stat.value}</p>
+                  <p className="text-sm md:text-base text-gray-300">{stat.label}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -578,7 +570,7 @@ export default function Home() {
                 <sup>2</sup> AmeriLend's bank partners use soft credit inquiries during the application process that will not affect your FICO score.
               </p>
               <p>
-                <sup>6</sup> AmeriLend and its bank partners report payment history to the three major credit bureaus. On-time payments may improve your credit score.
+                <sup>3</sup> AmeriLend and its bank partners report payment history to the three major credit bureaus. On-time payments may improve your credit score.
               </p>
             </div>
 
