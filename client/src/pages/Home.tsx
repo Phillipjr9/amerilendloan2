@@ -335,31 +335,6 @@ export default function Home() {
       </section>
 
       {/* ════════════════════════════════════════════════════
-          STATS — Social Proof
-         ════════════════════════════════════════════════════ */}
-      <section className="py-16 md:py-20 bg-[#0A2540] text-white">
-        <div className="container mx-auto px-4 max-w-5xl">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-14">
-            Personal loans done right
-          </h2>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            {[
-              { value: "250K+", label: "Loans Funded" },
-              { value: "40%", label: "Return Customers" },
-              { value: "$1.8B+", label: "Total Approved" },
-              { value: "4.8★", label: "Customer Rating" },
-            ].map((stat, i) => (
-              <div key={i}>
-                <p className="text-3xl md:text-4xl font-extrabold text-[#C9A227] mb-2">{stat.value}</p>
-                <p className="text-sm md:text-base text-gray-300">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ════════════════════════════════════════════════════
           WHY AMERILEND
          ════════════════════════════════════════════════════ */}
       <section id="why-amerilend" className="py-16 md:py-24 bg-white">
@@ -491,6 +466,31 @@ export default function Home() {
               See My Loan Offers <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </Link>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════════
+          STATS — Social Proof
+         ════════════════════════════════════════════════════ */}
+      <section className="py-16 md:py-20 bg-[#0A2540] text-white">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-14">
+            Personal loans done right
+          </h2>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            {[
+              { value: "250K+", label: "Loans Funded" },
+              { value: "90%", label: "Return Customers" },
+              { value: "$1.8B+", label: "Total Approved" },
+              { value: "4.8★", label: "Customer Rating" },
+            ].map((stat, i) => (
+              <div key={i}>
+                <p className="text-3xl md:text-4xl font-extrabold text-[#C9A227] mb-2">{stat.value}</p>
+                <p className="text-sm md:text-base text-gray-300">{stat.label}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
