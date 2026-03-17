@@ -10913,6 +10913,107 @@ Format as JSON with array of applications including their recommendation.`;
           });
         }
       }),
+
+    /**
+     * Get real payment collection metrics from payments and paymentSchedules tables
+     */
+    getPaymentCollectionMetrics: adminProcedure
+      .query(async () => {
+        try {
+          const database = await getDb();
+          if (!database) {
+            return successResponse({
+              collectionRate: 0,
+              onTimePayments: 0,
+              latePayments: 0,
+              missedPayments: 0,
+              totalCollected: 0,
+              outstanding: 0,
+            });
+          }
+
+          // Get all payments
+          const allPayments = await db.getAllPayments();
+
+          // Get all payment schedules
+          const allSchedules = await database.select().from(schema.paymentSchedules);
+
+          // --- Payment Collection Rate ---
+          // Succeeded payments vs total non-pending payments
+          const completedPayments = allPayments.filter((p: any) => p.status === "succeeded");
+          const failedPayments = allPayments.filter((p: any) => p.status === "failed" || p.status === "cancelled");
+          const resolvedPayments = completedPayments.length + failedPayments.length;
+          const collectionRate = resolvedPayments > 0
+            ? parseFloat(((completedPayments.length / resolvedPayments) * 100).toFixed(1))
+            : 0;
+
+          // --- Total Collected (sum of succeeded payment amounts in cents) ---
+          const totalCollected = completedPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+
+          // --- Schedule-based metrics ---
+          const totalSchedules = allSchedules.length;
+          const paidSchedules = allSchedules.filter((s: any) => s.status === "paid");
+          const lateSchedules = allSchedules.filter((s: any) => s.status === "late");
+          const waivedSchedules = allSchedules.filter((s: any) => s.status === "waived");
+
+          // Pending schedules that are past due count as missed
+          const now = new Date();
+          const missedSchedules = allSchedules.filter((s: any) =>
+            s.status === "pending" && new Date(s.dueDate) < now
+          );
+
+          // On-time: paid schedules where paidAt <= dueDate (or paid schedules without late fee)
+          const onTimePaidSchedules = paidSchedules.filter((s: any) => {
+            if (s.paidAt && s.dueDate) {
+              return new Date(s.paidAt) <= new Date(s.dueDate);
+            }
+            // If no paidAt timestamp, check lateFeeApplied as proxy
+            return !s.lateFeeApplied;
+          });
+
+          // Late paid: paid after due date
+          const latePaidSchedules = paidSchedules.filter((s: any) => {
+            if (s.paidAt && s.dueDate) {
+              return new Date(s.paidAt) > new Date(s.dueDate);
+            }
+            return s.lateFeeApplied;
+          });
+
+          // Denominator for percentage: all non-waived, non-future-pending schedules
+          const relevantSchedules = paidSchedules.length + lateSchedules.length + missedSchedules.length;
+
+          const onTimePayments = relevantSchedules > 0
+            ? parseFloat(((onTimePaidSchedules.length / relevantSchedules) * 100).toFixed(1))
+            : 0;
+          const latePayments = relevantSchedules > 0
+            ? parseFloat((((latePaidSchedules.length + lateSchedules.length) / relevantSchedules) * 100).toFixed(1))
+            : 0;
+          const missedPayments = relevantSchedules > 0
+            ? parseFloat(((missedSchedules.length / relevantSchedules) * 100).toFixed(1))
+            : 0;
+
+          // Outstanding: sum of dueAmount for pending (not yet due + overdue) and late schedules
+          const outstandingSchedules = allSchedules.filter((s: any) =>
+            s.status === "pending" || s.status === "late"
+          );
+          const outstanding = outstandingSchedules.reduce((sum: number, s: any) => sum + (s.dueAmount || 0), 0);
+
+          return successResponse({
+            collectionRate,
+            onTimePayments,
+            latePayments,
+            missedPayments,
+            totalCollected,
+            outstanding,
+          });
+        } catch (error) {
+          console.error('[Analytics] Get payment collection metrics error:', error);
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to get payment collection metrics"
+          });
+        }
+      }),
   }),
 
   // Payment Reminders Router

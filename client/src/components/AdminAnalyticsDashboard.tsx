@@ -49,6 +49,7 @@ export default function AdminAnalyticsDashboard() {
   // Fetch real data from backend
   const { data: metricsData, isLoading } = trpc.analytics.getAdminMetrics.useQuery({ timeRange });
   const { data: allApplications } = trpc.loans.adminList.useQuery();
+  const { data: paymentCollectionData } = trpc.analytics.getPaymentCollectionMetrics.useQuery();
 
   // Calculate derived metrics from real data
   const metrics = metricsData?.data || {
@@ -77,16 +78,14 @@ export default function AdminAnalyticsDashboard() {
     { status: "Cancelled", count: allApplications.filter((app: any) => app.status === "cancelled").length, color: "gray" }
   ] : [];
 
-  // Calculate payment metrics from real data
-  const disbursedApps = allApplications?.filter((app: any) => app.status === "disbursed") || [];
-  const totalDisbursedValue = disbursedApps.reduce((sum: number, app: any) => sum + ((app as any).approvedAmount || 0), 0);
-  const paymentMetrics = {
-    collectionRate: 94.7,
-    onTimePayments: 86.2,
-    latePayments: 10.6,
-    missedPayments: 3.2,
-    totalCollected: Math.round(totalDisbursedValue * 0.85),
-    outstanding: Math.round(totalDisbursedValue * 0.15)
+  // Payment collection metrics from real data
+  const paymentMetrics = paymentCollectionData?.data || {
+    collectionRate: 0,
+    onTimePayments: 0,
+    latePayments: 0,
+    missedPayments: 0,
+    totalCollected: 0,
+    outstanding: 0,
   };
 
   // ── Derived chart data from real applications ──
