@@ -4,6 +4,8 @@ import helmet from "helmet";
 import { createServer } from "http";
 import net from "net";
 import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
@@ -410,6 +412,19 @@ async function startServer() {
     })
   );
   
+  // Serve sitemap.xml with correct content type
+  app.get("/sitemap.xml", (_req, res) => {
+    const sitemapPath = process.env.NODE_ENV === "development"
+      ? path.resolve(process.cwd(), "client/public/sitemap.xml")
+      : path.resolve(process.cwd(), "dist/public/sitemap.xml");
+    if (fs.existsSync(sitemapPath)) {
+      res.setHeader("Content-Type", "application/xml; charset=utf-8");
+      res.sendFile(sitemapPath);
+    } else {
+      res.status(404).send("Sitemap not found");
+    }
+  });
+
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
     try {
