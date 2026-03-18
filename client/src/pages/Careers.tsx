@@ -5,6 +5,7 @@ import { Loader2, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import ComplianceFooter from "@/components/ComplianceFooter";
 
 interface JobApplication {
   fullName: string;
@@ -383,6 +384,8 @@ export default function Careers() {
           </div>
         </div>
       </div>
+
+      <ComplianceFooter />
     </div>
   );
 }

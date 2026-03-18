@@ -12,6 +12,34 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
+import ComplianceFooter from "@/components/ComplianceFooter";
+
+const leadership = [
+  {
+    name: "Michael R. Davis",
+    title: "Chief Executive Officer & Founder",
+    bio: "20+ years in consumer finance. Former VP at Wells Fargo Consumer Lending. MBA, Wharton School of Business.",
+    photo: "/images/team/michael-davis.svg",
+  },
+  {
+    name: "Sarah Chen",
+    title: "Chief Technology Officer",
+    bio: "Former engineering lead at LendingClub. 15 years building scalable fintech platforms. MS Computer Science, Stanford.",
+    photo: "/images/team/sarah-chen.svg",
+  },
+  {
+    name: "James A. Whitfield",
+    title: "Chief Compliance Officer",
+    bio: "Former CFPB examiner with 18 years in regulatory compliance. JD, Georgetown University Law Center.",
+    photo: "/images/team/james-whitfield.svg",
+  },
+  {
+    name: "Patricia L. Rodriguez",
+    title: "VP of Customer Experience",
+    bio: "12 years leading customer success at fintech companies including SoFi and Prosper. BA, UC Berkeley.",
+    photo: "/images/team/patricia-rodriguez.svg",
+  },
+];
 
 const values = [
   {
@@ -46,7 +74,7 @@ const milestones = [
   { year: "2022", event: "Launched same-day funding and mobile-first experience." },
   { year: "2023", event: "Expanded loan offerings up to $15,000 with flexible terms." },
   { year: "2024", event: "Introduced AI-powered customer support and financial tools." },
-  { year: "2025", event: "Surpassed $100M in total funded loans with 50,000+ customers served." },
+  { year: "2025", event: "Surpassed $1.8B in total approved loans with 250,000+ customers served." },
 ];
 
 export default function About() {
@@ -143,6 +171,49 @@ export default function About() {
         </div>
       </section>
 
+      {/* Leadership Team */}
+      <section className="py-16 md:py-24 bg-white">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl md:text-4xl font-bold text-[#0A2540] mb-4">Our Leadership</h2>
+            <p className="text-gray-500 text-lg max-w-2xl mx-auto">
+              Experienced professionals driving our mission to make personal lending accessible and transparent.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-8">
+            {leadership.map((person) => (
+              <div key={person.name} className="bg-gray-50 rounded-2xl p-8 hover:shadow-md transition-shadow">
+                <div className="flex items-start gap-5">
+                  <img
+                    src={person.photo}
+                    alt={person.name}
+                    className="w-20 h-20 rounded-full object-cover flex-shrink-0 border-2 border-[#C9A227]/30"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      target.style.display = "none";
+                      const fallback = target.nextElementSibling as HTMLElement;
+                      if (fallback) fallback.style.display = "flex";
+                    }}
+                  />
+                  <div
+                    className="w-20 h-20 rounded-full bg-[#0A2540] items-center justify-center flex-shrink-0 border-2 border-[#C9A227]/30 hidden"
+                  >
+                    <span className="text-white font-bold text-xl">
+                      {person.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+                    </span>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-[#0A2540]">{person.name}</h3>
+                    <p className="text-sm font-medium text-[#C9A227] mb-2">{person.title}</p>
+                    <p className="text-sm text-gray-600 leading-relaxed">{person.bio}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Our Values */}
       <section className="py-16 md:py-24 bg-gray-50">
         <div className="container mx-auto px-4 max-w-5xl">
@@ -198,16 +269,46 @@ export default function About() {
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center text-white">
             {[
-              { value: "50,000+", label: "Customers Served" },
-              { value: "$100M+", label: "Loans Funded" },
+              { value: "250K+", label: "Loans Funded" },
+              { value: "$1.8B+", label: "Total Approved" },
               { value: "4.8/5", label: "Customer Rating" },
-              { value: "35+", label: "States Covered" },
+              { value: "48", label: "States Licensed" },
             ].map((s) => (
               <div key={s.label}>
                 <div className="text-3xl md:text-4xl font-extrabold text-[#C9A227]">{s.value}</div>
                 <div className="text-sm text-gray-300 mt-1">{s.label}</div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Licensing & Registration */}
+      <section className="py-16 md:py-24 bg-gray-50">
+        <div className="container mx-auto px-4 max-w-4xl">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl md:text-4xl font-bold text-[#0A2540] mb-4">Licensing & Registration</h2>
+            <p className="text-gray-500 text-lg">
+              AmeriLend is a licensed and regulated lender committed to full legal compliance.
+            </p>
+          </div>
+          <div className="bg-white rounded-2xl p-8 shadow-sm space-y-4 text-gray-600">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-[#00875A] flex-shrink-0 mt-0.5" />
+              <p><strong>NMLS# 2487301</strong> — Nationwide Multistate Licensing System. <a href="https://www.nmlsconsumeraccess.org/" target="_blank" rel="noopener noreferrer" className="text-[#C9A227] underline">Verify on NMLS Consumer Access</a>.</p>
+            </div>
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-[#00875A] flex-shrink-0 mt-0.5" />
+              <p>Licensed to lend in 48 states including California, Texas, Florida, New York, and Illinois.</p>
+            </div>
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-[#00875A] flex-shrink-0 mt-0.5" />
+              <p>Equal Housing Lender. All loans subject to credit approval and verification.</p>
+            </div>
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-[#00875A] flex-shrink-0 mt-0.5" />
+              <p>Registered business: <strong>AmeriLend, LLC</strong> — 12707 High Bluff Drive, Suite 200, San Diego, CA 92130, USA.</p>
+            </div>
           </div>
         </div>
       </section>
@@ -229,17 +330,7 @@ export default function About() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-50 border-t border-gray-200 py-10">
-        <div className="container mx-auto px-4 text-center text-sm text-gray-400">
-          <p>© {new Date().getFullYear()} AmeriLend Financial. All rights reserved.</p>
-          <div className="flex justify-center gap-6 mt-3">
-            <Link href="/legal/privacy-policy" className="hover:text-gray-600">Privacy Policy</Link>
-            <Link href="/legal/terms-of-service" className="hover:text-gray-600">Terms of Service</Link>
-            <Link href="/contact" className="hover:text-gray-600">Contact</Link>
-          </div>
-        </div>
-      </footer>
+      <ComplianceFooter />
     </div>
   );
 }

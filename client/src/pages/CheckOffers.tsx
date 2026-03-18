@@ -279,7 +279,7 @@ export default function CheckOffers() {
       toast.error("Please enter your full name");
       return false;
     }
-    if (!formData.email.trim() || !formData.email.includes("@")) {
+    if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       toast.error("Please enter a valid email");
       return false;
     }

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
+import ComplianceFooter from "@/components/ComplianceFooter";
 
 const steps = [
   {
@@ -192,17 +193,7 @@ export default function HowItWorks() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-50 border-t border-gray-200 py-10">
-        <div className="container mx-auto px-4 text-center text-sm text-gray-400">
-          <p>© {new Date().getFullYear()} AmeriLend Financial. All rights reserved.</p>
-          <div className="flex justify-center gap-6 mt-3">
-            <Link href="/legal/privacy-policy" className="hover:text-gray-600">Privacy Policy</Link>
-            <Link href="/legal/terms-of-service" className="hover:text-gray-600">Terms of Service</Link>
-            <Link href="/contact" className="hover:text-gray-600">Contact</Link>
-          </div>
-        </div>
-      </footer>
+      <ComplianceFooter />
     </div>
   );
 }

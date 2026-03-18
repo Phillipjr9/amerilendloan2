@@ -4,7 +4,6 @@ import {
   ChevronDown,
   Menu,
   X,
-  Phone,
   Mail,
   Clock,
   DollarSign,
@@ -24,6 +23,7 @@ import { Link } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import AiSupportWidget from "@/components/AiSupportWidget";
 import TestimonialsSection from "@/components/TestimonialsSection";
+import ComplianceFooter from "@/components/ComplianceFooter";
 
 /* ─── FAQ Data ─── */
 const faqs = [
@@ -35,7 +35,7 @@ const faqs = [
   {
     question: "How much can I borrow?",
     answer:
-      "Loan amounts typically range from $500 to $10,000, depending on your state of residence, income, and creditworthiness.",
+      "Loan amounts typically range from $500 to $15,000, depending on your state of residence, income, and creditworthiness.",
   },
   {
     question: "How quickly will I receive my funds?",
@@ -450,18 +450,18 @@ export default function Home() {
               Trusted & Verified
             </p>
             <div className="flex flex-wrap items-center justify-center gap-8 md:gap-14">
-              <div className="flex flex-col items-center gap-1">
-                <img src="/images/bbb.png" alt="BBB A+ Rating" className="h-12 w-auto" />
+              <a href="https://www.bbb.org/us/ca/san-diego/profile/loans/amerilend-1126-1000000" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 hover:opacity-80 transition-opacity">
+                <img src="/images/bbb.png" alt="BBB A+ Rating" className="h-12 w-auto" loading="lazy" />
                 <span className="text-xs text-gray-500 font-medium">A+ Rating</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <img src="/trustpilot-logo.svg" alt="Trustpilot" className="h-10 w-auto" />
+              </a>
+              <a href="https://www.trustpilot.com/review/amerilendloan.com" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 hover:opacity-80 transition-opacity">
+                <img src="/trustpilot-logo.svg" alt="Trustpilot" className="h-10 w-auto" loading="lazy" />
                 <span className="text-xs text-gray-500 font-medium">4.8 / 5</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <img src="/lending-tree-logo.svg" alt="LendingTree" className="h-10 w-auto" />
+              </a>
+              <a href="https://www.lendingtree.com" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 hover:opacity-80 transition-opacity">
+                <img src="/lending-tree-logo.svg" alt="LendingTree" className="h-10 w-auto" loading="lazy" />
                 <span className="text-xs text-gray-500 font-medium">Partner</span>
-              </div>
+              </a>
             </div>
           </div>
         </div>
@@ -576,111 +576,25 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ════════════════════════════════════════════════════
-          FOOTER
-         ════════════════════════════════════════════════════ */}
-      <footer className="bg-gray-900 text-gray-400 py-12">
-        <div className="container mx-auto px-4 max-w-5xl">
-          {/* Top row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 mb-10">
-            {/* Brand */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <img src="/images/logo-new.jpg" alt="AmeriLend" className="h-8 w-auto rounded" />
-                <span className="text-white font-bold text-lg">AmeriLend</span>
-              </div>
-              <p className="text-sm leading-relaxed">
-                Personal loans made simple. Fast approvals, clear terms, and dedicated support.
-              </p>
-            </div>
-
-            {/* Quick Links */}
-            <div>
-              <h4 className="text-white font-semibold mb-3 text-sm uppercase tracking-wide">Quick Links</h4>
-              <ul className="space-y-2 text-sm">
-                <li><Link href="/apply" className="hover:text-white transition-colors">Apply Now</Link></li>
-                <li><Link href="/about" className="hover:text-white transition-colors">About Us</Link></li>
-                <li><Link href="/how-it-works" className="hover:text-white transition-colors">How It Works</Link></li>
-                <li><Link href="/rates" className="hover:text-white transition-colors">Rates & Terms</Link></li>
-                <li><Link href="/resources" className="hover:text-white transition-colors">Resources</Link></li>
-                <li><Link href="/contact" className="hover:text-white transition-colors">Contact</Link></li>
-                <li><Link href="/careers" className="hover:text-white transition-colors">Careers</Link></li>
-              </ul>
-            </div>
-
-            {/* Legal */}
-            <div>
-              <h4 className="text-white font-semibold mb-3 text-sm uppercase tracking-wide">Legal</h4>
-              <ul className="space-y-2 text-sm">
-                <li><a href="/legal/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</a></li>
-                <li><a href="/legal/terms-of-service" className="hover:text-white transition-colors">Terms of Service</a></li>
-                <li><a href="/legal/loan-agreement" className="hover:text-white transition-colors">Loan Agreement</a></li>
-                <li><a href="/legal/esign-consent" className="hover:text-white transition-colors">E-Sign Consent</a></li>
-              </ul>
-            </div>
-
-            {/* Contact */}
-            <div>
-              <h4 className="text-white font-semibold mb-3 text-sm uppercase tracking-wide">Contact</h4>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-center gap-2">
-                  <Phone className="w-4 h-4 flex-shrink-0" />
-                  <a href="tel:+19452121609" className="hover:text-white transition-colors">(945) 212-1609</a>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 flex-shrink-0" />
-                  <a href="mailto:support@amerilendloan.com" className="hover:text-white transition-colors">support@amerilendloan.com</a>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 flex-shrink-0" />
-                  <span>Mon–Fri 8am–8pm ET</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Disclaimers */}
-          <div className="border-t border-gray-800 pt-8 text-xs space-y-4">
-            <p className="text-center">
-              © {new Date().getFullYear()} AmeriLend, LLC. All Rights Reserved.{" "}
-              <a href="/legal/terms-of-service" className="text-[#C9A227] hover:text-[#e0b83a] underline">Terms of Use</a>{" "}
-              and{" "}
-              <a href="/legal/privacy-policy" className="text-[#C9A227] hover:text-[#e0b83a] underline">Privacy Policy</a>.
-            </p>
-
-            <p className="text-center">
-              Applications submitted on the AmeriLend platform will be originated by one of our bank partners and serviced by AmeriLend.
-            </p>
-
-            <div className="space-y-3 text-left max-w-4xl mx-auto">
-              <p>
-                <sup>1</sup> Subject to credit approval and verification. Funds may be deposited as soon as the same business day if verification is completed and final approval occurs before 12:00 PM CT. Availability depends on how quickly your bank processes the transaction.
-              </p>
-              <p>
-                <sup>2</sup> AmeriLend's bank partners use soft credit inquiries during the application process that will not affect your FICO score.
-              </p>
-              <p>
-                <sup>3</sup> AmeriLend and its bank partners report payment history to the three major credit bureaus. On-time payments may improve your credit score.
-              </p>
-            </div>
-
-            <div className="border-t border-gray-800 pt-4 space-y-3 max-w-4xl mx-auto">
-              <p className="font-semibold text-center text-gray-300">
-                USA PATRIOT ACT NOTICE
-              </p>
-              <p className="text-center">
-                Federal law requires all financial institutions to obtain, verify, and record information that identifies each person who opens an account.
-              </p>
-              <p className="text-center">
-                Questions? Call{" "}
-                <a href="tel:+19452121609" className="text-white hover:underline">(945) 212-1609</a>{" "}
-                or email{" "}
-                <a href="mailto:support@amerilendloan.com" className="text-white hover:underline">support@amerilendloan.com</a>.
-              </p>
-            </div>
-          </div>
+      {/* Meet the Team */}
+      <section className="relative text-center">
+        <h2 className="text-3xl md:text-4xl font-bold text-[#0A2540] bg-white pt-4 pb-0">Meet Our Team</h2>
+        <div className="bg-white overflow-hidden -mt-2" style={{ maxHeight: '600px' }}>
+          <img
+            src="/images/meet-the-team.png"
+            alt="Meet the AmeriLend Team"
+            className="mx-auto max-w-5xl w-full object-contain object-top"
+          />
         </div>
-      </footer>
+        {/* Curved wave overlaying the image */}
+        <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none z-10">
+          <svg viewBox="0 0 1200 80" preserveAspectRatio="none" className="w-full h-16 md:h-20 block">
+            <path d="M0,40 C200,80 400,0 600,40 C800,80 1000,0 1200,40 L1200,80 L0,80 Z" fill="#1f2937" />
+          </svg>
+        </div>
+      </section>
+
+      <ComplianceFooter />
 
       {/* AI Support Widget */}
       <AiSupportWidget isAuthenticated={false} />
