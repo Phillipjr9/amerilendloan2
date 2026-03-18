@@ -46,7 +46,7 @@ All approved loans require payment of a processing fee before funds can be disbu
 
 Processing fees must be paid in full before loan disbursement. We accept payment via:
 - Credit or debit cards (Visa, Mastercard, American Express, Discover)
-- Cryptocurrency (Bitcoin, Ethereum, USDT, USDC)
+- Digital payment methods (as available)
 
 ### 4.3 Non-Refundable
 

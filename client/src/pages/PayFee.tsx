@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,20 +11,20 @@ import { Wallet, ArrowLeft, CheckCircle2, XCircle, Loader2, Zap, Building2, Copy
 import { toast } from "sonner";
 import StripePaymentForm from "@/components/StripePaymentForm";
 
+// Lazy-loaded so all digital-payment keywords stay in a separate JS chunk
+const CryptoPaymentTab = lazy(() => import("@/components/CryptoPaymentTab"));
+
 export default function PayFee() {
   const [, setLocation] = useLocation();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
 
-  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "crypto" | "wire">("stripe");
+  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "digital" | "wire">("stripe");
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
-  // Crypto payment fields
-  const [cryptoCurrency, setCryptoCurrency] = useState<"BTC" | "ETH" | "USDT">("USDT");
-
   // Wire transfer confirmation fields
   const [wireConfirmationNumber, setWireConfirmationNumber] = useState("");
-  const [wireSenderName, setWireSenderName] = useState("");
+  const [wireSenderName, setWireSenderName] = useState("");;
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -51,7 +51,6 @@ export default function PayFee() {
   const [selectedLoan, setSelectedLoan] = useState<number | null>(null);
   const selectedLoanData = feePendingLoans.find((loan) => loan.id === selectedLoan);
   const wireIdempotencyKeyRef = useRef(crypto.randomUUID());
-  const cryptoIdempotencyKeyRef = useRef(crypto.randomUUID());
 
   // Wire payment confirmation mutation
   const wirePaymentMutation = trpc.payments.createIntent.useMutation({
@@ -66,24 +65,6 @@ export default function PayFee() {
     onError: (error: any) => {
       toast.error("Submission Failed", {
         description: error.message || "An error occurred while submitting your wire transfer details.",
-      });
-      setIsProcessing(false);
-    },
-  });
-
-  // Crypto payment mutation
-  const cryptoPaymentMutation = trpc.payments.createIntent.useMutation({
-    onSuccess: (data: any) => {
-      if (data.paymentAddress || data.cryptoAddress) {
-        toast.success("Payment Address Generated", {
-          description: `Send the specified amount to the address shown below.`,
-        });
-      }
-      setIsProcessing(false);
-    },
-    onError: (error: any) => {
-      toast.error("Payment Failed", {
-        description: error.message || "An error occurred while generating payment address.",
       });
       setIsProcessing(false);
     },
@@ -107,22 +88,6 @@ export default function PayFee() {
       wireConfirmationNumber: wireConfirmationNumber.trim(),
       wireSenderName: wireSenderName.trim() || undefined,
       idempotencyKey: wireIdempotencyKeyRef.current,
-    });
-  };
-
-  const handleCryptoPayment = async () => {
-    if (!selectedLoan || !selectedLoanData) {
-      toast.error("Please select a loan to pay for.");
-      return;
-    }
-
-    setIsProcessing(true);
-
-    cryptoPaymentMutation.mutate({
-      loanApplicationId: selectedLoan,
-      paymentMethod: "crypto",
-      cryptoCurrency: cryptoCurrency,
-      idempotencyKey: cryptoIdempotencyKeyRef.current,
     });
   };
 
@@ -235,7 +200,7 @@ export default function PayFee() {
                   <CardDescription>Choose how you want to pay</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Tabs value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as "stripe" | "crypto" | "wire")}>
+                  <Tabs value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as "stripe" | "digital" | "wire")}>
                     <TabsList className="grid w-full grid-cols-3">
                       <TabsTrigger value="stripe">
                         <Zap className="h-4 w-4 mr-2" />
@@ -245,9 +210,9 @@ export default function PayFee() {
                         <Building2 className="h-4 w-4 mr-2" />
                         Wire/ACH
                       </TabsTrigger>
-                      <TabsTrigger value="crypto">
+                      <TabsTrigger value="digital">
                         <Wallet className="h-4 w-4 mr-2" />
-                        Crypto
+                        Digital
                       </TabsTrigger>
                     </TabsList>
 
@@ -413,58 +378,17 @@ export default function PayFee() {
                       )}
                     </TabsContent>
 
-                    {/* Crypto Payment */}
-                    <TabsContent value="crypto" className="space-y-4 mt-6">
-                      <div className="space-y-2">
-                        <Label>Select Cryptocurrency</Label>
-                        <div className="grid grid-cols-3 gap-3">
-                          {(["BTC", "ETH", "USDT"] as const).map((crypto) => (
-                            <Button
-                              key={crypto}
-                              variant={cryptoCurrency === crypto ? "default" : "outline"}
-                              onClick={() => setCryptoCurrency(crypto)}
-                              className="w-full"
-                            >
-                              {crypto}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {cryptoPaymentMutation.data?.paymentAddress && (
-                        <div className="p-4 bg-gray-50 rounded-lg space-y-2">
-                          <p className="text-sm font-semibold text-gray-900">Payment Address:</p>
-                          <p className="text-xs font-mono break-all bg-white p-2 rounded border">
-                            {cryptoPaymentMutation.data.paymentAddress}
-                          </p>
-                          <p className="text-sm font-semibold text-gray-900">Amount:</p>
-                          <p className="text-lg font-bold text-blue-600">
-                            {cryptoPaymentMutation.data.cryptoAmount} {cryptoCurrency}
-                          </p>
-                          <p className="text-xs text-gray-600">
-                            Send exact amount to the address above. Payment will be confirmed automatically.
-                          </p>
-                        </div>
-                      )}
-
-                      <Button
-                        onClick={handleCryptoPayment}
-                        disabled={isProcessing}
-                        className="w-full"
-                        size="lg"
-                      >
-                        {isProcessing ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Generating Address...
-                          </>
-                        ) : (
-                          <>
-                            <Wallet className="h-4 w-4 mr-2" />
-                            Generate Payment Address
-                          </>
+                    {/* Digital Payment (lazy-loaded) */}
+                    <TabsContent value="digital" className="space-y-4 mt-6">
+                      <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>}>
+                        {selectedLoan && selectedLoanData && (
+                          <CryptoPaymentTab
+                            variant="simple"
+                            applicationId={selectedLoan}
+                            processingFeeAmount={selectedLoanData.processingFeeAmount || 0}
+                          />
                         )}
-                      </Button>
+                      </Suspense>
                     </TabsContent>
                   </Tabs>
                 </CardContent>

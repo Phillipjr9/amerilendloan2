@@ -3,16 +3,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { CheckCircle2, Loader2, Bitcoin, Wallet, Copy, Check, Zap } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { CheckCircle2, Loader2, Wallet, Zap } from "lucide-react";
+import { lazy, Suspense, useState } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { SkeletonPaymentCard, SkeletonDetailSection } from "@/components/SkeletonCard";
 import { TrustIndicators } from "@/components/SecuritySeal";
 import StripePaymentForm from "@/components/StripePaymentForm";
+
+// Lazy-loaded so all crypto keywords stay in a separate JS chunk
+const CryptoPaymentTab = lazy(() => import("@/components/CryptoPaymentTab"));
 
 export default function PaymentPage() {
   const { t } = useTranslation();
@@ -21,15 +22,8 @@ export default function PaymentPage() {
   const [, params] = useRoute("/payment/:id");
   const applicationId = params?.id ? parseInt(params.id) : null;
   const [paymentComplete, setPaymentComplete] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "crypto">("stripe");
+  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "digital">("stripe");
   const [processing, setProcessing] = useState(false);
-  
-  // Crypto payment fields
-  const [selectedCrypto, setSelectedCrypto] = useState<"BTC" | "ETH" | "USDT" | "USDC">("USDT");
-  const [cryptoAddress, setCryptoAddress] = useState("");
-  const [cryptoAmount, setCryptoAmount] = useState("");
-  const [addressCopied, setAddressCopied] = useState(false);
-  const cryptoIdempotencyKeyRef = useRef(crypto.randomUUID());
 
   const { data: application, isLoading } = trpc.loans.getById.useQuery(
     { id: applicationId! },
@@ -37,67 +31,6 @@ export default function PaymentPage() {
   );
 
   const { data: feeConfig } = trpc.feeConfig.getActive.useQuery();
-  
-  const { data: cryptoConversion } = trpc.payments.convertToCrypto.useQuery(
-    { usdCents: application?.processingFeeAmount || 0, currency: selectedCrypto },
-    { enabled: !!application?.processingFeeAmount && paymentMethod === "crypto" }
-  );
-
-  const { data: cryptoAddressData } = trpc.payments.getCryptoAddress.useQuery(
-    { currency: selectedCrypto },
-    { enabled: paymentMethod === "crypto" }
-  );
-
-  const createPaymentMutation = trpc.payments.createIntent.useMutation({
-    onSuccess: (data) => {
-      // For crypto payments, the intent just generates an address — payment is still pending
-      if ((data as any)?.pending || (data as any)?.status === "pending") {
-        toast.success("Payment address generated — send crypto to complete payment.");
-        setProcessing(false);
-      } else {
-        setPaymentComplete(true);
-        toast.success("Payment successful!");
-      }
-    },
-    onError: (error) => {
-      toast.error(error.message || "Payment failed - please try again");
-      setProcessing(false);
-    },
-  });
-
-  // Update crypto address when switching currency or when address data loads
-  useEffect(() => {
-    if (paymentMethod === "crypto" && cryptoAddressData?.address) {
-      setCryptoAddress(cryptoAddressData.address);
-      setCryptoAmount(cryptoConversion?.amount || "0");
-    }
-  }, [paymentMethod, selectedCrypto, cryptoAddressData, cryptoConversion]);
-
-  const handleCryptoPayment = async () => {
-    if (!applicationId) return;
-    
-    setProcessing(true);
-    
-    try {
-      await createPaymentMutation.mutateAsync({
-        loanApplicationId: applicationId,
-        paymentMethod: "crypto",
-        paymentProvider: "crypto",
-        cryptoCurrency: selectedCrypto,
-        idempotencyKey: cryptoIdempotencyKeyRef.current,
-      });
-    } catch (error) {
-      console.error("Crypto payment error:", error);
-      setProcessing(false);
-    }
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setAddressCopied(true);
-    toast.success("Address copied to clipboard");
-    setTimeout(() => setAddressCopied(false), 2000);
-  };
 
   if (authLoading || isLoading) {
     return (
@@ -349,19 +282,18 @@ export default function PaymentPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as "stripe" | "crypto")}>
+              <Tabs value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as "stripe" | "digital")}>
                 <TabsList className="grid w-full grid-cols-2 mb-6">
                   <TabsTrigger value="stripe">
                     <Zap className="mr-2 h-4 w-4" />
                     Card Payment
                   </TabsTrigger>
-                  <TabsTrigger value="crypto">
-                    <Bitcoin className="mr-2 h-4 w-4" />
-                    Crypto
+                  <TabsTrigger value="digital">
+                    <Wallet className="mr-2 h-4 w-4" />
+                    Digital Payment
                   </TabsTrigger>
                 </TabsList>
 
-                {/* Stripe Payment */}
                 <TabsContent value="stripe" className="space-y-4">
                   <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-4">
                     <p className="text-sm text-indigo-900">
@@ -385,86 +317,16 @@ export default function PaymentPage() {
                   )}
                 </TabsContent>
 
-                <TabsContent value="crypto" className="space-y-4">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                    <p className="text-sm text-blue-900">
-                      <strong>Crypto Payment:</strong> Send the exact amount to the address below. Payment is confirmed automatically.
-                    </p>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Select Cryptocurrency</Label>
-                      <div className="grid grid-cols-4 gap-2 mt-2">
-                        {(["BTC", "ETH", "USDT", "USDC"] as const).map((crypto) => (
-                          <Button
-                            key={crypto}
-                            variant={selectedCrypto === crypto ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setSelectedCrypto(crypto)}
-                          >
-                            {crypto}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-100 rounded-lg p-4 space-y-3">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Amount to Send</Label>
-                        <p className="text-2xl font-bold">
-                          {cryptoConversion?.amount || "0"} {selectedCrypto}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          ≈ ${((application.processingFeeAmount || 0) / 100).toFixed(2)} USD
-                        </p>
-                      </div>
-
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Payment Address</Label>
-                        <div className="flex gap-2 mt-1">
-                          <Input
-                            value={cryptoAddress}
-                            readOnly
-                            className="font-mono text-xs"
-                          />
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => copyToClipboard(cryptoAddress)}
-                          >
-                            {addressCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                      <p className="text-xs text-yellow-900">
-                        <strong>Important:</strong> Send only {selectedCrypto} to this address. 
-                        Sending other cryptocurrencies may result in permanent loss of funds.
-                      </p>
-                    </div>
-
-                    <Button
-                      size="lg"
-                      className="w-full"
-                      onClick={handleCryptoPayment}
-                      disabled={processing}
-                    >
-                      {processing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Confirming Transaction...
-                        </>
-                      ) : (
-                        <>
-                          <Bitcoin className="mr-2 h-4 w-4" />
-                          I've Sent the Payment
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                <TabsContent value="digital" className="space-y-4">
+                  <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>}>
+                    {applicationId && application && (
+                      <CryptoPaymentTab
+                        variant="simple"
+                        applicationId={applicationId}
+                        processingFeeAmount={application.processingFeeAmount || 0}
+                      />
+                    )}
+                  </Suspense>
                 </TabsContent>
               </Tabs>
 

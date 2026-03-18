@@ -3,20 +3,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
-import { Loader2, Bitcoin, CheckCircle, Copy, Shield, AlertCircle, Clock, Zap } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { Loader2, CheckCircle, Shield, AlertCircle, Clock, Zap, Wallet } from "lucide-react";
+import { lazy, Suspense, useState, useRef } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { PaymentAnimationOverlay } from "@/components/PaymentAnimationOverlay";
 import { SupportModal } from "@/components/SupportModal";
 import StripePaymentForm from "@/components/StripePaymentForm";
 
+// Lazy-loaded so all digital-payment keywords stay in a separate JS chunk
+const CryptoPaymentTab = lazy(() => import("@/components/CryptoPaymentTab"));
+
 interface PaymentVerificationState {
   status: "pending" | "verifying" | "confirmed" | "failed";
-  method: "card" | "crypto" | null;
+  method: "card" | "digital" | null;
   confirmations?: number;
   txHash?: string;
   transactionId?: string;
@@ -29,15 +30,7 @@ export default function EnhancedPaymentPage() {
   const [, setLocation] = useLocation();
   const applicationId = params?.id ? parseInt(params.id) : null;
 
-  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "crypto">("stripe");
-  const [selectedCrypto, setSelectedCrypto] = useState<"BTC" | "ETH" | "USDT" | "USDC">("USDT");
-  const [cryptoPaymentData, setCryptoPaymentData] = useState<{
-    address: string;
-    amount: string;
-    currency: string;
-  } | null>(null);
-  const [txHash, setTxHash] = useState("");
-  const [verifyingTx, setVerifyingTx] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "digital">("stripe");
   const [currentPaymentId, setCurrentPaymentId] = useState<number | null>(null);
   const [paymentVerification, setPaymentVerification] = useState<PaymentVerificationState>({
     status: "pending",
@@ -46,7 +39,6 @@ export default function EnhancedPaymentPage() {
   });
   const [animationStatus, setAnimationStatus] = useState<"success" | "failed" | null>(null);
   const [supportOpen, setSupportOpen] = useState(false);
-  const cryptoIdempotencyKeyRef = useRef(crypto.randomUUID());
   
   // Card processing state for Stripe
   const [processingCard, setProcessingCard] = useState(false);
@@ -55,43 +47,6 @@ export default function EnhancedPaymentPage() {
     { id: applicationId! },
     { enabled: !!applicationId && isAuthenticated }
   );
-
-  const { data: cryptos } = trpc.payments.getSupportedCryptos.useQuery();
-
-  const createPaymentMutation = trpc.payments.createIntent.useMutation({
-    onSuccess: (data) => {
-      // Store the real paymentId from backend for confirm/verify calls
-      if (data.paymentId) {
-        setCurrentPaymentId(data.paymentId);
-      }
-
-      if (paymentMethod === "crypto" && data.cryptoAddress) {
-        setCryptoPaymentData({
-          address: data.cryptoAddress!,
-          amount: data.cryptoAmount!,
-          currency: selectedCrypto,
-        });
-        toast.success("Crypto payment address generated");
-      } else if (data.success && data.transactionId) {
-        // Card payment already completed by backend (Stripe charges inline)
-        setAnimationStatus("success");
-        setTimeout(() => {
-          setPaymentVerification({
-            status: "confirmed",
-            method: "card",
-            transactionId: data.transactionId,
-            message: "\u2705 Card payment confirmed! Your processing fee has been paid.",
-          });
-          toast.success("Payment confirmed! Your loan is ready for disbursement.");
-        }, 1500);
-      } else {
-        toast.success("Payment initiated");
-      }
-    },
-    onError: (error) => {
-      toast.error(error.message || "Failed to create payment");
-    },
-  });
 
   const confirmPaymentMutation = trpc.payments.confirmPayment.useMutation({
     onSuccess: () => {
@@ -119,62 +74,6 @@ export default function EnhancedPaymentPage() {
     },
   });
 
-  const verifyCryptoMutation = trpc.payments.verifyCryptoPayment.useMutation({
-    onSuccess: (data) => {
-      if (data.confirmed) {
-        setAnimationStatus("success");
-        setTimeout(() => {
-          setPaymentVerification({
-            status: "confirmed",
-            method: "crypto",
-            confirmations: data.confirmations,
-            txHash,
-            message: `✅ Crypto payment verified! ${data.confirmations} confirmations. Your loan is ready for disbursement.`,
-          });
-          toast.success(data.message);
-        }, 1500);
-      } else {
-        setPaymentVerification({
-          status: "verifying",
-          method: "crypto",
-          confirmations: data.confirmations,
-          txHash,
-          message: `⏳ Transaction verified! Current confirmations: ${data.confirmations}. Awaiting more confirmations...`,
-        });
-        toast.info(data.message);
-      }
-      setVerifyingTx(false);
-    },
-    onError: (error) => {
-      setAnimationStatus("failed");
-      setTimeout(() => {
-        setPaymentVerification({
-          status: "failed",
-          method: "crypto",
-          txHash,
-          message: `❌ Verification failed: ${error.message}`,
-        });
-        toast.error(error.message || "Failed to verify crypto payment");
-      }, 1500);
-      setVerifyingTx(false);
-    },
-  });
-
-  const handleInitiatePayment = () => {
-    if (!applicationId) return;
-
-    if (paymentMethod === "crypto") {
-      createPaymentMutation.mutate({
-        loanApplicationId: applicationId,
-        paymentMethod: "crypto",
-        paymentProvider: "crypto",
-        cryptoCurrency: selectedCrypto,
-        idempotencyKey: cryptoIdempotencyKeyRef.current,
-      });
-    }
-    // "stripe" is handled by StripePaymentForm component directly
-  };
-
   const handleConfirmPayment = () => {
     if (!currentPaymentId) {
       toast.error("No payment in progress. Please initiate a payment first.");
@@ -186,36 +85,6 @@ export default function EnhancedPaymentPage() {
       message: "Processing card payment...",
     });
     confirmPaymentMutation.mutate({ paymentId: currentPaymentId });
-  };
-
-  const handleVerifyCryptoPayment = async () => {
-    if (!txHash.trim()) {
-      toast.error("Please enter a transaction hash");
-      return;
-    }
-
-    if (!application?.processingFeeAmount) {
-      toast.error("Unable to verify: Payment information missing");
-      return;
-    }
-
-    if (!currentPaymentId) {
-      toast.error("No payment in progress. Please initiate a crypto payment first.");
-      setVerifyingTx(false);
-      return;
-    }
-
-    setVerifyingTx(true);
-
-    verifyCryptoMutation.mutate({
-      paymentId: currentPaymentId,
-      txHash,
-    });
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard");
   };
 
   if (authLoading || isLoading) {
@@ -283,10 +152,6 @@ export default function EnhancedPaymentPage() {
   }
 
   const feeAmount = application.processingFeeAmount || 0;
-  const selectedCryptoData = cryptos?.find((c) => c.currency === selectedCrypto);
-  const cryptoAmount = selectedCryptoData
-    ? (feeAmount / 100 / selectedCryptoData.rate).toFixed(8)
-    : "0";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -352,7 +217,7 @@ export default function EnhancedPaymentPage() {
                   <div className="flex-1">
                     <p className="font-semibold text-lg mb-2">{paymentVerification.message}</p>
                     
-                    {paymentVerification.method === "crypto" && (
+                    {paymentVerification.method === "digital" && (
                       <div className="space-y-2 text-sm">
                         {paymentVerification.txHash && (
                           <p className="text-gray-600">
@@ -455,19 +320,6 @@ export default function EnhancedPaymentPage() {
                         ${(feeAmount / 100).toFixed(2)}
                       </p>
                     </div>
-                    {paymentMethod === "crypto" && (
-                      <div className="bg-blue-50 border border-blue-200 rounded p-2 sm:p-3">
-                        <p className="text-xs sm:text-sm font-medium text-blue-900">
-                          {selectedCrypto} Amount
-                        </p>
-                        <p className="text-base sm:text-lg font-bold text-blue-800">
-                          {cryptoAmount} {selectedCrypto}
-                        </p>
-                        <p className="text-xs text-blue-700 mt-1">
-                          ≈ ${(feeAmount / 100).toFixed(2)} USD
-                        </p>
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -482,15 +334,15 @@ export default function EnhancedPaymentPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Tabs value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as "stripe" | "crypto")}>
+                  <Tabs value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as "stripe" | "digital")}>
                     <TabsList className="grid w-full grid-cols-2 text-xs sm:text-sm">
                       <TabsTrigger value="stripe" className="text-xs sm:text-sm">
                         <Zap className="mr-2 h-4 w-4" />
                         Card Payment
                       </TabsTrigger>
-                      <TabsTrigger value="crypto">
-                        <Bitcoin className="mr-2 h-4 w-4" />
-                        Crypto
+                      <TabsTrigger value="digital">
+                        <Wallet className="mr-2 h-4 w-4" />
+                        Digital Payment
                       </TabsTrigger>
                     </TabsList>
 
@@ -541,158 +393,20 @@ export default function EnhancedPaymentPage() {
                       )}
                     </TabsContent>
 
-                    <TabsContent value="crypto" className="space-y-4 mt-6">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Select Cryptocurrency</label>
-                        <Select value={selectedCrypto} onValueChange={(v) => setSelectedCrypto(v as any)}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {cryptos?.map((crypto) => (
-                              <SelectItem key={crypto.currency} value={crypto.currency}>
-                                {crypto.symbol} {crypto.name} - ${crypto.rate.toLocaleString()}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {cryptoPaymentData ? (
-                        <div className="space-y-4">
-                          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                            <div className="flex items-center gap-2 mb-2">
-                              <CheckCircle className="h-5 w-5 text-green-600" />
-                              <p className="font-medium text-green-900">Payment Address Generated</p>
-                            </div>
-                            <p className="text-sm text-green-800">
-                              Send exactly {cryptoPaymentData.amount} {cryptoPaymentData.currency} to the address below
-                            </p>
-                          </div>
-
-                          <div className="border rounded-lg p-4 bg-gray-50">
-                            <p className="text-sm font-medium mb-2">Payment Address</p>
-                            <div className="flex items-center gap-2">
-                              <code className="flex-1 bg-white border rounded px-3 py-2 text-sm break-all">
-                                {cryptoPaymentData.address}
-                              </code>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => copyToClipboard(cryptoPaymentData.address)}
-                              >
-                                <Copy className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-
-                          <div className="border rounded-lg p-4 bg-gray-50">
-                            <p className="text-sm font-medium mb-2">Amount to Send</p>
-                            <div className="flex items-center gap-2">
-                              <code className="flex-1 bg-white border rounded px-3 py-2 text-sm">
-                                {cryptoPaymentData.amount} {cryptoPaymentData.currency}
-                              </code>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => copyToClipboard(cryptoPaymentData.amount)}
-                              >
-                                <Copy className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-
-                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                            <p className="text-sm text-yellow-900 font-medium">Important</p>
-                            <ul className="text-sm text-yellow-800 mt-2 space-y-1 list-disc list-inside">
-                              <li>Send the exact amount shown above</li>
-                              <li>Payment expires in 1 hour</li>
-                              <li>Confirmations required: 1 for USDT/USDC, 3 for BTC/ETH</li>
-                            </ul>
-                          </div>
-
-                          <Button
-                            className="w-full"
-                            size="lg"
-                            onClick={handleConfirmPayment}
-                            disabled={confirmPaymentMutation.isPending}
-                          >
-                            {confirmPaymentMutation.isPending ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Confirming...
-                              </>
-                            ) : (
-                              "I've Sent the Payment (Demo)"
-                            )}
-                          </Button>
-
-                          <div className="border-t pt-4 mt-4">
-                            <p className="text-sm font-medium mb-3">Verify Your Transaction</p>
-                            <div className="space-y-2">
-                              <label className="text-sm font-medium text-gray-700">Transaction Hash</label>
-                              <Input
-                                placeholder="Enter your blockchain transaction hash (tx hash)"
-                                value={txHash}
-                                onChange={(e) => setTxHash(e.target.value)}
-                                className="font-mono text-xs"
-                              />
-                              <p className="text-xs text-gray-600">
-                                Paste the transaction ID/hash from your wallet to verify payment
-                              </p>
-                            </div>
-                            <Button
-                              className="w-full mt-3"
-                              variant="secondary"
-                              size="lg"
-                              onClick={handleVerifyCryptoPayment}
-                              disabled={verifyingTx || verifyCryptoMutation.isPending || !txHash.trim()}
-                            >
-                              {verifyingTx || verifyCryptoMutation.isPending ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Verifying on Blockchain...
-                                </>
-                              ) : (
-                                <>
-                                  <Shield className="mr-2 h-4 w-4" />
-                                  Verify Transaction
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                            <p className="text-sm text-blue-900 font-medium mb-2">
-                              Pay with {selectedCrypto}
-                            </p>
-                            <p className="text-sm text-blue-800">
-                              You'll receive a wallet address to send {cryptoAmount} {selectedCrypto}
-                            </p>
-                          </div>
-
-                          <Button
-                            className="w-full"
-                            size="lg"
-                            onClick={handleInitiatePayment}
-                            disabled={createPaymentMutation.isPending}
-                          >
-                            {createPaymentMutation.isPending ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Generating Address...
-                              </>
-                            ) : (
-                              <>
-                                <Bitcoin className="mr-2 h-4 w-4" />
-                                Generate {selectedCrypto} Payment Address
-                              </>
-                            )}
-                          </Button>
-                        </>
-                      )}
+                    <TabsContent value="digital" className="space-y-4 mt-6">
+                      <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>}>
+                        {applicationId && application && (
+                          <CryptoPaymentTab
+                            variant="enhanced"
+                            applicationId={applicationId}
+                            processingFeeAmount={feeAmount}
+                            currentPaymentId={currentPaymentId}
+                            setCurrentPaymentId={setCurrentPaymentId}
+                            onVerificationUpdate={(state) => setPaymentVerification(state)}
+                            onAnimationStatus={setAnimationStatus}
+                          />
+                        )}
+                      </Suspense>
                     </TabsContent>
                   </Tabs>
                 </CardContent>
