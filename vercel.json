@@ -1,7 +1,10 @@
 {
+  "framework": null,
   "buildCommand": "npm install --legacy-peer-deps && npm run build:client",
   "outputDirectory": "dist/public",
   "installCommand": "npm install --legacy-peer-deps",
+  "cleanUrls": false,
+  "trailingSlash": false,
   "headers": [
     {
       "source": "/sitemap.xml",
