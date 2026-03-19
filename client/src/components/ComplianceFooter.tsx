@@ -95,7 +95,7 @@ export default function ComplianceFooter() {
               AmeriLend, LLC is a licensed lender. NMLS# 2487301. Licensed to lend in AL, AZ, CA, CO, CT, DE, FL, GA, HI, ID, IL, IN, IA, KS, KY, LA, ME, MD, MA, MI, MN, MS, MO, MT, NE, NV, NH, NJ, NM, NY, NC, OH, OK, OR, PA, RI, SC, SD, TN, TX, UT, VT, VA, WA, WI, WY.
             </p>
             <p>
-              California: Loans made or arranged pursuant to a California Finance Lenders License #60DBO-XXXXXX. |
+              California: Loans made or arranged pursuant to a California Finance Lenders Law. |
               Texas: Licensed by the Office of Consumer Credit Commissioner.
             </p>
             <p>

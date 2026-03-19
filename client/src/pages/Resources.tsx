@@ -15,7 +15,6 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { articles } from "./ArticlePage";
 import ComplianceFooter from "@/components/ComplianceFooter";
-import FinancialNewsTicker from "@/components/FinancialNewsTicker";
 
 const tips = [
   "Always read the full loan agreement before signing.",
@@ -132,13 +131,6 @@ export default function Resources() {
               </Link>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Live Financial News */}
-      <section className="py-16 md:py-24 bg-gray-50">
-        <div className="container mx-auto px-4 max-w-5xl">
-          <FinancialNewsTicker />
         </div>
       </section>
 

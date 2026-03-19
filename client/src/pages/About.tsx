@@ -14,32 +14,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import ComplianceFooter from "@/components/ComplianceFooter";
 
-const leadership = [
-  {
-    name: "Michael R. Davis",
-    title: "Chief Executive Officer & Founder",
-    bio: "20+ years in consumer finance. Former VP at Wells Fargo Consumer Lending. MBA, Wharton School of Business.",
-    photo: "/images/team/michael-davis.svg",
-  },
-  {
-    name: "Sarah Chen",
-    title: "Chief Technology Officer",
-    bio: "Former engineering lead at LendingClub. 15 years building scalable fintech platforms. MS Computer Science, Stanford.",
-    photo: "/images/team/sarah-chen.svg",
-  },
-  {
-    name: "James A. Whitfield",
-    title: "Chief Compliance Officer",
-    bio: "Former CFPB examiner with 18 years in regulatory compliance. JD, Georgetown University Law Center.",
-    photo: "/images/team/james-whitfield.svg",
-  },
-  {
-    name: "Patricia L. Rodriguez",
-    title: "VP of Customer Experience",
-    bio: "12 years leading customer success at fintech companies including SoFi and Prosper. BA, UC Berkeley.",
-    photo: "/images/team/patricia-rodriguez.svg",
-  },
-];
+
 
 const values = [
   {
@@ -74,7 +49,7 @@ const milestones = [
   { year: "2022", event: "Launched same-day funding and mobile-first experience." },
   { year: "2023", event: "Expanded loan offerings up to $15,000 with flexible terms." },
   { year: "2024", event: "Introduced AI-powered customer support and financial tools." },
-  { year: "2025", event: "Surpassed $1.8B in total approved loans with 250,000+ customers served." },
+  { year: "2025", event: "Expanded same-day funding options and launched enhanced mobile experience." },
 ];
 
 export default function About() {
@@ -151,65 +126,14 @@ export default function About() {
           </div>
           <div className="space-y-6 text-lg text-gray-600 leading-relaxed">
             <p>
-              AmeriLend was founded with a simple belief: getting a personal loan shouldn't require a
-              mountain of paperwork, weeks of waiting, or a perfect credit score. Traditional banks
-              weren't built for everyday Americans who need fast, fair access to funds — so we built
-              something better.
+              We started AmeriLend in 2020 because applying for a personal loan still felt like it belonged in 1995 — stacks of forms, 2-week waits, and impersonal service. We wanted to change that.
             </p>
             <p>
-              From our headquarters, our team of lending experts and technologists work every day to
-              remove the barriers between you and the financial help you need. Whether it's unexpected
-              bills, home repairs, or simply making ends meet, we're here with a faster, friendlier
-              way to borrow.
+              Our team is based in San Diego, CA. We combine technology with experienced underwriting to offer personal loans from $1,000 to $15,000 with fixed rates and clear repayment terms. No origination fees, no hidden charges.
             </p>
             <p>
-              Today, AmeriLend has helped tens of thousands of Americans access personal loans with
-              transparent terms, same-day funding, and customer support that actually cares. And we're
-              just getting started.
+              Most of our borrowers use us for unexpected expenses — car repairs, medical bills, home fixes — and many come back or refer friends. That repeat trust is the metric we care about most.
             </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Leadership Team */}
-      <section className="py-16 md:py-24 bg-white">
-        <div className="container mx-auto px-4 max-w-5xl">
-          <div className="text-center mb-14">
-            <h2 className="text-3xl md:text-4xl font-bold text-[#0A2540] mb-4">Our Leadership</h2>
-            <p className="text-gray-500 text-lg max-w-2xl mx-auto">
-              Experienced professionals driving our mission to make personal lending accessible and transparent.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-2 gap-8">
-            {leadership.map((person) => (
-              <div key={person.name} className="bg-gray-50 rounded-2xl p-8 hover:shadow-md transition-shadow">
-                <div className="flex items-start gap-5">
-                  <img
-                    src={person.photo}
-                    alt={person.name}
-                    className="w-20 h-20 rounded-full object-cover flex-shrink-0 border-2 border-[#C9A227]/30"
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      target.style.display = "none";
-                      const fallback = target.nextElementSibling as HTMLElement;
-                      if (fallback) fallback.style.display = "flex";
-                    }}
-                  />
-                  <div
-                    className="w-20 h-20 rounded-full bg-[#0A2540] items-center justify-center flex-shrink-0 border-2 border-[#C9A227]/30 hidden"
-                  >
-                    <span className="text-white font-bold text-xl">
-                      {person.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-[#0A2540]">{person.name}</h3>
-                    <p className="text-sm font-medium text-[#C9A227] mb-2">{person.title}</p>
-                    <p className="text-sm text-gray-600 leading-relaxed">{person.bio}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </section>
@@ -264,24 +188,7 @@ export default function About() {
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="bg-[#0A2540] py-14">
-        <div className="container mx-auto px-4 max-w-5xl">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center text-white">
-            {[
-              { value: "250K+", label: "Loans Funded" },
-              { value: "$1.8B+", label: "Total Approved" },
-              { value: "4.8/5", label: "Customer Rating" },
-              { value: "48", label: "States Licensed" },
-            ].map((s) => (
-              <div key={s.label}>
-                <div className="text-3xl md:text-4xl font-extrabold text-[#C9A227]">{s.value}</div>
-                <div className="text-sm text-gray-300 mt-1">{s.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+
 
       {/* Licensing & Registration */}
       <section className="py-16 md:py-24 bg-gray-50">

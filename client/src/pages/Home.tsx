@@ -506,36 +506,6 @@ export default function Home() {
       </section>
 
       {/* ════════════════════════════════════════════════════
-          WE'RE HIRING
-         ════════════════════════════════════════════════════ */}
-      <section className="py-16 md:py-20 bg-white">
-        <div className="container mx-auto px-4 max-w-4xl text-center">
-          <span className="inline-block bg-[#C9A227]/10 text-[#C9A227] text-xs font-semibold uppercase tracking-widest px-4 py-1.5 rounded-full mb-4">
-            We&apos;re Hiring
-          </span>
-          <h2 className="text-3xl md:text-4xl font-bold text-[#0A2540] mb-4">
-            Join the AmeriLend Team
-          </h2>
-          <p className="text-gray-500 text-lg mb-8 max-w-2xl mx-auto">
-            We&apos;re growing fast and looking for passionate people to help us shape the future of personal lending.
-            Great culture, competitive pay, and real impact.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/careers">
-              <Button size="lg" className="bg-[#C9A227] hover:bg-[#b8922a] text-white font-semibold rounded-full px-10 text-base shadow-lg">
-                View Open Positions <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
-            <Link href="/about">
-              <Button size="lg" variant="outline" className="rounded-full px-10 text-base border-[#0A2540] text-[#0A2540] hover:bg-[#0A2540] hover:text-white">
-                Learn About Us
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ════════════════════════════════════════════════════
           TESTIMONIALS
          ════════════════════════════════════════════════════ */}
       <TestimonialsSection />
@@ -561,10 +531,10 @@ export default function Home() {
           <div className="mt-16 pt-12 border-t border-white/10 max-w-5xl mx-auto">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
               {[
-                { value: "250K+", label: "Loans Funded" },
-                { value: "90%", label: "Return Customers" },
-                { value: "$1.8B+", label: "Total Approved" },
                 { value: "4.8★", label: "Customer Rating" },
+                { value: "48", label: "States Licensed" },
+                { value: "Same-Day", label: "Funding Available" },
+                { value: "$0", label: "Origination Fees" },
               ].map((stat, i) => (
                 <div key={i}>
                   <p className="text-3xl md:text-4xl font-extrabold text-[#C9A227] mb-2">{stat.value}</p>
@@ -573,24 +543,6 @@ export default function Home() {
               ))}
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* Meet the Team */}
-      <section className="relative text-center">
-        <h2 className="text-3xl md:text-4xl font-bold text-[#0A2540] bg-white pt-4 pb-0">Meet Our Team</h2>
-        <div className="bg-white overflow-hidden -mt-2" style={{ maxHeight: '600px' }}>
-          <img
-            src="/images/meet-the-team.png"
-            alt="Meet the AmeriLend Team"
-            className="mx-auto max-w-5xl w-full object-contain object-top"
-          />
-        </div>
-        {/* Curved wave overlaying the image */}
-        <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none z-10">
-          <svg viewBox="0 0 1200 80" preserveAspectRatio="none" className="w-full h-16 md:h-20 block">
-            <path d="M0,40 C200,80 400,0 600,40 C800,80 1000,0 1200,40 L1200,80 L0,80 Z" fill="#1f2937" />
-          </svg>
         </div>
       </section>
 

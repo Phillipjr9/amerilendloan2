@@ -20,8 +20,8 @@ const contactMethods = [
   {
     icon: Phone,
     title: "Call Us",
-    detail: "1-800-AMERILEND",
-    sub: "Mon – Fri, 8am – 8pm EST",
+    detail: "(945) 212-1609",
+    sub: "Mon – Fri, 8am – 8pm ET",
   },
   {
     icon: Mail,
