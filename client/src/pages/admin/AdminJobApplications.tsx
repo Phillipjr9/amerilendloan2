@@ -89,7 +89,7 @@ export default function AdminJobApplications() {
   const [rejectionReasons, setRejectionReasons] = useState<string[]>([]);
   const [sendNotification, setSendNotification] = useState(true);
 
-  const { data: applications = [], isLoading, refetch } =
+  const { data: applications = [], isLoading, isError, error, refetch } =
     trpc.jobApplications.list.useQuery(undefined, { refetchInterval: 30000 });
 
   const updateStatus = trpc.jobApplications.updateStatus.useMutation({
@@ -220,6 +220,17 @@ export default function AdminJobApplications() {
         <div className="flex justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
         </div>
+      ) : isError ? (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="py-12 text-center">
+            <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+            <p className="text-red-700 font-medium mb-2">Failed to load job applications</p>
+            <p className="text-red-500 text-sm mb-4">{error?.message || "Something went wrong. Please try again."}</p>
+            <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2">
+              <RefreshCw className="w-4 h-4" /> Retry
+            </Button>
+          </CardContent>
+        </Card>
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">

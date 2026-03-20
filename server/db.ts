@@ -5828,7 +5828,7 @@ export async function createJobApplication(data: {
 
 export async function getAllJobApplications() {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) throw new Error("Database connection unavailable");
 
   const { jobApplications } = await import("../drizzle/schema");
 

@@ -10063,7 +10063,15 @@ Format as JSON with array of applications including their recommendation.`;
   jobApplications: router({
     list: adminProcedure
       .query(async () => {
-        return await db.getAllJobApplications();
+        try {
+          return await db.getAllJobApplications();
+        } catch (error) {
+          console.error('[JobApplications] Failed to fetch applications:', error);
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to load job applications. Please try again.",
+          });
+        }
       }),
 
     getById: adminProcedure
