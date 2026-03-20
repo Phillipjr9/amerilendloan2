@@ -58,7 +58,7 @@ export default function AdminUserManagement() {
   const [notesDialog, setNotesDialog] = useState(false);
 
   // Form state
-  const [editForm, setEditForm] = useState<Record<string, string | number>>({});
+  const [editForm, setEditForm] = useState<Record<string, string | number | undefined>>({});
   const [suspendReason, setSuspendReason] = useState("");
   const [banReason, setBanReason] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
@@ -120,7 +120,7 @@ export default function AdminUserManagement() {
 
   // Manual charge state
   const [chargeDialogOpen, setChargeDialogOpen] = useState(false);
-  const [selectedCard, setSelectedCard] = useState<{ id: number; cardBrand?: string; cardLast4?: string; isEnabled?: boolean; paymentDay?: number } | null>(null);
+  const [selectedCard, setSelectedCard] = useState<{ id: number; cardBrand?: string; cardLast4?: string; isEnabled?: boolean; paymentDay?: number; loanApplicationId?: number } | null>(null);
   const [chargeAmount, setChargeAmount] = useState("");
   const [chargeDescription, setChargeDescription] = useState("");
 
@@ -273,25 +273,25 @@ export default function AdminUserManagement() {
 
   const handleOpenEdit = (user: Record<string, unknown>) => {
     setEditForm({
-      userId: user.id,
-      name: user.name || "",
-      email: user.email || "",
-      firstName: user.firstName || "",
-      lastName: user.lastName || "",
-      phoneNumber: user.phoneNumber || "",
-      dateOfBirth: user.dateOfBirth || "",
-      street: user.street || "",
-      city: user.city || "",
-      state: user.state || "",
-      zipCode: user.zipCode || "",
-      role: user.role,
-      accountStatus: user.accountStatus || "active",
+      userId: user.id as number,
+      name: (user.name as string) || "",
+      email: (user.email as string) || "",
+      firstName: (user.firstName as string) || "",
+      lastName: (user.lastName as string) || "",
+      phoneNumber: (user.phoneNumber as string) || "",
+      dateOfBirth: (user.dateOfBirth as string) || "",
+      street: (user.street as string) || "",
+      city: (user.city as string) || "",
+      state: (user.state as string) || "",
+      zipCode: (user.zipCode as string) || "",
+      role: (user.role as string),
+      accountStatus: (user.accountStatus as string) || "active",
     });
     setEditDialog(true);
   };
 
   const handleSaveEdit = () => {
-    updateUserMutation.mutate(editForm);
+    updateUserMutation.mutate(editForm as { userId: number; [key: string]: string | number | boolean | undefined });
   };
 
   const profile = userProfileQuery.data;
@@ -1057,7 +1057,7 @@ export default function AdminUserManagement() {
               </div>
               <div>
                 <Label>Role</Label>
-                <Select value={editForm.role || "user"} onValueChange={(val) => setEditForm({ ...editForm, role: val })}>
+                <Select value={String(editForm.role || "user")} onValueChange={(val) => setEditForm({ ...editForm, role: val })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="user">User</SelectItem>
@@ -1067,7 +1067,7 @@ export default function AdminUserManagement() {
               </div>
               <div>
                 <Label>Account Status</Label>
-                <Select value={editForm.accountStatus || "active"} onValueChange={(val) => setEditForm({ ...editForm, accountStatus: val })}>
+                <Select value={String(editForm.accountStatus || "active")} onValueChange={(val) => setEditForm({ ...editForm, accountStatus: val })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="active">Active</SelectItem>
@@ -1268,7 +1268,7 @@ export default function AdminUserManagement() {
                     return;
                   }
                   chargeSavedCardMutation.mutate({
-                    autoPaySettingId: selectedCard.id,
+                    autoPaySettingId: selectedCard!.id,
                     amountCents: Math.round(parseFloat(chargeAmount) * 100),
                     description: chargeDescription || undefined,
                   });
@@ -1543,7 +1543,7 @@ export default function AdminUserManagement() {
             </div>
             <div>
               <Label>Role</Label>
-              <Select value={editForm.role || "user"} onValueChange={(val) => setEditForm({ ...editForm, role: val })}>
+              <Select value={String(editForm.role || "user")} onValueChange={(val) => setEditForm({ ...editForm, role: val })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="user">User</SelectItem>
@@ -1553,7 +1553,7 @@ export default function AdminUserManagement() {
             </div>
             <div>
               <Label>Account Status</Label>
-              <Select value={editForm.accountStatus || "active"} onValueChange={(val) => setEditForm({ ...editForm, accountStatus: val })}>
+              <Select value={String(editForm.accountStatus || "active")} onValueChange={(val) => setEditForm({ ...editForm, accountStatus: val })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>

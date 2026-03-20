@@ -275,6 +275,7 @@ export default function PayFee() {
                                       toast.success("Routing number copied!");
                                     }}
                                     className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="Copy routing number"
                                   >
                                     <Copy className="h-4 w-4 text-gray-500 hover:text-blue-600" />
                                   </button>
@@ -290,6 +291,7 @@ export default function PayFee() {
                                       toast.success("Account number copied!");
                                     }}
                                     className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="Copy account number"
                                   >
                                     <Copy className="h-4 w-4 text-gray-500 hover:text-blue-600" />
                                   </button>

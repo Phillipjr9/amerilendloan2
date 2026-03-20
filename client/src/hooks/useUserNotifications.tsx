@@ -117,7 +117,7 @@ export function useUserNotifications() {
         // Check if ticket was recently updated by admin
         const updatedDate = new Date(ticket.updatedAt);
         if (isNaN(updatedDate.getTime())) return; // Skip invalid dates
-        if (updatedDate > lastCheck && ticket.lastMessageFromAdmin) {
+        if (updatedDate > lastCheck && (ticket as Record<string, unknown>).lastMessageFromAdmin) {
           newNotifications.push({
             id: `ticket-reply-${ticket.id}`,
             type: "message",

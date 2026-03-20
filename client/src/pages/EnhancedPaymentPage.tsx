@@ -17,7 +17,7 @@ const CryptoPaymentTab = lazy(() => import("@/components/CryptoPaymentTab"));
 
 interface PaymentVerificationState {
   status: "pending" | "verifying" | "confirmed" | "failed";
-  method: "card" | "digital" | null;
+  method: "card" | "digital" | "crypto" | null;
   confirmations?: number;
   txHash?: string;
   transactionId?: string;

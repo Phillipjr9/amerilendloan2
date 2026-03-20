@@ -36,7 +36,7 @@ interface StripeCheckoutFormProps {
  * Uses Stripe's PaymentElement for PCI-compliant card collection.
  */
 function StripeCheckoutForm({
-  clientSecret,
+  clientSecret: _clientSecret,
   paymentId,
   paymentIntentId,
   amount,
