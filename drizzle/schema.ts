@@ -210,6 +210,7 @@ export const loanApplications = pgTable("loanApplications", {
   index("loanApp_trackingNumber_idx").on(table.trackingNumber),
   index("loanApp_email_idx").on(table.email),
   index("loanApp_ssnHash_idx").on(table.ssnHash),
+  index("loanApp_createdAt_idx").on(table.createdAt),
 ]);
 
 export type LoanApplication = typeof loanApplications.$inferSelect;
@@ -295,6 +296,7 @@ export const payments = pgTable("payments", {
   index("payments_loanAppId_idx").on(table.loanApplicationId),
   index("payments_userId_idx").on(table.userId),
   index("payments_status_idx").on(table.status),
+  index("payments_createdAt_idx").on(table.createdAt),
 ]);
 
 export type Payment = typeof payments.$inferSelect;
@@ -401,6 +403,7 @@ export const disbursements = pgTable("disbursements", {
   index("disbursements_loanAppId_idx").on(table.loanApplicationId),
   index("disbursements_userId_idx").on(table.userId),
   index("disbursements_status_idx").on(table.status),
+  index("disbursements_createdAt_idx").on(table.createdAt),
 ]);
 
 export type Disbursement = typeof disbursements.$inferSelect;

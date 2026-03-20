@@ -38,6 +38,27 @@ function formatError(err: unknown): Record<string, unknown> {
   return { message: String(err) };
 }
 
+// Keys whose values must never appear in logs
+const SENSITIVE_KEYS = new Set([
+  "password", "ssn", "token", "secret", "cvv", "cvc",
+  "accountNumber", "routingNumber", "encryptionKey",
+  "authorization", "cookie", "creditCard",
+]);
+
+function redactSensitive(obj: Record<string, unknown>): Record<string, unknown> {
+  const redacted: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (SENSITIVE_KEYS.has(key.toLowerCase().replace(/[_-]/g, ""))) {
+      redacted[key] = "[REDACTED]";
+    } else if (value && typeof value === "object" && !Array.isArray(value) && !(value instanceof Error)) {
+      redacted[key] = redactSensitive(value as Record<string, unknown>);
+    } else {
+      redacted[key] = value;
+    }
+  }
+  return redacted;
+}
+
 function log(level: LogLevel, message: string, meta?: Record<string, unknown> | unknown) {
   if (!shouldLog(level)) return;
 
@@ -55,6 +76,11 @@ function log(level: LogLevel, message: string, meta?: Record<string, unknown> | 
     }
   } else if (meta !== undefined) {
     metaObj = { data: meta };
+  }
+
+  // Redact sensitive fields before logging
+  if (metaObj) {
+    metaObj = redactSensitive(metaObj);
   }
 
   if (isProduction) {

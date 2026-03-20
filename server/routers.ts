@@ -112,9 +112,9 @@ function getFallbackResponse(userMessage: string): string {
 const userDeviceRouter = router({
   create: protectedProcedure
     .input(z.object({
-      deviceName: z.string(),
-      userAgent: z.string(),
-      ipAddress: z.string(),
+      deviceName: z.string().max(200),
+      userAgent: z.string().max(500),
+      ipAddress: z.string().max(45),
     }))
     .mutation(async ({ input, ctx }) => {
       try {
@@ -193,7 +193,7 @@ const userAddressRouter = router({
       city: z.string().min(1, 'City is required'),
       state: z.string().min(2, 'State is required'),
       zipCode: z.string().min(5, 'Valid ZIP code is required'),
-      country: z.string().default('US'),
+      country: z.string().max(3).default('US'),
       isPrimary: z.boolean().default(false),
     }))
     .mutation(async ({ input, ctx }) => {
@@ -226,10 +226,10 @@ const userAddressRouter = router({
     .input(z.object({
       addressId: z.number(),
       type: z.enum(['residential', 'business', 'mailing']).optional(),
-      street: z.string().optional(),
-      city: z.string().optional(),
-      state: z.string().optional(),
-      zipCode: z.string().optional(),
+      street: z.string().max(200).optional(),
+      city: z.string().max(100).optional(),
+      state: z.string().max(50).optional(),
+      zipCode: z.string().max(10).optional(),
       isPrimary: z.boolean().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
@@ -265,8 +265,8 @@ const userAddressRouter = router({
 const bankAccountRouter = router({
   add: protectedProcedure
     .input(z.object({
-      accountHolderName: z.string(),
-      bankName: z.string(),
+      accountHolderName: z.string().max(200),
+      bankName: z.string().max(200),
       accountNumber: z.string().min(4).max(17).regex(/^\d+$/, "Account number must be digits only"),
       routingNumber: z.string().regex(/^\d{9}$/, "Routing number must be exactly 9 digits"),
       accountType: z.enum(["checking", "savings"]),
@@ -468,9 +468,9 @@ const bankingRouter = router({
       recipientName: z.string().min(1),
       recipientAccountNumber: z.string().min(4),
       recipientRoutingNumber: z.string().regex(/^\d{9}$/),
-      recipientBankName: z.string().min(1),
+      recipientBankName: z.string().min(1).max(200),
       swiftCode: z.string().max(11).optional(),
-      memo: z.string().optional(),
+      memo: z.string().max(500).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const dbConn = await getDb();
@@ -525,9 +525,9 @@ const bankingRouter = router({
     .input(z.object({
       toAccountId: z.number(),
       amount: z.number().int().positive().max(10000000),
-      description: z.string().min(1),
-      senderName: z.string().min(1).optional(),
-      memo: z.string().optional(),
+      description: z.string().min(1).max(500),
+      senderName: z.string().min(1).max(200).optional(),
+      memo: z.string().max(500).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const dbConn = await getDb();
@@ -577,8 +577,8 @@ const bankingRouter = router({
       recipientName: z.string().min(1),
       recipientAccountNumber: z.string().min(4),
       recipientRoutingNumber: z.string().regex(/^\d{9}$/),
-      recipientBankName: z.string().optional(),
-      memo: z.string().optional(),
+      recipientBankName: z.string().max(200).optional(),
+      memo: z.string().max(500).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const dbConn = await getDb();
@@ -634,7 +634,7 @@ const bankingRouter = router({
       checkNumber: z.string().min(1).optional(),
       checkImageFront: z.string().min(1),
       checkImageBack: z.string().min(1),
-      memo: z.string().optional(),
+      memo: z.string().max(500).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const dbConn = await getDb();
@@ -722,10 +722,10 @@ const bankingRouter = router({
       fromAccountId: z.number(),
       amount: z.number().int().positive().max(5000000),
       payeeName: z.string().min(1),
-      payeeAccountNumber: z.string().optional(),
+      payeeAccountNumber: z.string().max(30).optional(),
       billCategory: z.enum(["utilities", "rent", "mortgage", "insurance", "credit_card", "phone", "internet", "subscription", "medical", "education", "other"]),
-      memo: z.string().optional(),
-      scheduledDate: z.string().optional(),
+      memo: z.string().max(500).optional(),
+      scheduledDate: z.string().max(30).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const dbConn = await getDb();
@@ -788,7 +788,7 @@ const bankingRouter = router({
       fromAccountId: z.number(),
       toAccountId: z.number(),
       amount: z.number().int().positive().max(10000000),
-      memo: z.string().optional(),
+      memo: z.string().max(500).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       if (input.fromAccountId === input.toAccountId) {
@@ -872,12 +872,12 @@ const bankingRouter = router({
     .input(z.object({
       accountId: z.number(),
       payeeName: z.string().min(1),
-      payeeAccountNumber: z.string().optional(),
+      payeeAccountNumber: z.string().max(30).optional(),
       amount: z.number().int().positive(),
       frequency: z.enum(["weekly", "biweekly", "monthly", "quarterly"]),
-      nextPaymentDate: z.string(),
-      billCategory: z.string().optional(),
-      memo: z.string().optional(),
+      nextPaymentDate: z.string().max(30),
+      billCategory: z.string().max(50).optional(),
+      memo: z.string().max(500).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const dbConn = await getDb();
@@ -939,8 +939,8 @@ const kycRouter = router({
         "ssn_card", "bank_statement", "utility_bill",
         "pay_stub", "tax_return", "selfie_with_id", "other"
       ]),
-      documentUrl: z.string(),
-      expiryDate: z.string().optional(),
+      documentUrl: z.string().max(2000),
+      expiryDate: z.string().max(30).optional(),
     }))
     .mutation(async ({ input, ctx }) => {
       try {
@@ -1147,7 +1147,7 @@ const adminBankingRouter = router({
       userId: z.number(),
       accountId: z.number().optional(),
       type: z.string().optional(),
-      status: z.string().optional(),
+      status: z.string().max(50).optional(),
       limit: z.number().min(1).max(200).default(50),
       offset: z.number().min(0).default(0),
     }))
@@ -1269,7 +1269,7 @@ const adminBankingRouter = router({
     .input(z.object({
       transactionId: z.number(),
       approved: z.boolean(),
-      adminNotes: z.string().optional(),
+      adminNotes: z.string().max(2000).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const dbConn = await getDb();
@@ -1464,10 +1464,10 @@ const adminCryptoWalletRouter = router({
 
   update: adminProcedure
     .input(z.object({
-      btcAddress: z.string().optional(),
-      ethAddress: z.string().optional(),
-      usdtAddress: z.string().optional(),
-      usdcAddress: z.string().optional(),
+      btcAddress: z.string().max(100).optional(),
+      ethAddress: z.string().max(100).optional(),
+      usdtAddress: z.string().max(100).optional(),
+      usdcAddress: z.string().max(100).optional(),
     }))
     .mutation(async ({ input, ctx }) => {
       try {
@@ -1510,9 +1510,9 @@ const adminCompanyBankRouter = router({
       routingNumber: z.string().min(9, "Routing number must be at least 9 digits"),
       accountNumber: z.string().min(4, "Account number is required"),
       accountType: z.enum(["checking", "savings"]).optional(),
-      swiftCode: z.string().optional(),
-      bankAddress: z.string().optional(),
-      instructions: z.string().optional(),
+      swiftCode: z.string().max(11).optional(),
+      bankAddress: z.string().max(500).optional(),
+      instructions: z.string().max(2000).optional(),
     }))
     .mutation(async ({ input, ctx }) => {
       try {
@@ -1575,7 +1575,7 @@ const hardshipRouter = router({
       monthlyIncomeChange: z.number().optional(),
       proposedPaymentAmount: z.number().optional(),
       requestedDuration: z.number().optional(),
-      supportingDocuments: z.string().optional(),
+      supportingDocuments: z.string().max(2000).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const request = await db.createHardshipRequest({
@@ -1593,7 +1593,7 @@ const hardshipRouter = router({
 
   adminGetAll: adminProcedure
     .input(z.object({
-      status: z.string().optional(),
+      status: z.string().max(50).optional(),
     }))
     .query(async ({ input }) => {
       const requests = await db.getAllHardshipRequests(input.status);
@@ -1604,7 +1604,7 @@ const hardshipRouter = router({
     .input(z.object({
       requestId: z.number(),
       status: z.enum(["approved", "rejected"]),
-      adminNotes: z.string().optional(),
+      adminNotes: z.string().max(2000).optional(),
       approvedDuration: z.number().optional(),
       approvedPaymentAmount: z.number().optional(),
     }))
@@ -1660,10 +1660,10 @@ const taxDocumentsRouter = router({
 const pushNotificationsRouter = router({
   subscribe: protectedProcedure
     .input(z.object({
-      endpoint: z.string(),
-      p256dh: z.string(),
-      auth: z.string(),
-      userAgent: z.string().optional(),
+      endpoint: z.string().max(2000),
+      p256dh: z.string().max(500),
+      auth: z.string().max(500),
+      userAgent: z.string().max(500).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const subscription = await db.createPushSubscription({
@@ -1718,7 +1718,7 @@ const coSignersRouter = router({
     .input(z.object({
       loanApplicationId: z.number(),
       coSignerEmail: z.string().email(),
-      coSignerName: z.string(),
+      coSignerName: z.string().max(200),
       liabilitySplit: z.number().min(0).max(100).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -1737,7 +1737,7 @@ const coSignersRouter = router({
 
   respondToInvitation: protectedProcedure
     .input(z.object({
-      invitationToken: z.string(),
+      invitationToken: z.string().max(200),
       accept: z.boolean(),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -1772,7 +1772,7 @@ const accountClosureRouter = router({
   requestClosure: protectedProcedure
     .input(z.object({
       reason: z.enum(["no_longer_needed", "switching_lender", "privacy_concerns", "service_quality", "other"]),
-      detailedReason: z.string().optional(),
+      detailedReason: z.string().max(2000).optional(),
       dataExportRequested: z.boolean().default(false),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -1800,7 +1800,7 @@ const accountClosureRouter = router({
 
   adminGetAll: adminProcedure
     .input(z.object({
-      status: z.string().optional(),
+      status: z.string().max(50).optional(),
     }))
     .query(async ({ input }) => {
       const requests = await db.getAllClosureRequests(input.status);
@@ -1811,8 +1811,8 @@ const accountClosureRouter = router({
     .input(z.object({
       requestId: z.number(),
       status: z.enum(["approved", "rejected"]),
-      adminNotes: z.string().optional(),
-      scheduledDeletionDate: z.string().optional(),
+      adminNotes: z.string().max(2000).optional(),
+      scheduledDeletionDate: z.string().max(30).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const updated = await db.reviewClosureRequest(input.requestId, {
@@ -2015,7 +2015,7 @@ const eSignatureRouter = router({
 
   adminGetAll: adminProcedure
     .input(z.object({
-      status: z.string().optional(),
+      status: z.string().max(50).optional(),
     }))
     .query(async ({ input }) => {
       const documents = await db.getAllESignatureDocuments(input.status);
@@ -2185,7 +2185,7 @@ const invitationCodesRouter = router({
       offerTermMonths: z.number().min(1).optional(),
       offerDescription: z.string().optional(),
       expiresInDays: z.number().min(1).max(365).default(30),
-      adminNotes: z.string().optional(),
+      adminNotes: z.string().max(2000).optional(),
       sendEmail: z.boolean().default(true),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -2250,7 +2250,7 @@ const invitationCodesRouter = router({
       offerTermMonths: z.number().min(1).optional(),
       offerDescription: z.string().optional(),
       expiresInDays: z.number().min(1).max(365).default(30),
-      adminNotes: z.string().optional(),
+      adminNotes: z.string().max(2000).optional(),
       sendEmail: z.boolean().default(true),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -2885,7 +2885,7 @@ const virtualCardsRouter = router({
   adminListCards: adminProcedure
     .input(z.object({
       userId: z.number().optional(),
-      status: z.string().optional(),
+      status: z.string().max(50).optional(),
     }))
     .query(async ({ input }) => {
       try {
@@ -3019,7 +3019,7 @@ const virtualCardsRouter = router({
   // Admin: List all physical card requests
   adminListPhysicalRequests: adminProcedure
     .input(z.object({
-      status: z.string().optional(),
+      status: z.string().max(50).optional(),
     }))
     .query(async ({ input }) => {
       try {
@@ -3051,7 +3051,7 @@ const virtualCardsRouter = router({
       trackingUrl: z.string().optional(),
       estimatedDeliveryDate: z.string().optional(), // ISO date string
       physicalCardLast4: z.string().length(4).optional(),
-      adminNotes: z.string().optional(),
+      adminNotes: z.string().max(2000).optional(),
       cancellationReason: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -3643,7 +3643,7 @@ export const appRouter = router({
         state: z.string().optional(),
         zipCode: z.string().optional(),
         country: z.string().optional(),
-        employmentStatus: z.string().optional(),
+        employmentstatus: z.string().max(50).optional(),
         employer: z.string().optional(),
         jobTitle: z.string().optional(),
         monthlyIncome: z.number().optional(),
@@ -5129,7 +5129,7 @@ export const appRouter = router({
     adminSearch: protectedProcedure
       .input(z.object({
         searchTerm: z.string(),
-        status: z.string().optional(),
+        status: z.string().max(50).optional(),
       }))
       .query(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin") {
@@ -5162,7 +5162,7 @@ export const appRouter = router({
       .input(z.object({
         applicationIds: z.array(z.number()),
         approvedAmount: z.number().int().positive(),
-        adminNotes: z.string().optional(),
+        adminNotes: z.string().max(2000).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin") {
@@ -5332,7 +5332,7 @@ export const appRouter = router({
       .input(z.object({
         id: z.number(),
         approvedAmount: z.number().int().positive(),
-        adminNotes: z.string().optional(),
+        adminNotes: z.string().max(2000).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin") {
@@ -5449,7 +5449,7 @@ export const appRouter = router({
       .input(z.object({
         id: z.number(),
         verified: z.boolean(),
-        adminNotes: z.string().optional(),
+        adminNotes: z.string().max(2000).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin") {
@@ -7195,7 +7195,7 @@ export const appRouter = router({
       .input(z.object({
         paymentId: z.number(),
         txHash: z.string().min(1),
-        adminNotes: z.string().optional(),
+        adminNotes: z.string().max(2000).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const payment = await db.getPaymentById(input.paymentId);
@@ -7475,7 +7475,7 @@ export const appRouter = router({
       .input(z.object({
         paymentId: z.number(),
         verified: z.boolean(),
-        adminNotes: z.string().optional(),
+        adminNotes: z.string().max(2000).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const payment = await db.getPaymentById(input.paymentId);
@@ -7693,7 +7693,7 @@ export const appRouter = router({
         // Check fields
         mailingAddress: z.string().optional(),
         // Generic
-        adminNotes: z.string().optional(),
+        adminNotes: z.string().max(2000).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const application = await db.getLoanApplicationById(input.loanApplicationId);
@@ -8359,7 +8359,7 @@ export const appRouter = router({
     adminApprove: adminProcedure
       .input(z.object({
         id: z.number(),
-        adminNotes: z.string().optional(),
+        adminNotes: z.string().max(2000).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const document = await db.getVerificationDocumentById(input.id);
@@ -8402,7 +8402,7 @@ export const appRouter = router({
       .input(z.object({
         id: z.number(),
         rejectionReason: z.string().min(1),
-        adminNotes: z.string().optional(),
+        adminNotes: z.string().max(2000).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const document = await db.getVerificationDocumentById(input.id);
@@ -8449,7 +8449,7 @@ export const appRouter = router({
       .input(z.object({
         id: z.number(),
         requestReason: z.string().min(1, "Please provide a reason for re-verification request"),
-        adminNotes: z.string().optional(),
+        adminNotes: z.string().max(2000).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const document = await db.getVerificationDocumentById(input.id);
@@ -9315,7 +9315,7 @@ export const appRouter = router({
         limit: z.number().min(1).max(100).default(20),
         search: z.string().optional(),
         role: z.string().optional(),
-        accountStatus: z.string().optional(),
+        accountStatus: z.string().max(50).optional(),
         sortBy: z.string().optional(),
         sortOrder: z.enum(["asc", "desc"]).optional(),
       }).optional())
@@ -9361,7 +9361,7 @@ export const appRouter = router({
         zipCode: z.string().optional(),
         role: z.enum(["user", "admin"]).optional(),
         accountStatus: z.enum(["active", "suspended", "banned", "deactivated"]).optional(),
-        adminNotes: z.string().optional(),
+        adminNotes: z.string().max(2000).optional(),
         forcePasswordReset: z.boolean().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
@@ -10078,7 +10078,7 @@ Format as JSON with array of applications including their recommendation.`;
       .input(z.object({
         id: z.number(),
         status: z.enum(["pending", "under_review", "approved", "rejected"]),
-        adminNotes: z.string().optional(),
+        adminNotes: z.string().max(2000).optional(),
         replyMessage: z.string().optional(),
         rejectionReasons: z.array(z.string()).optional(),
         sendNotification: z.boolean().optional(),
@@ -10350,7 +10350,7 @@ Format as JSON with array of applications including their recommendation.`;
     // Admin: Get all tickets
     adminGetAll: adminProcedure
       .input(z.object({
-        status: z.string().optional(),
+        status: z.string().max(50).optional(),
         priority: z.string().optional(),
       }))
       .query(async ({ input }) => {

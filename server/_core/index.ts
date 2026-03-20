@@ -242,8 +242,13 @@ async function startServer() {
 
       res.json({ received: true });
     } catch (err: any) {
-      console.error("[Stripe Webhook] Error:", err.message);
-      res.status(400).json({ error: `Webhook error: ${err.message}` });
+      // Distinguish signature verification failures from processing errors
+      if (err.type === 'StripeSignatureVerificationError') {
+        console.error("[Stripe Webhook] Signature verification failed");
+        return res.status(400).json({ error: "Webhook signature verification failed" });
+      }
+      console.error("[Stripe Webhook] Processing error:", err.message);
+      res.status(500).json({ error: "Webhook processing failed" });
     }
   });
 

@@ -48,14 +48,14 @@ import { randomBytes, createCipheriv, createDecipheriv } from "crypto";
 // but operators should set a dedicated ENCRYPTION_KEY in production
 const ENCRYPTION_KEY = (() => {
   const dedicatedKey = process.env.ENCRYPTION_KEY;
-  if (dedicatedKey) return dedicatedKey.substring(0, 32).padEnd(32, '0');
+  if (dedicatedKey) return crypto.createHash('sha256').update(dedicatedKey).digest();
 
   const fallback = process.env.JWT_SECRET;
   if (fallback) {
     if (process.env.NODE_ENV === 'production') {
       console.warn('[Security] Using JWT_SECRET for encryption — set a dedicated ENCRYPTION_KEY in production');
     }
-    return fallback.substring(0, 32).padEnd(32, '0');
+    return crypto.createHash('sha256').update(fallback).digest();
   }
 
   throw new Error('[Security] No ENCRYPTION_KEY or JWT_SECRET configured — cannot encrypt bank data');
@@ -63,7 +63,7 @@ const ENCRYPTION_KEY = (() => {
 
 function encryptBankData(data: string): string {
   const iv = randomBytes(16);
-  const cipher = createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY, 'utf8').subarray(0, 32), iv);
+  const cipher = createCipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);
   let encrypted = cipher.update(data, 'utf8', 'hex');
   encrypted += cipher.final('hex');
   return iv.toString('hex') + ':' + encrypted;
@@ -72,7 +72,7 @@ function encryptBankData(data: string): string {
 function decryptBankData(encrypted: string): string {
   const parts = encrypted.split(':');
   const iv = Buffer.from(parts[0], 'hex');
-  const decipher = createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY, 'utf8').subarray(0, 32), iv);
+  const decipher = createDecipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);
   let decrypted = decipher.update(parts[1], 'hex', 'utf8');
   decrypted += decipher.final('utf8');
   return decrypted;

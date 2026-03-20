@@ -46,4 +46,24 @@ describe("server/logger", () => {
       expect.objectContaining({ userId: 42 })
     );
   });
+
+  it("logger redacts sensitive fields like password and ssn", async () => {
+    process.env.NODE_ENV = "development";
+    const { logger } = await import("./logger");
+    logger.info("user action", { userId: 1, password: "secret123", ssn: "123-45-6789" });
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining("[INFO]"),
+      expect.objectContaining({ userId: 1, password: "[REDACTED]", ssn: "[REDACTED]" })
+    );
+  });
+
+  it("logger redacts nested sensitive fields", async () => {
+    process.env.NODE_ENV = "development";
+    const { logger } = await import("./logger");
+    logger.info("nested", { user: { name: "John", token: "abc123" } });
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining("[INFO]"),
+      expect.objectContaining({ user: { name: "John", token: "[REDACTED]" } })
+    );
+  });
 });
