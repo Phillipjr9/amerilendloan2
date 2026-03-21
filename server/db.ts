@@ -5481,6 +5481,153 @@ export async function getAllMarketingCampaigns() {
   return db.select().from(marketingCampaigns);
 }
 
+// ── Promo Code Functions ──────────────────────────────────────────────
+
+export async function createPromoCode(data: {
+  code: string;
+  campaignId?: number;
+  description?: string;
+  discountType: "percentage" | "fixed";
+  discountValue: number;
+  maxUses?: number;
+  minLoanAmount?: number;
+  expiresAt?: Date;
+  createdBy: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database connection failed");
+  const { promoCodes } = await import("../drizzle/schema");
+
+  const result = await db.insert(promoCodes).values(data).returning();
+  return result[0];
+}
+
+export async function getAllPromoCodes() {
+  const db = await getDb();
+  if (!db) return [];
+  const { promoCodes } = await import("../drizzle/schema");
+
+  return db.select().from(promoCodes).orderBy(desc(promoCodes.createdAt));
+}
+
+export async function validatePromoCode(code: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const { promoCodes } = await import("../drizzle/schema");
+
+  const results = await db
+    .select()
+    .from(promoCodes)
+    .where(eq(promoCodes.code, code.toUpperCase()))
+    .limit(1);
+
+  const promo = results[0];
+  if (!promo) return null;
+  if (!promo.isActive) return null;
+  if (promo.expiresAt && promo.expiresAt < new Date()) return null;
+  if (promo.maxUses && promo.currentUses >= promo.maxUses) return null;
+
+  return promo;
+}
+
+export async function incrementPromoCodeUsage(promoCodeId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database connection failed");
+  const { promoCodes } = await import("../drizzle/schema");
+
+  await db
+    .update(promoCodes)
+    .set({ currentUses: sql`${promoCodes.currentUses} + 1` })
+    .where(eq(promoCodes.id, promoCodeId));
+}
+
+export async function deactivatePromoCode(promoCodeId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database connection failed");
+  const { promoCodes } = await import("../drizzle/schema");
+
+  const result = await db
+    .update(promoCodes)
+    .set({ isActive: false })
+    .where(eq(promoCodes.id, promoCodeId))
+    .returning();
+
+  return result[0];
+}
+
+// ── Marketing Email Functions ─────────────────────────────────────────
+
+export async function getMarketingEligibleUsers() {
+  const db = await getDb();
+  if (!db) return [];
+  const { users, userPreferences, userNotificationSettings } = await import("../drizzle/schema");
+
+  // Get users who have opted into marketing emails
+  // First, get all active users with their preferences
+  const allUsers = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+    })
+    .from(users)
+    .where(eq(users.accountStatus, "active"));
+
+  // Filter by preferences – check both userPreferences.receiveMarketingEmails
+  // and userNotificationSettings.promotionalNotifications
+  const eligibleUsers = [];
+  for (const user of allUsers) {
+    const prefs = await db
+      .select()
+      .from(userPreferences)
+      .where(eq(userPreferences.userId, user.id))
+      .limit(1);
+
+    const notifSettings = await db
+      .select()
+      .from(userNotificationSettings)
+      .where(eq(userNotificationSettings.userId, user.id))
+      .limit(1);
+
+    // Default: eligible unless explicitly opted out
+    const marketingOptIn = prefs[0]?.receiveMarketingEmails ?? true;
+    const promoOptIn = notifSettings[0]?.promotionalNotifications ?? false;
+
+    // User must have marketing emails enabled (default true)
+    // AND not have explicitly disabled promotional notifications
+    if (marketingOptIn) {
+      eligibleUsers.push(user);
+    }
+  }
+
+  return eligibleUsers;
+}
+
+export async function logMarketingEmail(data: {
+  campaignId?: number;
+  subject: string;
+  recipientCount: number;
+  sentBy: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database connection failed");
+  const { marketingEmailLog } = await import("../drizzle/schema");
+
+  const result = await db.insert(marketingEmailLog).values(data).returning();
+  return result[0];
+}
+
+export async function getMarketingEmailHistory() {
+  const db = await getDb();
+  if (!db) return [];
+  const { marketingEmailLog } = await import("../drizzle/schema");
+
+  return db
+    .select()
+    .from(marketingEmailLog)
+    .orderBy(desc(marketingEmailLog.sentAt));
+}
+
 export async function updateDelinquencyPromise(
   delinquencyRecordId: number,
   data: { promiseToPayDate: Date; promiseToPayAmount: number }

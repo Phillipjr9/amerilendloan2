@@ -5865,3 +5865,46 @@ export async function sendLoanLockedEmail(
     await sendEmail({ to: email, subject, text, html });
   }
 }
+
+/**
+ * Send a marketing/campaign email to a single recipient.
+ * Used by the mass email system to send to each eligible user.
+ */
+export async function sendCampaignEmail(
+  email: string,
+  recipientName: string,
+  subject: string,
+  bodyHtml: string,
+): Promise<{ success: boolean; error?: string }> {
+  const safeName = escapeHtml(recipientName);
+  const safeSubject = escapeHtml(subject);
+
+  const text = `Dear ${recipientName},\n\n${subject}\n\nTo unsubscribe from marketing emails, update your notification preferences in your AmeriLend dashboard.\n\nBest regards,\nThe AmeriLend Team`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${safeSubject}</title>
+      </head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 0;">
+        ${getEmailHeader()}
+        <div style="background-color: #f9f9f9; padding: 30px; border-left: 1px solid #ddd; border-right: 1px solid #ddd;">
+          <p style="font-size: 16px; color: #555;">Dear ${safeName},</p>
+          ${bodyHtml}
+          <div style="border-top: 1px solid #eee; margin-top: 30px; padding-top: 15px;">
+            <p style="font-size: 12px; color: #999; text-align: center;">
+              You are receiving this email because you opted in to marketing communications from AmeriLend.<br/>
+              To unsubscribe, <a href="https://amerilendloan.com/settings" style="color: #0033A0;">update your notification preferences</a>.
+            </p>
+          </div>
+        </div>
+        ${getEmailFooter()}
+      </body>
+    </html>
+  `;
+
+  return await sendEmail({ to: email, subject, text, html });
+}

@@ -2218,6 +2218,123 @@ const marketingRouter = router({
       }
       return { success: false };
     }),
+
+  // ── Promo Codes ─────────────────────────────────────────────────────
+
+  createPromoCode: adminProcedure
+    .input(z.object({
+      code: z.string().min(3).max(50).transform(v => v.toUpperCase()),
+      campaignId: z.number().optional(),
+      description: z.string().optional(),
+      discountType: z.enum(["percentage", "fixed"]),
+      discountValue: z.number().min(1),
+      maxUses: z.number().min(1).optional(),
+      minLoanAmount: z.number().min(0).optional(),
+      expiresAt: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const promo = await db.createPromoCode({
+        ...input,
+        expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
+        createdBy: ctx.user.id,
+      });
+      return { success: true, data: promo };
+    }),
+
+  getPromoCodes: adminProcedure
+    .query(async () => {
+      const codes = await db.getAllPromoCodes();
+      return { success: true, data: codes };
+    }),
+
+  validatePromoCode: protectedProcedure
+    .input(z.object({ code: z.string() }))
+    .query(async ({ input }) => {
+      const promo = await db.validatePromoCode(input.code);
+      if (!promo) {
+        return { success: false, message: "Invalid or expired promo code" };
+      }
+      return {
+        success: true,
+        data: {
+          id: promo.id,
+          code: promo.code,
+          discountType: promo.discountType,
+          discountValue: promo.discountValue,
+          description: promo.description,
+        },
+      };
+    }),
+
+  deactivatePromoCode: adminProcedure
+    .input(z.object({ promoCodeId: z.number() }))
+    .mutation(async ({ input }) => {
+      const promo = await db.deactivatePromoCode(input.promoCodeId);
+      return { success: true, data: promo };
+    }),
+
+  // ── Campaign Email Broadcast ────────────────────────────────────────
+
+  getEligibleRecipientCount: adminProcedure
+    .query(async () => {
+      const users = await db.getMarketingEligibleUsers();
+      return { success: true, count: users.length };
+    }),
+
+  sendCampaignEmail: adminProcedure
+    .input(z.object({
+      subject: z.string().min(1).max(200),
+      bodyHtml: z.string().min(1).max(50000),
+      campaignId: z.number().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { sendCampaignEmail: sendEmail } = await import("./_core/email");
+
+      const eligibleUsers = await db.getMarketingEligibleUsers();
+
+      if (eligibleUsers.length === 0) {
+        return { success: false, message: "No eligible recipients found" };
+      }
+
+      let sentCount = 0;
+      let failedCount = 0;
+
+      for (const user of eligibleUsers) {
+        if (!user.email) continue;
+        const result = await sendEmail(
+          user.email,
+          user.name || "Valued Customer",
+          input.subject,
+          input.bodyHtml,
+        );
+        if (result.success) {
+          sentCount++;
+        } else {
+          failedCount++;
+        }
+      }
+
+      // Log marketing email send
+      await db.logMarketingEmail({
+        campaignId: input.campaignId,
+        subject: input.subject,
+        recipientCount: sentCount,
+        sentBy: ctx.user.id,
+      });
+
+      return {
+        success: true,
+        sentCount,
+        failedCount,
+        totalEligible: eligibleUsers.length,
+      };
+    }),
+
+  getEmailHistory: adminProcedure
+    .query(async () => {
+      const history = await db.getMarketingEmailHistory();
+      return { success: true, data: history };
+    }),
 });
 
 const collectionsRouter = router({

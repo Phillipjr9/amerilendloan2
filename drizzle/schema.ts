@@ -1779,6 +1779,41 @@ export const userAttribution = pgTable("user_attribution", {
 export type UserAttribution = typeof userAttribution.$inferSelect;
 export type InsertUserAttribution = typeof userAttribution.$inferInsert;
 
+// Promo / Discount Codes
+export const discountTypeEnum = pgEnum("discount_type", ["percentage", "fixed"]);
+
+export const promoCodes = pgTable("promo_codes", {
+  id: serial("id").primaryKey(),
+  code: varchar("code", { length: 50 }).notNull().unique(),
+  campaignId: integer("campaign_id").references(() => marketingCampaigns.id),
+  description: text("description"),
+  discountType: discountTypeEnum("discount_type").notNull(),
+  discountValue: integer("discount_value").notNull(), // percentage (0-100) or fixed amount in cents
+  maxUses: integer("max_uses"), // null = unlimited
+  currentUses: integer("current_uses").default(0).notNull(),
+  minLoanAmount: integer("min_loan_amount"), // in cents, null = no minimum
+  expiresAt: timestamp("expires_at"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdBy: integer("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type PromoCode = typeof promoCodes.$inferSelect;
+export type InsertPromoCode = typeof promoCodes.$inferInsert;
+
+// Marketing Email Log (tracks campaign emails sent)
+export const marketingEmailLog = pgTable("marketing_email_log", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").references(() => marketingCampaigns.id),
+  subject: varchar("subject", { length: 500 }).notNull(),
+  recipientCount: integer("recipient_count").notNull(),
+  sentBy: integer("sent_by").references(() => users.id),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+});
+
+export type MarketingEmailLog = typeof marketingEmailLog.$inferSelect;
+export type InsertMarketingEmailLog = typeof marketingEmailLog.$inferInsert;
+
 // Collections & Delinquency Management
 export const delinquencyStatusEnum = pgEnum("delinquency_status", [
   "current",
