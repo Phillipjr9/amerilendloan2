@@ -71,10 +71,23 @@ export function getSessionCookieOptions(
 
 /**
  * Get the real client-facing hostname, even behind reverse proxies.
- * Priority: X-Forwarded-Host > Origin header > Referer header > req.hostname
+ * Priority: VITE_APP_URL env > X-Forwarded-Host > Origin header > Referer header > req.hostname
+ *
+ * Vercel rewrites `/api/*` to Railway, which means:
+ *  - req.hostname = Railway's internal hostname (e.g. "amerilendloan-production.up.railway.app")
+ *  - Vercel may or may not forward X-Forwarded-Host / Origin / Referer headers
+ * The most reliable source is the VITE_APP_URL env var which the operator sets explicitly.
  */
 function getClientHostname(req: Request): string {
-  // 1. X-Forwarded-Host (set by some proxies)
+  // 1. VITE_APP_URL env var — most reliable, explicitly configured by the operator
+  const appUrl = process.env.VITE_APP_URL;
+  if (appUrl) {
+    try {
+      return new URL(appUrl).hostname;
+    } catch { /* ignore parse errors */ }
+  }
+
+  // 2. X-Forwarded-Host (set by some proxies)
   const xfh = req.headers["x-forwarded-host"];
   if (xfh) {
     const host = (Array.isArray(xfh) ? xfh[0] : xfh).split(",")[0].trim();
@@ -82,7 +95,7 @@ function getClientHostname(req: Request): string {
     return host.replace(/:\d+$/, "");
   }
 
-  // 2. Origin header (always present on POST/mutation requests from browsers)
+  // 3. Origin header (always present on POST/mutation requests from browsers)
   const origin = req.headers["origin"];
   if (origin) {
     try {
@@ -90,7 +103,7 @@ function getClientHostname(req: Request): string {
     } catch { /* ignore parse errors */ }
   }
 
-  // 3. Referer header
+  // 4. Referer header
   const referer = req.headers["referer"];
   if (referer) {
     try {
@@ -98,6 +111,6 @@ function getClientHostname(req: Request): string {
     } catch { /* ignore parse errors */ }
   }
 
-  // 4. Fallback to Express req.hostname (which reads Host header / trust proxy)
+  // 5. Fallback to Express req.hostname (which reads Host header / trust proxy)
   return req.hostname;
 }
