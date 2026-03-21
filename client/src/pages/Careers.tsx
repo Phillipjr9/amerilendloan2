@@ -100,6 +100,11 @@ export default function Careers() {
       return;
     }
 
+    if (formData.position === "Not Specified") {
+      toast.error("Please select a position of interest");
+      return;
+    }
+
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {

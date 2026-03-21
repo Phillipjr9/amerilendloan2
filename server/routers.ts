@@ -10293,31 +10293,34 @@ Format as JSON with array of applications including their recommendation.`;
 
     sendJobApplication: publicProcedure
       .input(z.object({
-        fullName: z.string().min(1),
-        email: z.string().email(),
-        phone: z.string().min(10),
-        position: z.string().min(1),
-        resumeFileName: z.string(),
+        fullName: z.string().min(1).max(255),
+        email: z.string().email().max(320),
+        phone: z.string().min(10).max(50),
+        position: z.string().min(1).max(255),
+        resumeFileName: z.string().max(500),
         resumeFileUrl: z.string().optional(),
-        coverLetter: z.string().min(1),
+        coverLetter: z.string().min(1).max(5000),
       }))
       .mutation(async ({ input }) => {
+        // Persist to database first — this is the critical operation
+        const application = await db.createJobApplication({
+          fullName: input.fullName,
+          email: input.email,
+          phone: input.phone,
+          position: input.position,
+          resumeFileName: input.resumeFileName,
+          resumeFileUrl: input.resumeFileUrl,
+          coverLetter: input.coverLetter,
+        });
+
+        // Send emails in background — don't let email failures block the submission
         try {
-          // Persist to database
-          await db.createJobApplication({
-            fullName: input.fullName,
-            email: input.email,
-            phone: input.phone,
-            position: input.position,
-            resumeFileName: input.resumeFileName,
-            resumeFileUrl: input.resumeFileUrl,
-            coverLetter: input.coverLetter,
-          });
-
-          // Send confirmation email to applicant
           await sendJobApplicationConfirmationEmail(input.email, input.fullName, input.position);
+        } catch (emailErr) {
+          logger.error('[Contact] Failed to send job application confirmation email:', emailErr);
+        }
 
-          // Send notification to admin
+        try {
           await sendAdminJobApplicationNotification(
             input.fullName,
             input.email,
@@ -10326,15 +10329,11 @@ Format as JSON with array of applications including their recommendation.`;
             input.coverLetter,
             input.resumeFileName
           );
-
-          return { success: true, message: "Application submitted successfully" };
-        } catch (error) {
-          logger.error('[Contact] Error submitting job application:', error);
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "Failed to submit application. Please try again later."
-          });
+        } catch (emailErr) {
+          logger.error('[Contact] Failed to send admin job application notification:', emailErr);
         }
+
+        return { success: true, message: "Application submitted successfully" };
       }),
   }),
 
