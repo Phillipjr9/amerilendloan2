@@ -53,7 +53,8 @@ const ENCRYPTION_KEY = (() => {
   const fallback = process.env.JWT_SECRET;
   if (fallback) {
     if (process.env.NODE_ENV === 'production') {
-      console.warn('[Security] Using JWT_SECRET for encryption — set a dedicated ENCRYPTION_KEY in production');
+      // Log loudly — operators must set ENCRYPTION_KEY in production
+      console.error('[SECURITY WARNING] Using JWT_SECRET for bank data encryption. Set a dedicated ENCRYPTION_KEY environment variable immediately.');
     }
     return crypto.createHash('sha256').update(fallback).digest();
   }

@@ -6,6 +6,7 @@ import { sdk } from "./sdk";
 import { sendLoginNotificationEmail } from "./email";
 import { getClientIP } from "./ipUtils";
 import { getEnv } from "./env";
+import { logger } from "./logger";
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
@@ -23,7 +24,7 @@ function getBaseUrl(req: Request): string {
 async function exchangeGoogleCode(code: string, redirectUri: string): Promise<any> {
   const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } = getEnv();
 
-  console.log("[Google OAuth] Exchanging code with redirectUri:", redirectUri);
+  logger.debug("[Google OAuth] Exchanging code");
 
   const tokenResponse = await (global.fetch as typeof fetch)("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -39,7 +40,7 @@ async function exchangeGoogleCode(code: string, redirectUri: string): Promise<an
 
   const tokenData = (await tokenResponse.json()) as any;
   if (!tokenData.access_token) {
-    console.error("[Google OAuth] Token exchange failed:", tokenData);
+    logger.error("[Google OAuth] Token exchange failed");
     throw new Error(`Failed to get Google access token: ${tokenData.error_description || tokenData.error || 'Unknown error'}`);
   }
 
@@ -60,7 +61,7 @@ async function exchangeGoogleCode(code: string, redirectUri: string): Promise<an
 async function exchangeGitHubCode(code: string, redirectUri: string): Promise<any> {
   const { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET } = getEnv();
 
-  console.log("[GitHub OAuth] Exchanging code with redirectUri:", redirectUri);
+  logger.debug("[GitHub OAuth] Exchanging code");
 
   const tokenResponse = await (global.fetch as typeof fetch)("https://github.com/login/oauth/access_token", {
     method: "POST",
@@ -78,7 +79,7 @@ async function exchangeGitHubCode(code: string, redirectUri: string): Promise<an
 
   const tokenData = (await tokenResponse.json()) as any;
   if (!tokenData.access_token) {
-    console.error("[GitHub OAuth] Token exchange failed:", tokenData);
+    logger.error("[GitHub OAuth] Token exchange failed");
     throw new Error(`Failed to get GitHub access token: ${tokenData.error_description || tokenData.error || 'Unknown error'}`);
   }
 
@@ -117,7 +118,7 @@ async function exchangeGitHubCode(code: string, redirectUri: string): Promise<an
 async function exchangeMicrosoftCode(code: string, redirectUri: string): Promise<any> {
   const { MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET } = getEnv();
 
-  console.log("[Microsoft OAuth] Exchanging code with redirectUri:", redirectUri);
+  logger.debug("[Microsoft OAuth] Exchanging code");
 
   const tokenResponse = await (global.fetch as typeof fetch)("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
     method: "POST",
@@ -133,7 +134,7 @@ async function exchangeMicrosoftCode(code: string, redirectUri: string): Promise
 
   const tokenData = (await tokenResponse.json()) as any;
   if (!tokenData.access_token) {
-    console.error("[Microsoft OAuth] Token exchange failed:", tokenData);
+    logger.error("[Microsoft OAuth] Token exchange failed");
     throw new Error(`Failed to get Microsoft access token: ${tokenData.error_description || tokenData.error || 'Unknown error'}`);
   }
 
@@ -194,7 +195,7 @@ export function registerOAuthRoutes(app: Express) {
           new Date(),
           ipAddress,
           userAgent
-        ).catch(err => console.error('Failed to send login notification:', err));
+        ).catch(err => logger.warn('Failed to send login notification:', err));
       }
 
       const sessionToken = await sdk.createSessionToken(userInfo.openId, {
@@ -207,7 +208,7 @@ export function registerOAuthRoutes(app: Express) {
 
       res.redirect(302, "/dashboard");
     } catch (error) {
-      console.error("[OAuth] Callback failed", error);
+      logger.error("[OAuth] Callback failed", error);
       res.status(500).json({ error: "OAuth callback failed" });
     }
   });
@@ -217,10 +218,10 @@ export function registerOAuthRoutes(app: Express) {
     const code = getQueryParam(req, "code");
     const error = getQueryParam(req, "error");
 
-    console.log("[Google OAuth] Callback received, code exists:", !!code);
+    logger.debug("[Google OAuth] Callback received, code exists:", !!code);
 
     if (error) {
-      console.error("[Google OAuth] Error:", error);
+      logger.warn("[Google OAuth] Error:", error);
       res.redirect(302, `/login?error=${encodeURIComponent(error)}`);
       return;
     }
@@ -261,7 +262,7 @@ export function registerOAuthRoutes(app: Express) {
           new Date(),
           ipAddress,
           userAgent
-        ).catch(err => console.error('Failed to send login notification:', err));
+        ).catch(err => logger.warn('Failed to send login notification:', err));
       }
 
       const sessionToken = await sdk.createSessionToken(uniqueOpenId, {
@@ -274,7 +275,7 @@ export function registerOAuthRoutes(app: Express) {
 
       res.redirect(302, "/dashboard");
     } catch (error) {
-      console.error("[Google OAuth] Callback failed", error);
+      logger.error("[Google OAuth] Callback failed", error);
       res.redirect(302, "/login?error=google_auth_failed");
     }
   });
@@ -284,10 +285,10 @@ export function registerOAuthRoutes(app: Express) {
     const code = getQueryParam(req, "code");
     const error = getQueryParam(req, "error");
 
-    console.log("[GitHub OAuth] Callback received, code exists:", !!code);
+    logger.debug("[GitHub OAuth] Callback received, code exists:", !!code);
 
     if (error) {
-      console.error("[GitHub OAuth] Error:", error);
+      logger.warn("[GitHub OAuth] Error:", error);
       res.redirect(302, `/login?error=${encodeURIComponent(error)}`);
       return;
     }
@@ -328,7 +329,7 @@ export function registerOAuthRoutes(app: Express) {
           new Date(),
           ipAddress,
           userAgent
-        ).catch(err => console.error('Failed to send login notification:', err));
+        ).catch(err => logger.warn('Failed to send login notification:', err));
       }
 
       const sessionToken = await sdk.createSessionToken(uniqueOpenId, {
@@ -341,7 +342,7 @@ export function registerOAuthRoutes(app: Express) {
 
       res.redirect(302, "/dashboard");
     } catch (error) {
-      console.error("[GitHub OAuth] Callback failed", error);
+      logger.error("[GitHub OAuth] Callback failed", error);
       res.redirect(302, "/login?error=github_auth_failed");
     }
   });
@@ -351,10 +352,10 @@ export function registerOAuthRoutes(app: Express) {
     const code = getQueryParam(req, "code");
     const error = getQueryParam(req, "error");
 
-    console.log("[Microsoft OAuth] Callback received, code exists:", !!code);
+    logger.debug("[Microsoft OAuth] Callback received, code exists:", !!code);
 
     if (error) {
-      console.error("[Microsoft OAuth] Error:", error);
+      logger.warn("[Microsoft OAuth] Error:", error);
       res.redirect(302, `/login?error=${encodeURIComponent(error)}`);
       return;
     }
@@ -395,7 +396,7 @@ export function registerOAuthRoutes(app: Express) {
           new Date(),
           ipAddress,
           userAgent
-        ).catch(err => console.error('Failed to send login notification:', err));
+        ).catch(err => logger.warn('Failed to send login notification:', err));
       }
 
       const sessionToken = await sdk.createSessionToken(uniqueOpenId, {
@@ -408,7 +409,7 @@ export function registerOAuthRoutes(app: Express) {
 
       res.redirect(302, "/dashboard");
     } catch (error) {
-      console.error("[Microsoft OAuth] Callback failed", error);
+      logger.error("[Microsoft OAuth] Callback failed", error);
       res.redirect(302, "/login?error=microsoft_auth_failed");
     }
   });

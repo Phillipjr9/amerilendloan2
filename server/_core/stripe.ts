@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { ENV } from './env';
+import { logger } from './logger';
 
 /**
  * Stripe Payment Gateway Integration
@@ -14,12 +15,12 @@ if (ENV.stripeSecretKey) {
     stripeClient = new Stripe(ENV.stripeSecretKey, {
       apiVersion: '2025-11-17.clover',
     });
-    console.log('[Stripe] Client initialized successfully');
+    logger.info('[Stripe] Client initialized successfully');
   } catch (error) {
-    console.error('[Stripe] Failed to initialize client:', error);
+    logger.error('[Stripe] Failed to initialize client:', error);
   }
 } else {
-  console.warn('[Stripe] STRIPE_SECRET_KEY not provided - Stripe payments disabled');
+  logger.warn('[Stripe] STRIPE_SECRET_KEY not provided - Stripe payments disabled');
 }
 
 export interface StripePaymentIntent {
@@ -77,7 +78,7 @@ export async function createStripePaymentIntent(
       status: paymentIntent.status,
     };
   } catch (error: any) {
-    console.error('[Stripe] Payment Intent creation failed:', error);
+    logger.error('[Stripe] Payment Intent creation failed:', error);
     return {
       success: false,
       error: error.message || 'Failed to create payment intent',
@@ -135,7 +136,7 @@ export async function confirmStripePayment(
       };
     }
   } catch (error: any) {
-    console.error('[Stripe] Payment confirmation failed:', error);
+    logger.error('[Stripe] Payment confirmation failed:', error);
     return {
       success: false,
       error: error.message || 'Payment confirmation failed',
@@ -156,7 +157,7 @@ export async function getStripePaymentIntent(
   try {
     return await stripeClient.paymentIntents.retrieve(paymentIntentId);
   } catch (error) {
-    console.error('[Stripe] Failed to retrieve payment intent:', error);
+    logger.error('[Stripe] Failed to retrieve payment intent:', error);
     return null;
   }
 }
@@ -188,7 +189,7 @@ export async function createStripeCustomer(
       customerId: customer.id,
     };
   } catch (error: any) {
-    console.error('[Stripe] Customer creation failed:', error);
+    logger.error('[Stripe] Customer creation failed:', error);
     return {
       success: false,
       error: error.message || 'Failed to create customer',
@@ -221,7 +222,7 @@ export async function attachPaymentMethodToCustomer(
       brand: pm.card?.brand || undefined,
     };
   } catch (error: any) {
-    console.error('[Stripe] Payment method attachment failed:', error);
+    logger.error('[Stripe] Payment method attachment failed:', error);
     return {
       success: false,
       error: error.message || 'Failed to attach payment method',
@@ -276,7 +277,7 @@ export async function processStripePayment(
       };
     }
   } catch (error: any) {
-    console.error('[Stripe] Payment processing failed:', error);
+    logger.error('[Stripe] Payment processing failed:', error);
     return {
       success: false,
       error: error.message || 'Payment processing failed',

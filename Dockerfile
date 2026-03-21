@@ -5,8 +5,9 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY patches/ ./patches/
+COPY .npmrc ./
 
-RUN npm install --legacy-peer-deps
+RUN npm install
 
 COPY . .
 
@@ -21,8 +22,9 @@ ENV NODE_ENV=production
 
 COPY package.json package-lock.json ./
 COPY patches/ ./patches/
+COPY .npmrc ./
 
-RUN npm install --legacy-peer-deps --omit=dev
+RUN npm install --omit=dev
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/drizzle ./drizzle

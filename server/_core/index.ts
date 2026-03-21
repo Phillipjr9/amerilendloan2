@@ -143,6 +143,7 @@ async function startServer() {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     if (req.method === 'OPTIONS') {
+      res.setHeader('Access-Control-Max-Age', '86400'); // Cache preflight for 24h
       return res.sendStatus(204);
     }
     next();
@@ -176,15 +177,16 @@ async function startServer() {
       directives: {
         defaultSrc: ["'self'"],
         imgSrc: ["'self'", "data:", "https:"],
-        fontSrc: ["'self'", "data:"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "https://js.stripe.com"],
+        fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        scriptSrc: ["'self'", "https://js.stripe.com", "https://translate.google.com", "https://translate.googleapis.com"],
         frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com"],
         connectSrc: ["'self'", "https:", "https://api.stripe.com"],
+        workerSrc: ["'self'", "blob:"],
       },
     },
     crossOriginEmbedderPolicy: false, // Allow cross-origin resources (Stripe, fonts)
-    hsts: { maxAge: 31536000, includeSubDomains: true },
+    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
   }));
 
@@ -604,7 +606,13 @@ async function startServer() {
     } catch (error) {
       logger.warn("Error shutting down schedulers", error);
     }
-    process.exit(0);
+    // Close HTTP server to stop accepting new connections
+    server.close(() => {
+      logger.info("HTTP server closed");
+      process.exit(0);
+    });
+    // Force exit after 10s if server hasn't drained
+    setTimeout(() => process.exit(1), 10_000).unref();
   };
 
   process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
