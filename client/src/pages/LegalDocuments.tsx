@@ -13,6 +13,7 @@ import privacyPolicyRaw from "@/legal/privacy-policy.md?raw";
 import termsOfServiceRaw from "@/legal/terms-of-service.md?raw";
 import esignConsentRaw from "@/legal/esign-consent.md?raw";
 import truthInLendingRaw from "@/legal/truth-in-lending.md?raw";
+import accessibilityRaw from "@/legal/accessibility.md?raw";
 
 interface MarkdownFile {
   content: string;
@@ -45,6 +46,11 @@ const legalDocuments: Record<string, MarkdownFile> = {
     title: "Truth in Lending Disclosure",
     description: "Federal Truth in Lending Act disclosure with loan terms, APR, and fee information",
     content: truthInLendingRaw,
+  },
+  "accessibility": {
+    title: "Accessibility Statement",
+    description: "Our commitment to digital accessibility and WCAG 2.1 Level AA compliance",
+    content: accessibilityRaw,
   },
 };
 
