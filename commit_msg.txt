@@ -1,0 +1,1 @@
+Fix OTP login to redirect to homepage after successful authentication, not /dashboard. Also harden server redirect fallback.

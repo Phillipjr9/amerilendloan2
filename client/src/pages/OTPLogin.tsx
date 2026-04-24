@@ -18,14 +18,14 @@ export default function OTPLogin() {
   const [step, setStep] = useState<"form" | "code">("form");
 
   // Resolve a safe post-login destination from the URL `next` param, falling
-  // back to /dashboard. Only allow internal paths to avoid open-redirects.
+  // back to the homepage. Only allow internal paths to avoid open-redirects.
   const postLoginTarget = (() => {
-    if (typeof window === "undefined") return "/dashboard";
+    if (typeof window === "undefined") return "/";
     const next = new URLSearchParams(window.location.search).get("next");
-    if (!next) return "/dashboard";
+    if (!next) return "/";
     // Must be a same-origin absolute path (starts with "/" but not "//" or "/\\")
     if (!next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) {
-      return "/dashboard";
+      return "/";
     }
     return next;
   })();
