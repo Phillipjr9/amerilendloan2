@@ -1,4 +1,5 @@
-import { randomBytes } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
+import { ENV } from "./env";
 
 /**
  * One-time session codes for secure cookie establishment.
@@ -11,36 +12,68 @@ import { randomBytes } from "crypto";
  * on direct navigations.
  */
 
-interface PendingSession {
+const CODE_TTL_MS = 60_000; // 1 minute
+
+type SessionCodePayload = {
   token: string;
   expires: number;
+};
+
+function getSessionCodeSecret(): string {
+  // Reuse the auth cookie secret so codes can be validated by any app instance.
+  // (Critical for multi-instance deployments behind a load balancer.)
+  return ENV.cookieSecret || process.env.JWT_SECRET || "dev-insecure-session-code-secret";
 }
 
-const store = new Map<string, PendingSession>();
+function toBase64Url(value: string): string {
+  return Buffer.from(value, "utf8").toString("base64url");
+}
 
-const CODE_TTL_MS = 60_000; // 1 minute
-const CLEANUP_INTERVAL_MS = 60_000; // sweep every minute
+function fromBase64Url(value: string): string {
+  return Buffer.from(value, "base64url").toString("utf8");
+}
 
-// Periodic cleanup of expired codes
-setInterval(() => {
-  const now = Date.now();
-  store.forEach((entry, code) => {
-    if (entry.expires < now) store.delete(code);
-  });
-}, CLEANUP_INTERVAL_MS).unref();
+function signPayload(payloadBase64Url: string): string {
+  return createHmac("sha256", getSessionCodeSecret())
+    .update(payloadBase64Url)
+    .digest("base64url");
+}
 
-/** Store a session token and return a one-time code that can redeem it. */
+/**
+ * Create a short-lived signed code that can redeem a session token.
+ *
+ * This is intentionally stateless so it works across multiple instances.
+ */
 export function createSessionCode(sessionToken: string): string {
-  const code = randomBytes(32).toString("hex");
-  store.set(code, { token: sessionToken, expires: Date.now() + CODE_TTL_MS });
-  return code;
+  const payload: SessionCodePayload = {
+    token: sessionToken,
+    expires: Date.now() + CODE_TTL_MS,
+  };
+  const payloadPart = toBase64Url(JSON.stringify(payload));
+  const signaturePart = signPayload(payloadPart);
+  return `${payloadPart}.${signaturePart}`;
 }
 
-/** Redeem a one-time code. Returns the session token or null if invalid/expired. */
+/** Redeem a short-lived signed code. Returns the session token or null if invalid/expired. */
 export function redeemSessionCode(code: string): string | null {
-  const entry = store.get(code);
-  if (!entry) return null;
-  store.delete(code); // single-use
-  if (entry.expires < Date.now()) return null;
-  return entry.token;
+  if (!code || !code.includes(".")) return null;
+
+  const [payloadPart, signaturePart] = code.split(".");
+  if (!payloadPart || !signaturePart) return null;
+
+  const expectedSignature = signPayload(payloadPart);
+  const sigBuffer = Buffer.from(signaturePart, "base64url");
+  const expectedBuffer = Buffer.from(expectedSignature, "base64url");
+
+  if (sigBuffer.length !== expectedBuffer.length) return null;
+  if (!timingSafeEqual(sigBuffer, expectedBuffer)) return null;
+
+  try {
+    const parsed = JSON.parse(fromBase64Url(payloadPart)) as SessionCodePayload;
+    if (!parsed?.token || !parsed?.expires) return null;
+    if (parsed.expires < Date.now()) return null;
+    return parsed.token;
+  } catch {
+    return null;
+  }
 }

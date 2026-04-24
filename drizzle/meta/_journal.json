@@ -92,6 +92,13 @@
       "when": 1774093650405,
       "tag": "0012_flowery_zeigeist",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1777006488528,
+      "tag": "0013_clumsy_solo",
+      "breakpoints": true
     }
   ]
 }

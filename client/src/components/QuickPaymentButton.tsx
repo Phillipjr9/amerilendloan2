@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Bitcoin, Loader2, Copy, Check, Zap } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { getPersistentIdempotencyKey } from "@/lib/idempotency";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import StripePaymentForm from "@/components/StripePaymentForm";
@@ -33,7 +34,7 @@ export function QuickPaymentButton({
   // Crypto payment fields
   const [selectedCrypto, setSelectedCrypto] = useState<"BTC" | "ETH" | "USDT" | "USDC">("USDT");
   const [addressCopied, setAddressCopied] = useState(false);
-  const cryptoIdempotencyKeyRef = useRef(crypto.randomUUID());
+  const cryptoIdempotencyKeyRef = useRef(getPersistentIdempotencyKey(applicationId, "crypto"));
 
   const utils = trpc.useUtils();
   

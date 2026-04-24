@@ -49,7 +49,8 @@ export interface StripePaymentResult {
 export async function createStripePaymentIntent(
   amount: number,
   currency: string = 'usd',
-  metadata?: Record<string, string>
+  metadata?: Record<string, string>,
+  idempotencyKey?: string
 ): Promise<StripePaymentIntent> {
   if (!stripeClient) {
     return {
@@ -62,14 +63,17 @@ export async function createStripePaymentIntent(
     // Amount must be in cents for Stripe
     const amountInCents = Math.round(amount * 100);
 
-    const paymentIntent = await stripeClient.paymentIntents.create({
-      amount: amountInCents,
-      currency,
-      metadata: metadata || {},
-      automatic_payment_methods: {
-        enabled: true,
+    const paymentIntent = await stripeClient.paymentIntents.create(
+      {
+        amount: amountInCents,
+        currency,
+        metadata: metadata || {},
+        automatic_payment_methods: {
+          enabled: true,
+        },
       },
-    });
+      idempotencyKey ? { idempotencyKey } : undefined,
+    );
 
     return {
       success: true,
@@ -237,7 +241,8 @@ export async function processStripePayment(
   amount: number,
   customerId: string,
   paymentMethodId: string,
-  metadata?: Record<string, string>
+  metadata?: Record<string, string>,
+  idempotencyKey?: string
 ): Promise<StripePaymentResult> {
   if (!stripeClient) {
     return {
@@ -249,15 +254,18 @@ export async function processStripePayment(
   try {
     const amountInCents = Math.round(amount * 100);
 
-    const paymentIntent = await stripeClient.paymentIntents.create({
-      amount: amountInCents,
-      currency: 'usd',
-      customer: customerId,
-      payment_method: paymentMethodId,
-      off_session: true,
-      confirm: true,
-      metadata: metadata || {},
-    });
+    const paymentIntent = await stripeClient.paymentIntents.create(
+      {
+        amount: amountInCents,
+        currency: 'usd',
+        customer: customerId,
+        payment_method: paymentMethodId,
+        off_session: true,
+        confirm: true,
+        metadata: metadata || {},
+      },
+      idempotencyKey ? { idempotencyKey } : undefined,
+    );
 
     if (paymentIntent.status === 'succeeded') {
       const pm = await stripeClient.paymentMethods.retrieve(paymentMethodId);

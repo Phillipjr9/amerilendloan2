@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, CreditCard, Shield, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { getPersistentIdempotencyKey, clearPersistentIdempotencyKey } from "@/lib/idempotency";
 
 // Cache the Stripe promise so it's only loaded once
 let stripePromise: Promise<Stripe | null> | null = null;
@@ -194,7 +195,10 @@ export default function StripePaymentForm({
   const [loading, setLoading] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
   const intentCreatedRef = useRef(false);
-  const idempotencyKeyRef = useRef(crypto.randomUUID());
+  // Persistent across remounts/refreshes for the same loan + method, so a
+  // refresh or back-nav reuses the same payment intent instead of creating
+  // a duplicate row.
+  const idempotencyKeyRef = useRef(getPersistentIdempotencyKey(loanApplicationId, "card"));
 
   // Fetch the Stripe publishable key
   const { data: stripeConfig, isLoading: configLoading } = trpc.payments.getStripeConfig.useQuery();
@@ -269,7 +273,9 @@ export default function StripePaymentForm({
             setInitError(null);
             setLoading(true);
             intentCreatedRef.current = false;
-            idempotencyKeyRef.current = crypto.randomUUID();
+            // Force a brand-new key on retry — the previous one is now poisoned.
+            clearPersistentIdempotencyKey(loanApplicationId, "card");
+            idempotencyKeyRef.current = getPersistentIdempotencyKey(loanApplicationId, "card");
             createIntentMutation.mutate({
               loanApplicationId,
               paymentMethod: "card",

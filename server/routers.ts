@@ -5380,6 +5380,74 @@ export const appRouter = router({
       return alerts;
     }),
 
+    // Admin: Get stale work — loans and job applications that have been
+    // sitting in non-terminal states for too long. Each item is enriched with
+    // `daysOld` so the UI can sort/highlight the worst offenders. Thresholds
+    // are conservative defaults that mirror typical lender SLAs; the panel
+    // shows everything past the threshold rather than capping the list.
+    adminGetStaleWork: adminProcedure.query(async () => {
+      const STALE_THRESHOLDS = {
+        pendingDays: 3,        // pending / under_review loan apps
+        feePendingDays: 7,     // fee_pending — borrower hasn't paid fee
+        approvedDays: 7,       // approved — admin hasn't moved to fee_pending or disbursement
+        jobAppDays: 7,         // pending / under_review job apps
+      };
+
+      const now = Date.now();
+      const daysSince = (d: Date | string) =>
+        Math.floor((now - new Date(d).getTime()) / (1000 * 60 * 60 * 24));
+
+      const [loans, jobApps] = await Promise.all([
+        db.getAllLoanApplications(),
+        db.getAllJobApplications(),
+      ]);
+
+      const enrich = <T extends { createdAt: Date | string; id: number }>(
+        rows: T[],
+        thresholdDays: number,
+      ) =>
+        rows
+          .map(r => ({ ...r, daysOld: daysSince(r.createdAt) }))
+          .filter(r => r.daysOld >= thresholdDays)
+          .sort((a, b) => b.daysOld - a.daysOld);
+
+      const stalePending = enrich(
+        loans.filter(l => l.status === "pending" || l.status === "under_review"),
+        STALE_THRESHOLDS.pendingDays,
+      );
+      const staleFeePending = enrich(
+        loans.filter(l => l.status === "fee_pending"),
+        STALE_THRESHOLDS.feePendingDays,
+      );
+      const staleApproved = enrich(
+        loans.filter(l => l.status === "approved"),
+        STALE_THRESHOLDS.approvedDays,
+      );
+      const staleJobApplications = enrich(
+        jobApps.filter(j => j.status === "pending" || j.status === "under_review"),
+        STALE_THRESHOLDS.jobAppDays,
+      );
+
+      return {
+        thresholds: STALE_THRESHOLDS,
+        counts: {
+          pending: stalePending.length,
+          feePending: staleFeePending.length,
+          approved: staleApproved.length,
+          jobApplications: staleJobApplications.length,
+          total:
+            stalePending.length +
+            staleFeePending.length +
+            staleApproved.length +
+            staleJobApplications.length,
+        },
+        stalePending,
+        staleFeePending,
+        staleApproved,
+        staleJobApplications,
+      };
+    }),
+
     // Admin: Bulk approve loans
     adminBulkApprove: protectedProcedure
       .input(z.object({
@@ -6694,7 +6762,7 @@ export const appRouter = router({
             userId: String(ctx.user.id),
             loanApplicationId: String(input.loanApplicationId),
             type: "processing_fee",
-          });
+          }, `pi:fee:${input.loanApplicationId}:${input.amountCents}`);
           return result;
         } catch (error) {
           logger.error("[Stripe] Error creating payment intent:", error);
@@ -6956,10 +7024,38 @@ export const appRouter = router({
           status: "pending",
         };
 
+        // Dedup: reuse any active (non-terminal) payment created in the last 30 minutes
+        // for this same loan + method. Prevents duplicate rows from page refreshes,
+        // double-clicks, or stale tabs where the client idempotency key was lost.
+        const existingActive = await db.findActivePaymentForLoan(
+          input.loanApplicationId,
+          input.paymentMethod,
+        );
+
         // For card payments with Stripe
         if (input.paymentMethod === "card") {
-          const { createStripePaymentIntent } = await import("./_core/stripe");
-          
+          const { createStripePaymentIntent, getStripePaymentIntent } = await import("./_core/stripe");
+
+          // If an active Stripe payment already exists, reuse it instead of creating
+          // a brand-new payment intent + DB row.
+          if (existingActive && existingActive.paymentIntentId) {
+            const existingPi = await getStripePaymentIntent(existingActive.paymentIntentId);
+            if (existingPi && existingPi.client_secret &&
+                ["requires_payment_method", "requires_confirmation", "requires_action", "processing"].includes(existingPi.status)) {
+              logger.info(`[Payment] Reusing active Stripe payment ${existingActive.id} for loan ${input.loanApplicationId}`);
+              return {
+                success: true,
+                paymentId: existingActive.id,
+                amount: application.processingFeeAmount,
+                clientSecret: existingPi.client_secret,
+                paymentIntentId: existingPi.id,
+                requiresClientConfirmation: true,
+                message: "Resuming existing payment",
+                deduplicated: true,
+              };
+            }
+          }
+
           // Create payment record first
           const payment = await db.createPayment({
             ...paymentData,
@@ -6979,7 +7075,7 @@ export const appRouter = router({
             loanApplicationId: String(input.loanApplicationId),
             paymentId: String(payment.id),
             type: "processing_fee",
-          });
+          }, `pi:fee:payment:${payment.id}`);
 
           if (!result.success) {
             await db.updatePaymentStatus(payment.id, "failed", {
@@ -7022,6 +7118,25 @@ export const appRouter = router({
 
         // For crypto payments, create charge and get payment address
         if (input.paymentMethod === "crypto" && input.cryptoCurrency) {
+          // Reuse an active crypto payment for the same loan + crypto currency
+          // if one was created in the last 30 minutes — prevents new wallet
+          // addresses being generated on every page mount.
+          if (existingActive && existingActive.cryptoCurrency === input.cryptoCurrency
+              && existingActive.cryptoAddress) {
+            logger.info(`[Payment] Reusing active crypto payment ${existingActive.id} for loan ${input.loanApplicationId}`);
+            return {
+              success: true,
+              pending: true,
+              paymentId: existingActive.id,
+              amount: application.processingFeeAmount,
+              cryptoAddress: existingActive.cryptoAddress,
+              cryptoAmount: existingActive.cryptoAmount,
+              status: existingActive.status,
+              message: "Resuming existing crypto payment",
+              deduplicated: true,
+            };
+          }
+
           const charge = await createCryptoCharge(
             application.processingFeeAmount,
             input.cryptoCurrency,
@@ -7128,12 +7243,27 @@ export const appRouter = router({
             });
           }
 
+          const wirePaymentIntentId = `WIRE-${input.wireConfirmationNumber}`;
+
+          // Dedup: same wire confirmation number already submitted for this loan?
+          if (existingActive && existingActive.paymentIntentId === wirePaymentIntentId) {
+            logger.info(`[Payment] Duplicate wire submission for loan ${input.loanApplicationId} confirmation ${input.wireConfirmationNumber}; returning existing #${existingActive.id}`);
+            return {
+              success: true,
+              paymentId: existingActive.id,
+              amount: application.processingFeeAmount,
+              status: existingActive.status,
+              message: "Wire transfer already recorded — pending admin verification.",
+              deduplicated: true,
+            };
+          }
+
           const wirePaymentData = {
             ...paymentData,
             paymentProvider: "wire" as const,
             paymentMethod: "wire" as const,
             status: "pending_verification" as const,
-            paymentIntentId: `WIRE-${input.wireConfirmationNumber}`,
+            paymentIntentId: wirePaymentIntentId,
           };
 
           // Create payment record
@@ -9121,6 +9251,47 @@ export const appRouter = router({
       return db.getAllAdmins();
     }),
 
+    /**
+     * Manually set a payment's status (succeeded / failed / refunded).
+     * Used to reconcile records when Stripe webhooks were missed or to
+     * record a manually-collected payment. Writes to the audit trail.
+     */
+    setPaymentStatus: protectedProcedure
+      .input(z.object({
+        paymentId: z.number(),
+        status: z.enum(["succeeded", "failed", "refunded", "processing", "pending"]),
+        reason: z.string().min(1).max(500),
+        markLoanFeePaid: z.boolean().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
+        }
+        const payment = await db.getPaymentById(input.paymentId);
+        if (!payment) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Payment not found" });
+        }
+        const additional: any = { adminNotes: input.reason };
+        if (input.status === "succeeded") additional.completedAt = new Date();
+        if (input.status === "failed") additional.failureReason = input.reason;
+
+        await db.updatePaymentStatus(
+          input.paymentId,
+          input.status as any,
+          additional,
+          {
+            userId: ctx.user.id,
+            action: "admin_manual_status_change",
+          },
+        );
+
+        if (input.status === "succeeded" && input.markLoanFeePaid) {
+          await db.updateLoanApplicationStatus(payment.loanApplicationId, "fee_paid");
+        }
+
+        return { success: true };
+      }),
+
     // Get admin dashboard stats
     getStats: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== "admin") {
@@ -10311,6 +10482,24 @@ Format as JSON with array of applications including their recommendation.`;
         coverLetter: z.string().min(1).max(5000),
       }))
       .mutation(async ({ input }) => {
+        // Dedup: if the same email applied to the same position in the last 24h,
+        // return the existing application instead of creating a duplicate row.
+        // Prevents accidental double-submits from page refreshes / double-clicks.
+        try {
+          const existing = await db.findRecentJobApplication(input.email, input.position);
+          if (existing) {
+            logger.info(`[JobApplication] Duplicate detected for ${input.email} / ${input.position}; returning existing #${existing.id}`);
+            return {
+              success: true,
+              message: "Application already received. We'll be in touch soon.",
+              deduplicated: true,
+            };
+          }
+        } catch (dedupErr) {
+          // Non-fatal — fall through to insert if dedup lookup fails.
+          logger.warn('[JobApplication] Dedup lookup failed, proceeding with insert:', dedupErr);
+        }
+
         // Persist to database first — this is the critical operation
         let application;
         try {
@@ -11192,7 +11381,8 @@ Format as JSON with array of applications including their recommendation.`;
               autoPaySettingId: String(input.autoPaySettingId),
               userId: String(setting.userId),
               description: input.description || "Manual charge by admin",
-            }
+            },
+            `manual:autopay:${input.autoPaySettingId}:${input.amountCents}:${Date.now()}`,
           );
 
           if (result.success) {

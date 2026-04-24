@@ -103,6 +103,11 @@ export const ENV = {
   stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY ?? "",
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
   adminEmail: process.env.ADMIN_EMAIL ?? "admin@amerilendloan.com",
+  viteAppUrl: process.env.VITE_APP_URL ?? "",
+  // When running multiple replicas, set RUN_SCHEDULERS=false on all but one
+  // instance to prevent duplicate cron executions (auto-pay charges, reminders,
+  // backups, KYC expiry sweeps). Defaults to true for single-instance deploys.
+  runSchedulers: (process.env.RUN_SCHEDULERS ?? "true").toLowerCase() !== "false",
 };
 
 export function getEnv() {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { getPersistentIdempotencyKey } from "@/lib/idempotency";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,7 +51,6 @@ export default function PayFee() {
 
   const [selectedLoan, setSelectedLoan] = useState<number | null>(null);
   const selectedLoanData = feePendingLoans.find((loan) => loan.id === selectedLoan);
-  const wireIdempotencyKeyRef = useRef(crypto.randomUUID());
 
   // Wire payment confirmation mutation
   const wirePaymentMutation = trpc.payments.createIntent.useMutation({
@@ -87,7 +87,8 @@ export default function PayFee() {
       paymentMethod: "wire",
       wireConfirmationNumber: wireConfirmationNumber.trim(),
       wireSenderName: wireSenderName.trim() || undefined,
-      idempotencyKey: wireIdempotencyKeyRef.current,
+      // Compute at submit time — selectedLoan is null at mount.
+      idempotencyKey: getPersistentIdempotencyKey(selectedLoan, "wire"),
     });
   };
 

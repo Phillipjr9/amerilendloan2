@@ -198,7 +198,10 @@ export const loanApplications = pgTable("loanApplications", {
   
   // Invitation code tracking
   invitationCode: varchar("invitationCode", { length: 20 }),
-  
+
+  // Reminder tracking
+  lastFeeReminderAt: timestamp("lastFeeReminderAt"),
+
   // Timestamps
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
@@ -703,6 +706,20 @@ export const paymentIdempotencyLog = pgTable("paymentIdempotencyLog", {
 
 export type PaymentIdempotencyLog = typeof paymentIdempotencyLog.$inferSelect;
 export type InsertPaymentIdempotencyLog = typeof paymentIdempotencyLog.$inferInsert;
+
+/**
+ * Stripe webhook event log - cross-process dedup of Stripe webhook deliveries.
+ * Stripe retries on any non-2xx and on timeout, so the same event.id can arrive
+ * multiple times. Insert with ON CONFLICT DO NOTHING and only act if rowCount=1.
+ */
+export const stripeWebhookEvents = pgTable("stripeWebhookEvents", {
+  eventId: varchar("eventId", { length: 255 }).primaryKey(),
+  type: varchar("type", { length: 100 }).notNull(),
+  receivedAt: timestamp("receivedAt").defaultNow().notNull(),
+});
+
+export type StripeWebhookEvent = typeof stripeWebhookEvents.$inferSelect;
+export type InsertStripeWebhookEvent = typeof stripeWebhookEvents.$inferInsert;
 
 /**
  * Payment audit trail - tracks all payment status changes

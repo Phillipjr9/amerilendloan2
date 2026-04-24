@@ -75,6 +75,24 @@ export default function AdminPaymentVerification() {
     },
   });
 
+  // Manual status override (used to reconcile stuck payments when Stripe webhooks were missed)
+  const [forceDialog, setForceDialog] = useState<{ open: boolean; payment: any | null }>({ open: false, payment: null });
+  const [forceStatus, setForceStatus] = useState<string>("succeeded");
+  const [forceReason, setForceReason] = useState("");
+  const [forceMarkLoanFeePaid, setForceMarkLoanFeePaid] = useState(true);
+
+  const setPaymentStatusMutation = trpc.admin.setPaymentStatus.useMutation({
+    onSuccess: () => {
+      toast.success("Payment status updated");
+      refetch();
+      setForceDialog({ open: false, payment: null });
+      setForceReason("");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to update payment status");
+    },
+  });
+
   const handleVerifyPayment = () => {
     if (!verificationDialog.payment || !verificationDialog.action) return;
 
@@ -368,6 +386,25 @@ export default function AdminPaymentVerification() {
                             >
                               <CheckCircle className="h-3 w-3 mr-1" />
                               Verify
+                            </Button>
+                          )}
+
+                          {/* Manual reconcile for any non-terminal payment (Stripe stuck in processing, etc.) */}
+                          {!["succeeded", "failed", "refunded"].includes(payment.status as string) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-amber-400 text-amber-700 hover:bg-amber-50"
+                              onClick={() => {
+                                setForceDialog({ open: true, payment });
+                                setForceStatus("succeeded");
+                                setForceReason("");
+                                setForceMarkLoanFeePaid(true);
+                              }}
+                              title="Manually set payment status (use when Stripe webhook was missed)"
+                            >
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              Force status
                             </Button>
                           )}
                         </div>
@@ -672,6 +709,101 @@ export default function AdminPaymentVerification() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               {verificationDialog.action === "approve" ? "Approve Payment" : "Reject Payment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Force-status reconciliation dialog */}
+      <Dialog open={forceDialog.open} onOpenChange={(open) => {
+        if (!open) setForceDialog({ open: false, payment: null });
+      }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Force payment status</DialogTitle>
+            <DialogDescription>
+              Use this when a Stripe webhook was missed or you've manually verified payment outside the system.
+              Action is recorded in the payment audit log against your admin account.
+            </DialogDescription>
+          </DialogHeader>
+
+          {forceDialog.payment && (
+            <div className="space-y-4 py-2">
+              <div className="text-sm space-y-1 bg-gray-50 p-3 rounded">
+                <div><span className="text-gray-600">Payment:</span> #{forceDialog.payment.id}</div>
+                <div><span className="text-gray-600">Loan:</span> {forceDialog.payment.loanTrackingNumber}</div>
+                <div><span className="text-gray-600">Amount:</span> {formatCurrency(forceDialog.payment.amount)}</div>
+                <div><span className="text-gray-600">Current status:</span> {forceDialog.payment.status}</div>
+                {forceDialog.payment.paymentIntentId && (
+                  <div className="text-xs text-gray-500 truncate">
+                    PI: {forceDialog.payment.paymentIntentId}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">New status</label>
+                <Select value={forceStatus} onValueChange={setForceStatus}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="succeeded">succeeded</SelectItem>
+                    <SelectItem value="failed">failed</SelectItem>
+                    <SelectItem value="refunded">refunded</SelectItem>
+                    <SelectItem value="processing">processing</SelectItem>
+                    <SelectItem value="pending">pending</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Reason (required, recorded in audit log)</label>
+                <Textarea
+                  value={forceReason}
+                  onChange={(e) => setForceReason(e.target.value)}
+                  placeholder="e.g. Verified in Stripe Dashboard, webhook missed during outage"
+                  rows={3}
+                />
+              </div>
+
+              {forceStatus === "succeeded" && (
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={forceMarkLoanFeePaid}
+                    onChange={(e) => setForceMarkLoanFeePaid(e.target.checked)}
+                  />
+                  Also mark loan as <code>fee_paid</code> (only relevant for processing-fee payments)
+                </label>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setForceDialog({ open: false, payment: null })}
+              disabled={setPaymentStatusMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!forceDialog.payment || !forceReason.trim()) {
+                  toast.error("Reason is required");
+                  return;
+                }
+                setPaymentStatusMutation.mutate({
+                  paymentId: forceDialog.payment.id,
+                  status: forceStatus as any,
+                  reason: forceReason.trim(),
+                  markLoanFeePaid: forceStatus === "succeeded" ? forceMarkLoanFeePaid : undefined,
+                });
+              }}
+              disabled={setPaymentStatusMutation.isPending || !forceReason.trim()}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              {setPaymentStatusMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Apply
             </Button>
           </DialogFooter>
         </DialogContent>

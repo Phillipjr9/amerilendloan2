@@ -47,6 +47,26 @@ function validateEnvironment() {
   } else {
     logger.info("All critical environment variables configured");
   }
+
+  // Integration sanity checks — warn loudly on misconfigurations that we have
+  // hit in production (Stripe publishable key set but secret/webhook empty).
+  // These don't crash the server (some deploys legitimately disable Stripe)
+  // but they will be obvious in logs and surfaced via /health/detailed.
+  if (ENV.stripePublishableKey && !ENV.stripeSecretKey) {
+    logger.error(
+      "[Startup] STRIPE MISCONFIGURED: STRIPE_PUBLISHABLE_KEY is set but " +
+      "STRIPE_SECRET_KEY is empty. Card payments will fail server-side.",
+    );
+  }
+  if (ENV.stripeSecretKey && !ENV.stripeWebhookSecret) {
+    logger.error(
+      "[Startup] STRIPE MISCONFIGURED: STRIPE_SECRET_KEY is set but " +
+      "STRIPE_WEBHOOK_SECRET is empty. Webhook deliveries will be rejected.",
+    );
+  }
+  if (ENV.isProduction && ENV.cookieSecret.length < 32) {
+    logger.error("[Startup] JWT_SECRET is too short for production (<32 chars).");
+  }
 }
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -114,6 +134,7 @@ async function startServer() {
         await safetyDb.execute(rawSql`ALTER TABLE "job_applications" ADD COLUMN IF NOT EXISTS "resume_file_url" text`);
         await safetyDb.execute(rawSql`ALTER TABLE "job_applications" ADD COLUMN IF NOT EXISTS "reply_message" text`);
         await safetyDb.execute(rawSql`ALTER TABLE "job_applications" ADD COLUMN IF NOT EXISTS "rejection_reasons" text`);
+        await safetyDb.execute(rawSql`ALTER TABLE "loanApplications" ADD COLUMN IF NOT EXISTS "lastFeeReminderAt" timestamp`);
         logger.info("Critical column safety check passed");
       }
     } catch (safetyError) {
@@ -134,9 +155,17 @@ async function startServer() {
     logger.error('Server error', error);
   });
   
-  // Configure body parser with size limit for file uploads (10MB max)
-  app.use(express.json({ limit: "10mb" }));
-  app.use(express.urlencoded({ limit: "10mb", extended: true }));
+  // Configure body parser with size limit for file uploads (10MB max).
+  // Skip JSON parsing for the Stripe webhook so the raw body is preserved
+  // for signature verification (Stripe.webhooks.constructEvent requires Buffer).
+  app.use((req, res, next) => {
+    if (req.originalUrl === "/api/stripe/webhook") return next();
+    return express.json({ limit: "10mb" })(req, res, next);
+  });
+  app.use((req, res, next) => {
+    if (req.originalUrl === "/api/stripe/webhook") return next();
+    return express.urlencoded({ limit: "10mb", extended: true })(req, res, next);
+  });
 
   // Trust proxy for correct IP behind reverse proxies (Railway, Vercel)
   app.set('trust proxy', 1);
@@ -190,6 +219,13 @@ async function startServer() {
   }));
   
   // Security headers via helmet
+  // CSP connect-src is an explicit allowlist (no `https:` wildcard) so that
+  // exfiltration via injected scripts is constrained to known integrations.
+  // Additional hosts can be added via CSP_CONNECT_SRC_EXTRA (comma-separated).
+  const extraConnectSrc = (process.env.CSP_CONNECT_SRC_EXTRA || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
@@ -197,9 +233,29 @@ async function startServer() {
         imgSrc: ["'self'", "data:", "https:"],
         fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        scriptSrc: ["'self'", "https://js.stripe.com", "https://translate.google.com", "https://translate.googleapis.com"],
+        scriptSrc: [
+          "'self'",
+          "https://js.stripe.com",
+          "https://translate.google.com",
+          "https://translate.googleapis.com",
+        ],
         frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com"],
-        connectSrc: ["'self'", "https:", "https://api.stripe.com"],
+        connectSrc: [
+          "'self'",
+          // Stripe
+          "https://api.stripe.com",
+          "https://maps.stripe.com",
+          "https://q.stripe.com",
+          // Supabase (REST + Realtime websockets)
+          "https://*.supabase.co",
+          "wss://*.supabase.co",
+          // Sentry error reporting
+          "https://*.sentry.io",
+          "https://*.ingest.sentry.io",
+          // Google Translate widget
+          "https://translate.googleapis.com",
+          ...extraConnectSrc,
+        ],
         workerSrc: ["'self'", "blob:"],
       },
     },
@@ -239,6 +295,20 @@ async function startServer() {
   app.get("/metrics", metricsEndpoint);
 
   // Stripe webhook endpoint (must use raw body parser for signature verification)
+  // In-process LRU dedup of recently-seen Stripe event IDs. Stripe retries on
+  // any non-2xx and on timeout, so the same event.id can arrive multiple times
+  // within seconds. Database-level guards (status checks below) handle cross-
+  // process dedup; this LRU short-circuits same-process retries fast.
+  const recentStripeEvents = new Set<string>();
+  const STRIPE_EVENT_LRU_MAX = 1000;
+  const rememberStripeEvent = (id: string) => {
+    recentStripeEvents.add(id);
+    if (recentStripeEvents.size > STRIPE_EVENT_LRU_MAX) {
+      const oldest = recentStripeEvents.values().next().value;
+      if (oldest) recentStripeEvents.delete(oldest);
+    }
+  };
+
   app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async (req, res) => {
     const sig = req.headers["stripe-signature"];
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -256,13 +326,29 @@ async function startServer() {
 
       const event = stripe.webhooks.constructEvent(req.body, sig as string, webhookSecret);
 
+      // Dedup replays: ack 200 immediately so Stripe stops retrying.
+      // 1) In-process LRU short-circuits same-process retries fast.
+      if (recentStripeEvents.has(event.id)) {
+        logger.info(`[Stripe Webhook] Duplicate event ${event.id} ignored (in-process)`);
+        return res.json({ received: true, duplicate: true });
+      }
+      rememberStripeEvent(event.id);
+
+      // 2) Cross-process dedup via DB primary-key insert. If another replica
+      //    already inserted the row, we get false and skip side effects.
+      const db = await import("../db");
+      const isFirstDelivery = await db.tryRecordStripeWebhookEvent(event.id, event.type);
+      if (!isFirstDelivery) {
+        logger.info(`[Stripe Webhook] Duplicate event ${event.id} ignored (cross-process)`);
+        return res.json({ received: true, duplicate: true });
+      }
+
       if (event.type === "payment_intent.succeeded") {
         const paymentIntent = event.data.object as any;
         const paymentId = paymentIntent.metadata?.paymentId;
         const loanApplicationId = paymentIntent.metadata?.loanApplicationId;
 
         if (paymentId) {
-          const db = await import("../db");
           const existingPayment = await db.getPaymentById(Number(paymentId));
 
           if (existingPayment && existingPayment.status !== "succeeded") {
@@ -283,11 +369,15 @@ async function startServer() {
         const paymentId = paymentIntent.metadata?.paymentId;
 
         if (paymentId) {
-          const db = await import("../db");
-          await db.updatePaymentStatus(Number(paymentId), "failed", {
-            failureReason: paymentIntent.last_payment_error?.message || "Payment failed",
-          });
-          logger.info(`[Stripe Webhook] Payment ${paymentId} failed via webhook`);
+          const existingPayment = await db.getPaymentById(Number(paymentId));
+
+          // Never overwrite a succeeded payment with a stale failure event.
+          if (existingPayment && existingPayment.status !== "succeeded" && existingPayment.status !== "failed") {
+            await db.updatePaymentStatus(Number(paymentId), "failed", {
+              failureReason: paymentIntent.last_payment_error?.message || "Payment failed",
+            });
+            logger.info(`[Stripe Webhook] Payment ${paymentId} failed via webhook`);
+          }
         }
       }
 
@@ -631,16 +721,24 @@ async function startServer() {
   server.listen(port, () => {
     logger.info(`Server running on http://localhost:${port}/`);
     
-    // Initialize background job schedulers
-    try {
-      initializePaymentNotificationScheduler();
-      startAutoPayScheduler();
-      initializeReminderScheduler();
-      cronJobs = initializeCronJobs();
-      startBackupScheduler(6);
-      logger.info("All schedulers initialized successfully");
-    } catch (error) {
-      logger.warn("Failed to initialize schedulers", error);
+    // Initialize background job schedulers (single-leader; gated by RUN_SCHEDULERS).
+    // On multi-instance deploys (e.g. Railway scaling, blue/green), set
+    // RUN_SCHEDULERS=false on every replica except the designated leader to
+    // prevent duplicate Stripe charges, duplicate reminder emails, duplicate
+    // KYC audit events, and duplicate database backups.
+    if (ENV.runSchedulers) {
+      try {
+        initializePaymentNotificationScheduler();
+        startAutoPayScheduler();
+        initializeReminderScheduler();
+        cronJobs = initializeCronJobs();
+        startBackupScheduler(6);
+        logger.info("All schedulers initialized successfully");
+      } catch (error) {
+        logger.warn("Failed to initialize schedulers", error);
+      }
+    } else {
+      logger.info("[Schedulers] RUN_SCHEDULERS=false — skipping cron, auto-pay, reminders, and backups on this replica");
     }
 
     // Database keep-alive: ping DB every 4 hours to prevent Supabase free-tier pause (7-day inactivity timeout)

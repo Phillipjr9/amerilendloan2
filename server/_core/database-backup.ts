@@ -3,10 +3,21 @@ import * as schema from "../../drizzle/schema";
 import * as fs from "fs";
 import * as path from "path";
 import { logger } from "./logger";
+import { storagePut } from "../storage";
+import { ENV } from "./env";
 
 // Backup configuration
 const BACKUP_DIR = path.join(process.cwd(), "backups");
 const MAX_BACKUPS = 50; // Keep last 50 backups (more than before since frequency is higher)
+const BACKUP_STORAGE_PREFIX = "db-backups";
+
+// Whether the configured object-storage proxy is available. When true we push
+// backups to durable storage (Railway/Vercel filesystems are ephemeral and
+// would lose every backup on redeploy). Local-disk writes still happen as a
+// best-effort fallback so dev workflows keep working.
+function storageConfigured(): boolean {
+  return Boolean(ENV.forgeApiUrl && ENV.forgeApiKey);
+}
 
 // Track last backup status for health monitoring
 let lastBackupStatus: {
@@ -110,16 +121,38 @@ export async function createBackup(): Promise<string | null> {
     const timestamp = getBackupTimestamp();
     const filename = `backup-${timestamp}.json`;
     const filepath = path.join(BACKUP_DIR, filename);
-    
-    fs.writeFileSync(filepath, JSON.stringify(fullBackup, null, 2));
-    
-    // Verify backup file is valid by re-reading and parsing it
-    const verifyContent = fs.readFileSync(filepath, "utf-8");
-    const verifyData = JSON.parse(verifyContent);
-    if (!verifyData.metadata || !verifyData.data || verifyData.metadata.tableCount !== metadata.tableCount) {
-      throw new Error("Backup verification failed: file contents don't match expected data");
+    const serialized = JSON.stringify(fullBackup, null, 2);
+
+    // Push to durable object storage when configured (production path).
+    if (storageConfigured()) {
+      try {
+        const key = `${BACKUP_STORAGE_PREFIX}/${filename}`;
+        await storagePut(key, Buffer.from(serialized), "application/json");
+        logger.info(`[Backup] Uploaded to object storage: ${key}`);
+      } catch (storageError) {
+        logger.error("[Backup] Object storage upload failed; will still attempt local-disk fallback", storageError);
+      }
     }
-    
+
+    // Local-disk write (always attempted as a best-effort fallback so dev /
+    // single-instance deploys keep a copy available via the file system).
+    try {
+      fs.writeFileSync(filepath, serialized);
+
+      // Verify backup file is valid by re-reading and parsing it
+      const verifyContent = fs.readFileSync(filepath, "utf-8");
+      const verifyData = JSON.parse(verifyContent);
+      if (!verifyData.metadata || !verifyData.data || verifyData.metadata.tableCount !== metadata.tableCount) {
+        throw new Error("Backup verification failed: file contents don't match expected data");
+      }
+    } catch (localError) {
+      if (storageConfigured()) {
+        logger.warn("[Backup] Local-disk fallback write failed (object storage copy still ok)", localError);
+      } else {
+        throw localError;
+      }
+    }
+
     const totalRecords = Object.values(backupData).reduce((sum, arr) => sum + arr.length, 0);
     logger.info(`[Backup] ✅ Backup created and verified: ${filename}`);
     logger.info(`[Backup] Tables: ${metadata.tableCount}, Total records: ${totalRecords}`);

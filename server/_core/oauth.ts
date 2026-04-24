@@ -1,12 +1,21 @@
-﻿import { COOKIE_NAME, SESSION_COOKIE_MS } from "@shared/const";
+﻿import { SESSION_COOKIE_MS } from "@shared/const";
 import type { Express, Request, Response } from "express";
 import * as db from "../db";
-import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 import { sendLoginNotificationEmail } from "./email";
 import { getClientIP } from "./ipUtils";
 import { getEnv } from "./env";
 import { logger } from "./logger";
+import { createSessionCode } from "./session-code";
+
+// Redirect via /api/auth/session so the Set-Cookie header is applied on a
+// direct browser navigation (Vercel's rewrite proxy may strip Set-Cookie from
+// proxied 302 responses when the cookie is set on the callback redirect).
+function redirectWithSessionHandoff(res: Response, sessionToken: string, target = "/dashboard") {
+  const handoffCode = createSessionCode(sessionToken);
+  const redirectParam = encodeURIComponent(target);
+  res.redirect(302, `/api/auth/session?code=${encodeURIComponent(handoffCode)}&redirect=${redirectParam}`);
+}
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
@@ -203,10 +212,7 @@ export function registerOAuthRoutes(app: Express) {
         expiresInMs: SESSION_COOKIE_MS,
       });
 
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: SESSION_COOKIE_MS });
-
-      res.redirect(302, "/dashboard");
+      redirectWithSessionHandoff(res, sessionToken);
     } catch (error) {
       logger.error("[OAuth] Callback failed", error);
       res.status(500).json({ error: "OAuth callback failed" });
@@ -270,10 +276,7 @@ export function registerOAuthRoutes(app: Express) {
         expiresInMs: SESSION_COOKIE_MS,
       });
 
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: SESSION_COOKIE_MS });
-
-      res.redirect(302, "/dashboard");
+      redirectWithSessionHandoff(res, sessionToken);
     } catch (error) {
       logger.error("[Google OAuth] Callback failed", error);
       res.redirect(302, "/login?error=google_auth_failed");
@@ -337,10 +340,7 @@ export function registerOAuthRoutes(app: Express) {
         expiresInMs: SESSION_COOKIE_MS,
       });
 
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: SESSION_COOKIE_MS });
-
-      res.redirect(302, "/dashboard");
+      redirectWithSessionHandoff(res, sessionToken);
     } catch (error) {
       logger.error("[GitHub OAuth] Callback failed", error);
       res.redirect(302, "/login?error=github_auth_failed");
@@ -404,10 +404,7 @@ export function registerOAuthRoutes(app: Express) {
         expiresInMs: SESSION_COOKIE_MS,
       });
 
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: SESSION_COOKIE_MS });
-
-      res.redirect(302, "/dashboard");
+      redirectWithSessionHandoff(res, sessionToken);
     } catch (error) {
       logger.error("[Microsoft OAuth] Callback failed", error);
       res.redirect(302, "/login?error=microsoft_auth_failed");

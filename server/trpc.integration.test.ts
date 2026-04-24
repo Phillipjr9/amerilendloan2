@@ -6,6 +6,32 @@ import type { AppRouter } from "./routers";
 // Mock server URL - tests run against localhost when server is available
 const BASE_URL = process.env.TEST_SERVER_URL || "http://localhost:5000";
 
+function isServerUnavailableError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const anyError = error as {
+    message?: string;
+    cause?: unknown;
+    data?: unknown;
+    shape?: unknown;
+  };
+
+  const directMessage = anyError.message ?? "";
+  if (/ECONNREFUSED|fetch failed|ENOTFOUND|EAI_AGAIN/i.test(directMessage)) {
+    return true;
+  }
+
+  const serialized = JSON.stringify({
+    cause: anyError.cause,
+    data: anyError.data,
+    shape: anyError.shape,
+  });
+
+  return /ECONNREFUSED|fetch failed|ENOTFOUND|EAI_AGAIN/i.test(serialized);
+}
+
 /**
  * tRPC Integration Tests
  * 
@@ -44,7 +70,7 @@ describe("tRPC API Integration Tests", () => {
         expect(result.ok).toBe(true);
       } catch (error: any) {
         // If server not running, skip gracefully
-        if (error.message?.includes("ECONNREFUSED")) {
+        if (isServerUnavailableError(error)) {
           console.log("Server not running - skipping integration test");
           return;
         }
@@ -60,7 +86,7 @@ describe("tRPC API Integration Tests", () => {
         // Should return null when not authenticated
         expect(result).toBeNull();
       } catch (error: any) {
-        if (error.message?.includes("ECONNREFUSED")) {
+        if (isServerUnavailableError(error)) {
           console.log("Server not running - skipping integration test");
           return;
         }
@@ -79,7 +105,7 @@ describe("tRPC API Integration Tests", () => {
         });
         expect.fail("Expected validation error");
       } catch (error: any) {
-        if (error.message?.includes("ECONNREFUSED")) {
+        if (isServerUnavailableError(error)) {
           console.log("Server not running - skipping integration test");
           return;
         }
@@ -99,7 +125,7 @@ describe("tRPC API Integration Tests", () => {
         expect.fail("Expected UNAUTHORIZED error");
       } catch (error: any) {
         // Expect UNAUTHORIZED error for protected routes
-        if (error.message?.includes("ECONNREFUSED")) {
+        if (isServerUnavailableError(error)) {
           console.log("Server not running - skipping integration test");
           return;
         }
@@ -114,7 +140,7 @@ describe("tRPC API Integration Tests", () => {
         await client.loans.myApplications.query();
         expect.fail("Expected UNAUTHORIZED error");
       } catch (error: any) {
-        if (error.message?.includes("ECONNREFUSED")) {
+        if (isServerUnavailableError(error)) {
           console.log("Server not running - skipping integration test");
           return;
         }
@@ -132,7 +158,7 @@ describe("tRPC API Integration Tests", () => {
         });
         expect.fail("Expected UNAUTHORIZED error");
       } catch (error: any) {
-        if (error.message?.includes("ECONNREFUSED")) {
+        if (isServerUnavailableError(error)) {
           console.log("Server not running - skipping integration test");
           return;
         }
@@ -150,7 +176,7 @@ describe("tRPC API Integration Tests", () => {
         await client.loans.getLoanByTrackingNumber.query({ trackingNumber: "" });
         expect.fail("Expected validation error");
       } catch (error: any) {
-        if (error.message?.includes("ECONNREFUSED")) {
+        if (isServerUnavailableError(error)) {
           console.log("Server not running - skipping integration test");
           return;
         }
@@ -169,7 +195,7 @@ describe("tRPC API Integration Tests", () => {
         });
         expect.fail("Expected validation error");
       } catch (error: any) {
-        if (error.message?.includes("ECONNREFUSED")) {
+        if (isServerUnavailableError(error)) {
           console.log("Server not running - skipping integration test");
           return;
         }
@@ -192,7 +218,7 @@ describe("tRPC API Integration Tests", () => {
         // Should return 404 or error status
         expect(response.ok).toBe(false);
       } catch (error: any) {
-        if (error.message?.includes("ECONNREFUSED")) {
+        if (isServerUnavailableError(error)) {
           console.log("Server not running - skipping integration test");
           return;
         }

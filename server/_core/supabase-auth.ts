@@ -12,6 +12,26 @@ import { logger } from "./logger";
 // Initialize Supabase client
 let supabaseClient: ReturnType<typeof createClient> | null = null;
 
+/**
+ * Resolve the public-facing app URL used for email-link redirects (OAuth /
+ * password reset / OTP confirmation). Prefer VITE_APP_URL, then
+ * RAILWAY_PUBLIC_DOMAIN, then fall back to localhost only in development —
+ * never silently hand a localhost link to a real user in production.
+ */
+function getAppUrl(): string {
+  if (ENV.viteAppUrl) return ENV.viteAppUrl.replace(/\/+$/, "");
+  if (process.env.VITE_APP_URL) return process.env.VITE_APP_URL.replace(/\/+$/, "");
+  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+    return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+  }
+  if (process.env.NODE_ENV === "production") {
+    logger.warn(
+      "[Supabase] VITE_APP_URL is not configured in production — email redirect links will be unusable",
+    );
+  }
+  return "http://localhost:3000";
+}
+
 export function getSupabaseClient() {
   if (!supabaseClient && ENV.supabaseUrl && ENV.supabaseAnonKey) {
     try {
@@ -132,7 +152,7 @@ export async function signInWithOTP(email: string) {
       email,
       options: {
         shouldCreateUser: true,
-        emailRedirectTo: `${process.env.VITE_APP_URL || "http://localhost:3000"}/auth/callback`,
+        emailRedirectTo: `${getAppUrl()}/auth/callback`,
       },
     });
 
@@ -198,7 +218,7 @@ export async function sendPasswordResetEmail(email: string) {
 
     // Generate reset link via Supabase
     const { data, error } = await client.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.VITE_APP_URL || "http://localhost:3000"}/auth/reset-password`,
+      redirectTo: `${getAppUrl()}/auth/reset-password`,
     });
 
     if (error) {

@@ -136,7 +136,9 @@ async function processIndividualAutoPay(setting: any) {
   const stripeCustomerId = setting.customerProfileId;
   const stripePaymentMethodId = setting.paymentProfileId;
 
-  // Charge using Stripe
+  // Charge using Stripe (idempotency key bound to loan + day prevents
+  // duplicate charges if the scheduler retries within the same UTC day).
+  const idempotencyKey = `autopay:loan:${loan.id}:${new Date().toISOString().slice(0, 10)}`;
   const chargeResult = await processStripePayment(
     setting.amount || 0,
     stripeCustomerId,
@@ -145,7 +147,8 @@ async function processIndividualAutoPay(setting: any) {
       loanId: String(loan.id),
       trackingNumber: loan.trackingNumber,
       type: 'auto-pay',
-    }
+    },
+    idempotencyKey,
   );
 
   if (!chargeResult.success) {

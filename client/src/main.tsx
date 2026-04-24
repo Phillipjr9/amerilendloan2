@@ -17,11 +17,38 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 
 const queryClient = new QueryClient();
 
+// Public/auth routes that should never trigger an auto-redirect to /login
+// when an unauthenticated query happens to fire (e.g. greeting widgets that
+// call auth.me on the marketing page). Without this guard, an UNAUTHED error
+// could bounce the user away from /login while they're trying to log in.
+const PUBLIC_AUTH_PATHS = new Set([
+  "/login",
+  "/otp-login",
+  "/forgot-password",
+  "/auth/callback",
+  "/auth/reset-password",
+]);
+
+function shouldSkipAuthRedirect(pathname: string): boolean {
+  if (PUBLIC_AUTH_PATHS.has(pathname)) return true;
+  if (pathname.startsWith("/legal/")) return true;
+  if (pathname.startsWith("/public/legal/")) return true;
+  if (pathname === "/" || pathname === "") return true;
+  return false;
+}
+
 function redirectToLoginIfUnauthorized(error: unknown) {
   if (!(error instanceof TRPCClientError)) return;
-  if (error.message === UNAUTHED_ERR_MSG && typeof window !== "undefined") {
-    window.location.href = "/login";
-  }
+  if (error.message !== UNAUTHED_ERR_MSG) return;
+  if (typeof window === "undefined") return;
+
+  const { pathname, search } = window.location;
+  if (shouldSkipAuthRedirect(pathname)) return;
+
+  // Preserve the page the user was trying to reach so we can return them
+  // there after a successful login.
+  const next = encodeURIComponent(pathname + search);
+  window.location.href = `/login?next=${next}`;
 }
 
 queryClient.getQueryCache().subscribe(event => {

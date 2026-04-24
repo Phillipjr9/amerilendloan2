@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
+import { getPersistentIdempotencyKey } from "@/lib/idempotency";
 import { Bitcoin, Copy, Check, Loader2, Shield, CheckCircle } from "lucide-react";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
@@ -50,7 +51,8 @@ export default function CryptoPaymentTab(props: CryptoPaymentTabProps) {
   // --- Simple variant state ---
   const [addressCopied, setAddressCopied] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const idempotencyKeyRef = useRef(crypto.randomUUID());
+  // Persistent so refresh / back-nav reuses the same crypto payment row.
+  const idempotencyKeyRef = useRef(getPersistentIdempotencyKey(applicationId, "crypto"));
 
   // --- Enhanced variant state ---
   const [cryptoPaymentData, setCryptoPaymentData] = useState<{

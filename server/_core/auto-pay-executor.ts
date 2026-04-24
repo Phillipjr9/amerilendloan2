@@ -167,6 +167,8 @@ async function processCardAutoPayment(
       return { success: false, error: "No Stripe payment method configured for auto-pay" };
     }
 
+    // Idempotency key scoped to loan + day so retries cannot double-charge.
+    const idempotencyKey = `autopay-exec:loan:${loan.id}:${new Date().toISOString().slice(0, 10)}`;
     const result = await processStripePayment(
       amountDollars,
       customerId,
@@ -175,7 +177,8 @@ async function processCardAutoPayment(
         userId: String(user.id),
         loanApplicationId: String(loan.id),
         type: "auto_payment",
-      }
+      },
+      idempotencyKey,
     );
     
     if (result.success) {

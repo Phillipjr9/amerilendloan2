@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { asc, desc, eq, or, and, sql, ilike, inArray, gt } from "drizzle-orm";
+import { asc, desc, eq, or, and, sql, ilike, inArray, gt, gte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { logger } from "./_core/logger";
 import type postgres from "postgres";
@@ -577,6 +577,47 @@ export async function getAllLoanApplications() {
   return db.select().from(loanApplications).orderBy(desc(loanApplications.createdAt));
 }
 
+/**
+ * Loans stuck in fee_pending for more than `minHoursOld` hours that have not
+ * yet been reminded within the last `cooldownHours` hours. Used by the daily
+ * unpaid-fee reminder cron to nudge users who never completed payment.
+ */
+export async function getFeePendingLoansNeedingReminder(
+  minHoursOld: number = 24,
+  cooldownHours: number = 72,
+) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const minAgeCutoff = new Date(Date.now() - minHoursOld * 60 * 60 * 1000);
+  const cooldownCutoff = new Date(Date.now() - cooldownHours * 60 * 60 * 1000);
+
+  return db
+    .select()
+    .from(loanApplications)
+    .where(
+      and(
+        eq(loanApplications.status, "fee_pending" as any),
+        sql`${loanApplications.updatedAt} <= ${minAgeCutoff}`,
+        or(
+          sql`${loanApplications.lastFeeReminderAt} IS NULL`,
+          sql`${loanApplications.lastFeeReminderAt} <= ${cooldownCutoff}`,
+        ),
+      ),
+    )
+    .orderBy(desc(loanApplications.createdAt));
+}
+
+export async function markFeeReminderSent(loanApplicationId: number) {
+  const db = await getDb();
+  if (!db) return;
+
+  await db
+    .update(loanApplications)
+    .set({ lastFeeReminderAt: new Date(), updatedAt: new Date() })
+    .where(eq(loanApplications.id, loanApplicationId));
+}
+
 export async function getLoanApplicationByTrackingNumber(trackingNumber: string) {
   const db = await getDb();
   if (!db) return null;
@@ -758,6 +799,44 @@ export async function createPayment(data: InsertPayment) {
   
   const result = await db.insert(payments).values(data).returning();
   return result.length > 0 ? result[0] : null;
+}
+
+/**
+ * Find a recent active (non-terminal) payment for the same loan + method.
+ * Used to dedupe payment creation when the user navigates back to the pay
+ * page or double-clicks Pay before the first request settles. Returns the
+ * most recent matching row, or undefined if none exist within the window.
+ */
+export async function findActivePaymentForLoan(
+  loanApplicationId: number,
+  paymentMethod: "card" | "crypto" | "wire",
+  withinMs: number = 30 * 60 * 1000,
+) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const cutoff = new Date(Date.now() - withinMs);
+  const activeStatuses: Array<"pending" | "processing" | "pending_verification"> = [
+    "pending",
+    "processing",
+    "pending_verification",
+  ];
+
+  const result = await db
+    .select()
+    .from(payments)
+    .where(
+      and(
+        eq(payments.loanApplicationId, loanApplicationId),
+        eq(payments.paymentMethod, paymentMethod),
+        inArray(payments.status, activeStatuses),
+        gte(payments.createdAt, cutoff),
+      ),
+    )
+    .orderBy(desc(payments.createdAt))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : undefined;
 }
 
 export async function getPaymentById(id: number) {
@@ -1590,6 +1669,30 @@ export async function storeIdempotencyResult(
     responseData: JSON.stringify(responseData),
     status,
   });
+}
+
+/**
+ * Cross-process Stripe webhook dedup. Returns true if this is the first time
+ * we've seen the event (caller should run side effects); false if it's a
+ * duplicate delivery. Uses INSERT ... ON CONFLICT DO NOTHING so concurrent
+ * replicas race safely on the same event.id primary key.
+ */
+export async function tryRecordStripeWebhookEvent(
+  eventId: string,
+  type: string,
+): Promise<boolean> {
+  const db = await getDb();
+  if (!db) {
+    // No DB — fall through to in-process dedup only.
+    return true;
+  }
+  const { stripeWebhookEvents } = await import("../drizzle/schema");
+  const inserted = await db
+    .insert(stripeWebhookEvents)
+    .values({ eventId, type })
+    .onConflictDoNothing({ target: stripeWebhookEvents.eventId })
+    .returning({ eventId: stripeWebhookEvents.eventId });
+  return inserted.length > 0;
 }
 
 // ============================================
@@ -6018,6 +6121,38 @@ export async function createJobApplication(data: {
   }).returning();
 
   return app;
+}
+
+/**
+ * Find a recent job application from the same email for the same position.
+ * Used to dedupe accidental double-submits (page refreshes, double-clicks,
+ * stale tabs). Returns the most recent match within the window or undefined.
+ */
+export async function findRecentJobApplication(
+  email: string,
+  position: string,
+  withinMs: number = 24 * 60 * 60 * 1000,
+) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const { jobApplications } = await import("../drizzle/schema");
+  const cutoff = new Date(Date.now() - withinMs);
+
+  const result = await db
+    .select()
+    .from(jobApplications)
+    .where(
+      and(
+        eq(jobApplications.email, email),
+        eq(jobApplications.position, position),
+        gte(jobApplications.createdAt, cutoff),
+      ),
+    )
+    .orderBy(desc(jobApplications.createdAt))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : undefined;
 }
 
 export async function getAllJobApplications() {

@@ -6,6 +6,7 @@
 import { CronJob } from "cron";
 import { checkAndSendPaymentReminders } from "./paymentReminders";
 import { processAutoPay } from "./auto-pay-executor";
+import { sendFeePendingReminders } from "./feePendingReminders";
 import { logger } from "./logger";
 import * as db from "../db";
 import { logAuditEvent, AuditEventType, AuditSeverity } from "./audit-logging";
@@ -97,10 +98,32 @@ export function initializeCronJobs() {
 
   logger.info("[Cron Jobs] ✅ KYC Expiry Job scheduled (Daily at 6:00 AM EST)");
 
+  // Fee-Pending Reminder — nudge users whose loan was approved but who never
+  // completed the processing-fee payment. Runs daily at 10:00 AM EST.
+  // Only reminds loans older than 24h, with a 72h cooldown between reminders.
+  const feePendingReminderJob = new CronJob(
+    "0 10 * * *",
+    async () => {
+      logger.info("[Cron Jobs] Running daily fee-pending reminder sweep...");
+      try {
+        const result = await sendFeePendingReminders();
+        logger.info(`[Cron Jobs] Fee-pending reminders completed:`, result);
+      } catch (error) {
+        logger.error("[Cron Jobs] Fee-pending reminders failed:", error);
+      }
+    },
+    null,
+    true,
+    "America/New_York",
+  );
+
+  logger.info("[Cron Jobs] ✅ Fee-Pending Reminder Job scheduled (Daily at 10:00 AM EST)");
+
   return {
     paymentReminderJob,
     autoPayJob,
     kycExpiryJob,
+    feePendingReminderJob,
   };
 }
 
