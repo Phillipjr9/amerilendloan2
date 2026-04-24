@@ -151,6 +151,18 @@ export default function SelfieCapture() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facingMode]);
 
+  // Attach the active stream to the <video> element after it mounts.
+  // setCameraActive(true) triggers the render that creates the video node,
+  // so assigning srcObject inside startCamera ran before the ref existed.
+  useEffect(() => {
+    if (cameraActive && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch((err) => {
+        console.error("Video play() failed:", err);
+      });
+    }
+  }, [cameraActive]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
