@@ -50,11 +50,13 @@ export function getFriendlyFirstName(user?: {
 } | null): string {
   if (!user) return "there";
 
+  const isEmailLike = (s?: string | null) => !!s && s.includes("@");
+
   const fromFirst = user.firstName?.trim();
-  if (fromFirst) return toTitleCase(fromFirst);
+  if (fromFirst && !isEmailLike(fromFirst)) return toTitleCase(fromFirst);
 
   const fromName = user.name?.trim().split(/\s+/)[0];
-  if (fromName) return toTitleCase(fromName);
+  if (fromName && !isEmailLike(fromName)) return toTitleCase(fromName);
 
   const local = user.email?.split("@")[0];
   if (local) {
@@ -80,14 +82,18 @@ export function getFriendlyFullName(user?: {
 } | null): string {
   if (!user) return "User";
 
+  const isEmailLike = (s?: string | null) => !!s && s.includes("@");
+
   const first = user.firstName?.trim();
   const last = user.lastName?.trim();
-  if (first || last) {
-    return [first, last].filter(Boolean).map((p) => toTitleCase(p as string)).join(" ");
+  const safeFirst = first && !isEmailLike(first) ? first : undefined;
+  const safeLast = last && !isEmailLike(last) ? last : undefined;
+  if (safeFirst || safeLast) {
+    return [safeFirst, safeLast].filter(Boolean).map((p) => toTitleCase(p as string)).join(" ");
   }
 
   const fromName = user.name?.trim();
-  if (fromName) return toTitleCase(fromName);
+  if (fromName && !isEmailLike(fromName)) return toTitleCase(fromName);
 
   return getFriendlyFirstName(user);
 }

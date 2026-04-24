@@ -4662,9 +4662,12 @@ export const appRouter = router({
             let isNewUser = !user;
             
             if (!user) {
-              // Create a user for email-based OTP auth
-              // Use username if provided during signup, otherwise use email
-              const fullName = input.purpose === "signup" && input.username ? input.username : input.identifier;
+              // Create a user for email-based OTP auth.
+              // IMPORTANT: only seed name/firstName when the caller actually supplied
+              // a username — never store the raw email as a display name.
+              const fullName = input.purpose === "signup" && input.username
+                ? input.username
+                : undefined;
               try {
                 user = await db.createUser(input.identifier, fullName);
               } catch (createErr: any) {
