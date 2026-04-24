@@ -7,6 +7,7 @@ import { useLocation } from 'wouter';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { QuickPaymentButton } from '@/components/QuickPaymentButton';
 import { toast } from 'sonner';
+import { getFriendlyFirstName } from '@shared/format';
 
 export function UserDashboard() {
   const [, navigate] = useLocation();
@@ -71,7 +72,7 @@ export function UserDashboard() {
         {/* Welcome Section */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
-            Welcome back, {user?.firstName || user?.email}!
+            Welcome back, {getFriendlyFirstName(user)}!
           </h1>
           <p className="text-slate-600 dark:text-slate-400">
             Here's an overview of your loan accounts and payments

@@ -294,7 +294,9 @@ async function startServer() {
     res.setHeader(
       "Permissions-Policy",
       [
-        "camera=()",
+        // Allow first-party use of the camera for KYC selfie capture.
+        // Third-party iframes are still denied by omitting any allowlist beyond self.
+        "camera=(self)",
         "microphone=()",
         "geolocation=()",
         "payment=()",

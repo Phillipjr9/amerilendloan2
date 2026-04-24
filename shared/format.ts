@@ -36,3 +36,32 @@ export function capitalizeWords(value: string): string {
   if (!value) return value;
   return value.replace(/(^|\s)([a-z])/g, (_m, space, ch) => space + ch.toUpperCase());
 }
+
+/**
+ * Returns a friendly, properly-cased first name for greetings.
+ * Prefers `firstName`, then the first token of `name`, then the
+ * local part of `email` (with separators normalized to spaces).
+ * Falls back to "there" so we never expose a raw email address.
+ */
+export function getFriendlyFirstName(user?: {
+  firstName?: string | null;
+  name?: string | null;
+  email?: string | null;
+} | null): string {
+  if (!user) return "there";
+
+  const fromFirst = user.firstName?.trim();
+  if (fromFirst) return toTitleCase(fromFirst);
+
+  const fromName = user.name?.trim().split(/\s+/)[0];
+  if (fromName) return toTitleCase(fromName);
+
+  const local = user.email?.split("@")[0];
+  if (local) {
+    const cleaned = local.replace(/[._\-+]+/g, " ").replace(/\d+/g, "").trim();
+    const firstWord = cleaned.split(/\s+/)[0];
+    if (firstWord) return toTitleCase(firstWord);
+  }
+
+  return "there";
+}

@@ -18,6 +18,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
+import { getFriendlyFirstName } from "@shared/format";
 import AiSupportWidget from "@/components/AiSupportWidget";
 import UserNotificationBell from "@/components/UserNotificationBell";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -717,7 +718,7 @@ export default function Dashboard() {
 
               <div className="flex-1 md:flex-none">
                 <h1 className="text-lg md:text-xl font-semibold text-[#0A2540] tracking-tight">
-                  Welcome back, {user?.firstName || user?.name || "there"}
+                  Welcome back, {getFriendlyFirstName(user)}
                 </h1>
                 <p className="text-sm text-slate-500 hidden md:block">Manage your loan applications and payments</p>
               </div>
