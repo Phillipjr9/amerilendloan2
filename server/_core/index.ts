@@ -226,6 +226,11 @@ async function startServer() {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+  // In development, Vite injects an inline preamble script for React Fast Refresh
+  // and uses `eval` plus a websocket for HMR. Production CSP stays strict.
+  const isDev = process.env.NODE_ENV !== "production";
+  const devScriptSrc: string[] = isDev ? ["'unsafe-inline'", "'unsafe-eval'"] : [];
+  const devConnectSrc: string[] = isDev ? ["ws://localhost:*", "ws://127.0.0.1:*", "http://localhost:*"] : [];
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
@@ -240,6 +245,7 @@ async function startServer() {
           "https://translate.googleapis.com",
           // Cloudflare Turnstile bot-verification widget
           "https://challenges.cloudflare.com",
+          ...devScriptSrc,
         ],
         frameSrc: [
           "'self'",
@@ -263,6 +269,7 @@ async function startServer() {
           // Google Translate widget
           "https://translate.googleapis.com",
           ...extraConnectSrc,
+          ...devConnectSrc,
         ],
         workerSrc: ["'self'", "blob:"],
         // Defense-in-depth against clickjacking. Same as X-Frame-Options: SAMEORIGIN

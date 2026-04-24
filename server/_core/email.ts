@@ -173,6 +173,17 @@ export async function sendEmail(payload: EmailPayload): Promise<{ success: boole
  * Send OTP code via email using SendGrid
  */
 export async function sendOTPEmail(email: string, code: string, purpose: "signup" | "login" | "reset"): Promise<void> {
+  // Dev fallback: when EMAIL_TEST_MODE=true OR (NODE_ENV=development AND no SendGrid key),
+  // log the OTP code to the server console instead of attempting an email send.
+  // This lets developers exercise the full OTP login flow locally without SendGrid.
+  const isDev = process.env.NODE_ENV !== "production";
+  if (ENV.emailTestMode || (isDev && !ENV.sendGridApiKey)) {
+    logger.info(
+      `[OTP DEV MODE] purpose=${purpose} email=${email} code=${code} (email send skipped — set EMAIL_TEST_MODE=false and configure SENDGRID_API_KEY to send real emails)`,
+    );
+    return;
+  }
+
   const purposes = {
     signup: {
       subject: "Verify Your Email - AmeriLend",
