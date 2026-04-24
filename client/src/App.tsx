@@ -9,6 +9,7 @@ import LanguageSelector from "./components/LanguageSelector";
 import Home from "./pages/Home";
 import ChatWidget from "./components/ChatWidget";
 import CookieConsent from "./components/CookieConsent";
+import useRobotsNoindex from "./hooks/useRobotsNoindex";
 
 // Lazy-loaded route components for code splitting
 const ApplyLoan = lazy(() => import("./pages/ApplyLoan"));
@@ -75,6 +76,10 @@ function RouteLoadingFallback() {
 }
 
 function Router() {
+  // Auto-noindex private routes (dashboards, admin, payments, auth) so
+  // search engines stop treating them as canonical landing pages.
+  useRobotsNoindex();
+
   return (
     <Suspense fallback={<RouteLoadingFallback />}>
     <Switch>
