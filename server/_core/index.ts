@@ -238,8 +238,16 @@ async function startServer() {
           "https://js.stripe.com",
           "https://translate.google.com",
           "https://translate.googleapis.com",
+          // Cloudflare Turnstile bot-verification widget
+          "https://challenges.cloudflare.com",
         ],
-        frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com"],
+        frameSrc: [
+          "'self'",
+          "https://js.stripe.com",
+          "https://hooks.stripe.com",
+          // Turnstile renders its challenge inside an iframe
+          "https://challenges.cloudflare.com",
+        ],
         connectSrc: [
           "'self'",
           // Stripe

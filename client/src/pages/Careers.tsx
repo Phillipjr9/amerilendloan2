@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import ComplianceFooter from "@/components/ComplianceFooter";
 import SEOHead from "@/components/SEOHead";
+import { useTurnstile } from "@/components/TurnstileWidget";
 
 interface JobApplication {
   fullName: string;
@@ -55,11 +56,15 @@ export default function Careers() {
       });
       const fileInput = document.getElementById("resume") as HTMLInputElement;
       if (fileInput) fileInput.value = "";
+      turnstile.reset();
     },
     onError: (error) => {
       toast.error(error.message || "Failed to submit application. Please try again.");
+      turnstile.reset();
     },
   });
+
+  const turnstile = useTurnstile({ action: "job-application" });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -102,6 +107,11 @@ export default function Careers() {
 
     if (formData.position === "Not Specified") {
       toast.error("Please select a position of interest");
+      return;
+    }
+
+    if (!turnstile.isReady) {
+      toast.error("Please complete the verification challenge.");
       return;
     }
 
@@ -150,6 +160,7 @@ export default function Careers() {
       resumeFileName: formData.resume?.name || "Not provided",
       resumeFileUrl,
       coverLetter: formData.coverLetter,
+      turnstileToken: turnstile.token ?? undefined,
     });
   };
 
@@ -354,9 +365,10 @@ export default function Careers() {
                 </div>
 
                 {/* Submit Button */}
+                {turnstile.widget}
                 <Button
                   type="submit"
-                  disabled={sendJobApplicationMutation.isPending || !!fileError}
+                  disabled={sendJobApplicationMutation.isPending || !!fileError || !turnstile.isReady}
                   className="w-full bg-[#0A2540] hover:bg-blue-800 text-white py-3 rounded-lg font-semibold text-lg transition-all"
                 >
                   {sendJobApplicationMutation.isPending ? (

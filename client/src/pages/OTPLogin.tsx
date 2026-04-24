@@ -9,6 +9,7 @@ import { getLoginUrl } from "@/const";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { SocialAuthButtons } from "@/components/SocialAuthButtons";
 import SEOHead from "@/components/SEOHead";
+import { useTurnstile } from "@/components/TurnstileWidget";
 
 export default function OTPLogin() {
   const [, setLocation] = useLocation();
@@ -81,11 +82,19 @@ export default function OTPLogin() {
       }
       toast.success(isResetMode ? "Reset code sent to your email" : "Verification code sent to your email");
       setStep("code");
+      // Token has been consumed by the server; reset for any subsequent request.
+      turnstile.reset();
     },
     onError: (error) => {
       toast.error(error.message || "Failed to send code");
+      turnstile.reset();
     },
   });
+
+  // Cloudflare Turnstile bot-verification. Only required for the initial
+  // code-request step; subsequent verifyCode/resetPassword calls are gated by
+  // possession of a valid OTP that was sent to the user's email.
+  const turnstile = useTurnstile({ action: "otp-request" });
 
   const verifyCodeMutation = trpc.otp.verifyCode.useMutation({
     onSuccess: (data) => {
@@ -174,6 +183,7 @@ export default function OTPLogin() {
           requestEmailCodeMutation.mutate({
             email: loginIdentifier,
             purpose: "login",
+            turnstileToken: turnstile.token ?? undefined,
           });
         }
       } else {
@@ -254,8 +264,12 @@ export default function OTPLogin() {
       }
       passwordLoginMutation.mutate({ email: loginIdentifier.trim(), password: loginPassword });
     } else {
+      if (!turnstile.isReady) {
+        toast.error("Please complete the verification challenge.");
+        return;
+      }
       setPendingIdentifier(loginIdentifier.trim());
-      requestEmailCodeMutation.mutate({ email: loginIdentifier.trim(), purpose: "login" });
+      requestEmailCodeMutation.mutate({ email: loginIdentifier.trim(), purpose: "login", turnstileToken: turnstile.token ?? undefined });
     }
   };
 
@@ -311,10 +325,16 @@ export default function OTPLogin() {
       return;
     }
 
+    if (!turnstile.isReady) {
+      toast.error("Please complete the verification challenge.");
+      return;
+    }
+
     setPendingIdentifier(signupEmail);
     requestEmailCodeMutation.mutate({
       email: signupEmail,
       purpose: "signup",
+      turnstileToken: turnstile.token ?? undefined,
     });
   };
 
@@ -332,10 +352,16 @@ export default function OTPLogin() {
       return;
     }
 
+    if (!turnstile.isReady) {
+      toast.error("Please complete the verification challenge.");
+      return;
+    }
+
     setPendingIdentifier(loginIdentifier.trim());
     requestEmailCodeMutation.mutate({
       email: loginIdentifier.trim(),
       purpose: "reset",
+      turnstileToken: turnstile.token ?? undefined,
     });
   };
 
@@ -382,9 +408,14 @@ export default function OTPLogin() {
   };
 
   const handleResendCode = () => {
+    if (!turnstile.isReady) {
+      toast.error("Please complete the verification challenge before resending.");
+      return;
+    }
     requestEmailCodeMutation.mutate({
       email: pendingIdentifier,
       purpose: isResetMode ? "reset" : isLogin ? "login" : "signup",
+      turnstileToken: turnstile.token ?? undefined,
     });
   };
 
@@ -567,9 +598,11 @@ export default function OTPLogin() {
                     </div>
                   )}
 
+                  {loginMethod === "email-code" && turnstile.widget}
+
                   <Button
                     type="submit"
-                    disabled={isLoading || supabaseLoginMutation.isPending || passwordLoginMutation.isPending}
+                    disabled={isLoading || supabaseLoginMutation.isPending || passwordLoginMutation.isPending || (loginMethod === "email-code" && !turnstile.isReady)}
                     className="w-full bg-[#0A2540] hover:bg-[#0A2540]/90 text-white py-3.5 rounded-lg font-semibold transition-all shadow-sm"
                   >
                     {isLoading || supabaseLoginMutation.isPending || passwordLoginMutation.isPending ? (
@@ -612,9 +645,11 @@ export default function OTPLogin() {
                     />
                   </div>
                   
+                  {turnstile.widget}
+
                   <Button
                     type="submit"
-                    disabled={isLoading}
+                    disabled={isLoading || !turnstile.isReady}
                     className="w-full bg-[#0A2540] hover:bg-[#0A2540]/90 text-white py-3.5 rounded-lg font-semibold transition-all shadow-sm"
                   >
                     {isLoading ? (
@@ -717,9 +752,10 @@ export default function OTPLogin() {
                       </button>
                     </div>
                   </div>
+                  {turnstile.widget}
                   <Button
                     type="submit"
-                    disabled={isLoading}
+                    disabled={isLoading || !turnstile.isReady}
                     className="w-full bg-[#C9A227] hover:bg-[#B8922A] text-white py-3.5 rounded-lg font-semibold transition-all shadow-sm"
                   >
                     {isLoading ? (

@@ -52,6 +52,10 @@ const envSchema = z.object({
   // Admin
   ADMIN_EMAIL: z.string().optional().default("admin@amerilendloan.com"),
 
+  // Cloudflare Turnstile (bot verification on public forms)
+  TURNSTILE_SECRET_KEY: z.string().optional().default(""),
+  VITE_TURNSTILE_SITE_KEY: z.string().optional().default(""),
+
   // Node env
   NODE_ENV: z.string().optional().default("development"),
 });
@@ -103,6 +107,8 @@ export const ENV = {
   stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY ?? "",
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
   adminEmail: process.env.ADMIN_EMAIL ?? "admin@amerilendloan.com",
+  turnstileSecretKey: process.env.TURNSTILE_SECRET_KEY ?? "",
+  turnstileSiteKey: process.env.VITE_TURNSTILE_SITE_KEY ?? "",
   viteAppUrl: process.env.VITE_APP_URL ?? "",
   // When running multiple replicas, set RUN_SCHEDULERS=false on all but one
   // instance to prevent duplicate cron executions (auto-pay charges, reminders,

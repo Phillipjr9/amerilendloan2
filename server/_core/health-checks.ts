@@ -131,6 +131,10 @@ function getIntegrationStatus() {
     oauthProviders,
     jwtConfigured: Boolean(process.env.JWT_SECRET && process.env.JWT_SECRET.length >= 32),
     appUrlConfigured: Boolean(ENV.viteAppUrl || process.env.VITE_APP_URL),
+    // Cloudflare Turnstile bot verification on public forms. When false,
+    // anonymous loan-submit / contact / OTP-request endpoints are protected
+    // only by rate-limiting (defeatable with rotating IPs).
+    turnstile: Boolean(process.env.TURNSTILE_SECRET_KEY && (ENV.turnstileSiteKey || process.env.VITE_TURNSTILE_SITE_KEY)),
   };
 }
 

@@ -29,6 +29,7 @@ import {
   calculateTotalInterest,
 } from "@/lib/inputMask";
 import { friendlyError } from "@/lib/friendlyError";
+import { useTurnstile } from "@/components/TurnstileWidget";
 
 const US_STATES = [
   { code: "AL", name: "Alabama" },
@@ -396,8 +397,14 @@ export default function ApplyLoan() {
     onError: (error) => {
       console.error("[ApplyLoan] Submit error:", error);
       toast.error(friendlyError(error?.message, "Failed to submit application. Please try again or contact support."));
+      // Turnstile tokens are single-use; reset so the user can retry.
+      turnstile.reset();
     },
   });
+
+  // Cloudflare Turnstile bot-verification gate. Disabled when site key not
+  // configured (turnstile.isReady stays true).
+  const turnstile = useTurnstile({ action: "loan-submit" });
 
   const checkDuplicateQuery = trpc.loans.checkDuplicate.useQuery(
     {
@@ -478,6 +485,8 @@ export default function ApplyLoan() {
       referralId: referralId || undefined,
       // Include invitation code if user came via admin invitation (window global or localStorage backup)
       invitationCode: (window as any).__amerilend_invitation_code || localStorage.getItem("amerilend_invitation_code") || undefined,
+      // Cloudflare Turnstile bot-verification token (undefined when disabled)
+      turnstileToken: turnstile.token ?? undefined,
     });
   };
 
@@ -2000,20 +2009,23 @@ export default function ApplyLoan() {
                           <Save className="w-4 h-4 mr-2" />
                           Save for Later
                         </Button>
-                        <Button
-                          type="submit"
-                          disabled={submitMutation.isPending}
-                          className="bg-[#C9A227] hover:bg-[#B8922A] text-white px-8"
-                        >
-                          {submitMutation.isPending ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Submitting...
-                            </>
-                          ) : (
-                            "Submit Application"
-                          )}
-                        </Button>
+                        <div className="flex flex-col gap-3 sm:items-end">
+                          {turnstile.widget}
+                          <Button
+                            type="submit"
+                            disabled={submitMutation.isPending || !turnstile.isReady}
+                            className="bg-[#C9A227] hover:bg-[#B8922A] text-white px-8"
+                          >
+                            {submitMutation.isPending ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Submitting...
+                              </>
+                            ) : (
+                              "Submit Application"
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>

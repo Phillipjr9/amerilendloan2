@@ -16,6 +16,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import ComplianceFooter from "@/components/ComplianceFooter";
 import SEOHead from "@/components/SEOHead";
+import { useTurnstile } from "@/components/TurnstileWidget";
 
 const contactMethods = [
   {
@@ -61,8 +62,12 @@ export default function Contact() {
     },
     onError: (error) => {
       toast.error(error.message || "Failed to send message. Please try again.");
+      // Turnstile tokens are single-use; reset so the user can retry.
+      turnstile.reset();
     },
   });
+
+  const turnstile = useTurnstile({ action: "contact" });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,11 +75,16 @@ export default function Contact() {
       toast.error("Please fill in all required fields");
       return;
     }
+    if (!turnstile.isReady) {
+      toast.error("Please complete the verification challenge.");
+      return;
+    }
     sendEmail.mutate({
       name: formData.name,
       email: formData.email,
       subject: formData.subject,
       message: formData.message,
+      turnstileToken: turnstile.token ?? undefined,
     });
   };
 
@@ -260,11 +270,13 @@ export default function Contact() {
                   />
                 </div>
 
+                {turnstile.widget}
+
                 <Button
                   type="submit"
                   size="lg"
                   className="w-full bg-[#0A2540] hover:bg-[#0d3a5c] text-white font-semibold rounded-xl py-3"
-                  disabled={sendEmail.isPending}
+                  disabled={sendEmail.isPending || !turnstile.isReady}
                 >
                   {sendEmail.isPending ? (
                     <>

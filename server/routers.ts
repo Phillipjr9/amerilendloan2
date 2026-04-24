@@ -28,6 +28,7 @@ import { buildAdminMessages, getAdminSuggestedTasks, type AdminAiContext, type A
 import { ENV } from "./_core/env";
 import { sdk } from "./_core/sdk";
 import { getClientIP } from "./_core/ipUtils";
+import { requireTurnstile } from "./_core/turnstile";
 import { COMPANY_INFO } from "./_core/companyConfig";
 import { screenAgainstOFAC, validateSSNFormat, validateITINFormat } from "./_core/ofac-check";
 import { logAuditEvent, AuditEventType, AuditSeverity } from "./_core/audit-logging";
@@ -4555,8 +4556,10 @@ export const appRouter = router({
       .input(z.object({
         email: z.string().min(3), // accepts email or username
         purpose: z.enum(["signup", "login", "reset"]),
+        turnstileToken: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        await requireTurnstile(input.turnstileToken, getClientIP(ctx.req));
         let email = input.email.trim();
         const isEmail = email.includes('@');
 
@@ -4588,8 +4591,10 @@ export const appRouter = router({
       .input(z.object({
         phone: z.string().min(10).max(20).regex(/^\+?[0-9\s\-()]+$/, "Invalid phone number format"),
         purpose: z.enum(["signup", "login", "reset"]),
+        turnstileToken: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        await requireTurnstile(input.turnstileToken, getClientIP(ctx.req));
         // Normalize phone: strip non-digit chars except leading +
         const phone = input.phone.replace(/[^\d+]/g, '');
         const code = await createOTP(phone, input.purpose, "phone");
@@ -4934,8 +4939,19 @@ export const appRouter = router({
         referralId: z.number().optional(),
         // Invitation code tracking
         invitationCode: z.string().max(20).optional(),
+        // Cloudflare Turnstile bot-verification token. Optional in schema so the
+        // request still parses when Turnstile is disabled server-side; the
+        // requireTurnstile() helper enforces presence when a secret is set.
+        turnstileToken: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        // Authenticated users (e.g. QuickApply from the dashboard) bypass the
+        // bot challenge — their session cookie is already sufficient proof of
+        // humanity, and rate-limiting still applies. Anonymous public submits
+        // must pass Turnstile if the secret is configured.
+        if (!ctx.user) {
+          await requireTurnstile(input.turnstileToken, getClientIP(ctx.req));
+        }
         try {
           // Check database connection first
           const dbConnection = await getDb();
@@ -10417,8 +10433,10 @@ Format as JSON with array of applications including their recommendation.`;
         email: z.string().email(),
         subject: z.string().min(1),
         message: z.string().min(1),
+        turnstileToken: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        await requireTurnstile(input.turnstileToken, getClientIP(ctx.req));
         try {
           // Escape HTML to prevent injection in admin email
           const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -10480,8 +10498,10 @@ Format as JSON with array of applications including their recommendation.`;
         resumeFileName: z.string().max(500),
         resumeFileUrl: z.string().optional(),
         coverLetter: z.string().min(1).max(5000),
+        turnstileToken: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        await requireTurnstile(input.turnstileToken, getClientIP(ctx.req));
         // Dedup: if the same email applied to the same position in the last 24h,
         // return the existing application instead of creating a duplicate row.
         // Prevents accidental double-submits from page refreshes / double-clicks.
