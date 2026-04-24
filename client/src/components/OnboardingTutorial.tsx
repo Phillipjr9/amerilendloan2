@@ -276,6 +276,8 @@ export function useOnboarding(storageKey: string = "onboarding_completed") {
   };
 
   const skipTutorial = () => {
+    // Persist the skip decision so the tour does not reopen on every visit.
+    localStorage.setItem(storageKey, "true");
     setIsOpen(false);
   };
 
