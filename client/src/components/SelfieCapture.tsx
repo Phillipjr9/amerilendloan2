@@ -169,10 +169,24 @@ export default function SelfieCapture() {
     setUploading(true);
 
     try {
-      // Convert data URL to Blob
-      const response = await fetch(capturedImage);
-      const blob = await response.blob();
-      
+      // Convert data URL to Blob without using fetch() — fetch() against a
+      // data: URI is blocked by our connect-src CSP. Decoding the base64
+      // payload directly is faster and CSP-safe.
+      const commaIdx = capturedImage.indexOf(",");
+      const meta = capturedImage.slice(5, commaIdx); // strip leading "data:"
+      const isBase64 = meta.endsWith(";base64");
+      const mimeType = (isBase64 ? meta.slice(0, -7) : meta) || "image/jpeg";
+      const payload = capturedImage.slice(commaIdx + 1);
+      let blob: Blob;
+      if (isBase64) {
+        const binary = atob(payload);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        blob = new Blob([bytes], { type: mimeType });
+      } else {
+        blob = new Blob([decodeURIComponent(payload)], { type: mimeType });
+      }
+
       // Create file from blob
       const file = new File([blob], `selfie_with_id_${Date.now()}.jpg`, { type: "image/jpeg" });
 
