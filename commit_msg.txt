@@ -1,1 +1,1 @@
-Fix OTP login to redirect to homepage after successful authentication, not /dashboard. Also harden server redirect fallback.
+Restore /dashboard as default post-login redirect for OTP and password login. Remove 300ms setTimeout delay before navigation so the redirect fires immediately on auth success.

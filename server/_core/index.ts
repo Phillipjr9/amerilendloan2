@@ -667,8 +667,9 @@ async function startServer() {
   // then navigates here (direct GET) to set the session cookie reliably.
   app.get("/api/auth/session", (req, res) => {
     const code = typeof req.query.code === "string" ? req.query.code : "";
-    const redirect = typeof req.query.redirect === "string" ? req.query.redirect : "/";
-    const safeRedirect = redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/";
+    const redirect = typeof req.query.redirect === "string" ? req.query.redirect : "/dashboard";
+    const safeRedirect =
+      redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/dashboard";
 
     const sessionToken = redeemSessionCode(code);
     if (!sessionToken) {

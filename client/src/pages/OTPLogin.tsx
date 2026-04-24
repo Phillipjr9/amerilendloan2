@@ -18,14 +18,14 @@ export default function OTPLogin() {
   const [step, setStep] = useState<"form" | "code">("form");
 
   // Resolve a safe post-login destination from the URL `next` param, falling
-  // back to the homepage. Only allow internal paths to avoid open-redirects.
+  // back to /dashboard. Only allow internal paths to avoid open-redirects.
   const postLoginTarget = (() => {
-    if (typeof window === "undefined") return "/";
+    if (typeof window === "undefined") return "/dashboard";
     const next = new URLSearchParams(window.location.search).get("next");
-    if (!next) return "/";
+    if (!next) return "/dashboard";
     // Must be a same-origin absolute path (starts with "/" but not "//" or "/\\")
     if (!next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) {
-      return "/";
+      return "/dashboard";
     }
     return next;
   })();
@@ -106,7 +106,7 @@ export default function OTPLogin() {
         toast.success("Login successful!");
         // Navigate via server endpoint so Set-Cookie is preserved through Vercel proxy
         const code = data && 'sessionCode' in data ? (data as any).sessionCode : undefined;
-        setTimeout(() => finishLogin(code), 300);
+        finishLogin(code);
       } else {
         toast.success("Account created successfully!");
         setSignupEmail("");
@@ -114,7 +114,7 @@ export default function OTPLogin() {
         setSignupPassword("");
         // Navigate via server endpoint so Set-Cookie is preserved through Vercel proxy
         const code = data && 'sessionCode' in data ? (data as any).sessionCode : undefined;
-        setTimeout(() => finishLogin(code), 300);
+        finishLogin(code);
       }
     },
     onError: (error) => {
@@ -145,7 +145,7 @@ export default function OTPLogin() {
       toast.success("Login successful!");
       // Navigate via server endpoint so Set-Cookie is preserved through Vercel proxy
       const code = data?.sessionCode;
-      setTimeout(() => finishLogin(code), 300);
+      finishLogin(code);
     },
     onError: (error) => {
       const errorMsg = error.message || "Failed to sign in";
@@ -169,7 +169,7 @@ export default function OTPLogin() {
       toast.success("Login successful!");
       // Navigate via server endpoint so Set-Cookie is preserved through Vercel proxy
       const code = data?.sessionCode;
-      setTimeout(() => finishLogin(code), 300);
+      finishLogin(code);
     },
     onError: (error) => {
       // If password login fails (service unavailable, invalid API key, etc), 
