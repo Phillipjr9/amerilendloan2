@@ -17,11 +17,20 @@ interface HealthCheckResult {
   };
   integrations?: {
     stripe: boolean;
+    stripeWebhook: boolean;
     supabase: boolean;
     storage: boolean;
     oauthProviders: string[];
     jwtConfigured: boolean;
     appUrlConfigured: boolean;
+    turnstile: boolean;
+    twilio: boolean;
+    sendgrid: boolean;
+    encryption: boolean;
+    openai: boolean;
+    redis: boolean;
+    emailTestMode: boolean;
+    ownerOpenIdSet: boolean;
   };
   backup?: {
     lastBackupTime: string | null;
@@ -120,6 +129,10 @@ function getIntegrationStatus() {
 
   return {
     stripe: Boolean(process.env.STRIPE_SECRET_KEY),
+    // True only when STRIPE_WEBHOOK_SECRET is set; without it Stripe webhook
+    // calls are unverified and the server rejects them, so card payments may
+    // get stuck in `pending`.
+    stripeWebhook: Boolean(ENV.stripeWebhookSecret || process.env.STRIPE_WEBHOOK_SECRET),
     // The codebase reads Supabase config from VITE_SUPABASE_URL /
     // VITE_SUPABASE_ANON_KEY (see env.ts). Accept both naming conventions so
     // this flag stays accurate regardless of which env-var spelling is set.
@@ -135,6 +148,21 @@ function getIntegrationStatus() {
     // anonymous loan-submit / contact / OTP-request endpoints are protected
     // only by rate-limiting (defeatable with rotating IPs).
     turnstile: Boolean(process.env.TURNSTILE_SECRET_KEY && (ENV.turnstileSiteKey || process.env.VITE_TURNSTILE_SITE_KEY)),
+    // SMS via Twilio — when false, otp.requestPhoneCode silently no-ops.
+    twilio: Boolean(ENV.twilioAccountSid && ENV.twilioAuthToken && ENV.twilioPhoneNumber),
+    // Email via SendGrid — when false, every email path returns success: false
+    // and only logs to console, so users never receive OTP / receipt / reset emails.
+    sendgrid: Boolean(ENV.sendGridApiKey),
+    // Field-level encryption key used for KYC data. Schema requires >=32 chars.
+    encryption: Boolean(ENV.encryptionKey && ENV.encryptionKey.length >= 32),
+    // OpenAI API key — only matters for AI loan-summary feature.
+    openai: Boolean(ENV.openAiApiKey),
+    // Redis is required for distributed rate-limiting once we have >1 replica.
+    redis: Boolean(redisClient),
+    // Test mode redirects every email to a logger instead of sending it.
+    emailTestMode: ENV.emailTestMode,
+    // Bootstrap admin OpenID — without it no one is auto-admin on a fresh DB.
+    ownerOpenIdSet: Boolean(ENV.ownerOpenId),
   };
 }
 
