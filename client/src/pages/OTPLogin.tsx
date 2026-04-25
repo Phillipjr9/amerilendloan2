@@ -516,13 +516,15 @@ export default function OTPLogin() {
                         setShowForgotPasswordOption(false);
                         setExistingAccountInfo(null);
                       }}
-                      onBlur={(e) => {
-                        // Check if email exists when user leaves the field
-                        const email = e.target.value.trim();
-                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                        if (emailRegex.test(email) && isLogin && !isResetMode) {
-                          checkEmailMutation.mutate({ email });
-                        }
+                      onBlur={() => {
+                        // Intentionally no email-existence probe on the Sign In
+                        // form. (1) The "An account exists with this email"
+                        // hint reads like an error to legitimate users who
+                        // are already logging in with their real account.
+                        // (2) An always-on existence check leaks which emails
+                        // are registered to anyone tabbing through the field.
+                        // Account-exists guidance still surfaces on the Sign
+                        // Up tab where it is actually useful.
                       }}
                       className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#0A2540]/20 focus:border-[#0A2540] transition-all"
                       required
