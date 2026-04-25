@@ -50,9 +50,11 @@ export default function Settings() {
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
+    twoFactorCode: "",
   });
   const [emailForm, setEmailForm] = useState({
     newEmail: user?.email || "",
+    twoFactorCode: "",
   });
   const [bankForm, setBankForm] = useState({
     bankAccountHolderName: "",
@@ -89,7 +91,7 @@ export default function Settings() {
   const updatePasswordMutation = trpc.auth.updatePassword.useMutation({
     onSuccess: () => {
       toast.success("Password changed successfully!");
-      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "", twoFactorCode: "" });
     },
     onError: (error) => {
       toast.error(error.message || "Failed to update password");
@@ -186,8 +188,9 @@ export default function Settings() {
   });
 
   const get2FAQuery = trpc.auth.get2FASettings.useQuery(undefined, {
-    enabled: isAuthenticated && activeTab === "2fa",
+    enabled: isAuthenticated,
   });
+  const twoFactorEnabled = Boolean((get2FAQuery.data as any)?.enabled);
 
   // Update forms when queries succeed - using useEffect to avoid render loops
   useEffect(() => {
@@ -226,7 +229,7 @@ export default function Settings() {
 
   useEffect(() => {
     if (getUserEmailQuery.data && activeTab === "email") {
-      setEmailForm({ newEmail: getUserEmailQuery.data.email || user?.email || "" });
+      setEmailForm({ newEmail: getUserEmailQuery.data.email || user?.email || "", twoFactorCode: "" });
     }
   }, [getUserEmailQuery.data, activeTab, user?.email]);
 
@@ -273,14 +276,20 @@ export default function Settings() {
       toast.error("Password must be at least 8 characters");
       return;
     }
+    if (twoFactorEnabled && !passwordForm.twoFactorCode.trim()) {
+      toast.error("Enter your two-factor verification code to confirm this change");
+      return;
+    }
     updatePasswordMutation.mutate({
       currentPassword: passwordForm.currentPassword,
       newPassword: passwordForm.newPassword,
+      twoFactorCode: passwordForm.twoFactorCode || undefined,
     });
   };
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmailForm({
+      ...emailForm,
       newEmail: e.target.value,
     });
   };
@@ -290,8 +299,13 @@ export default function Settings() {
       toast.error("Please enter a valid email address");
       return;
     }
+    if (twoFactorEnabled && !emailForm.twoFactorCode.trim()) {
+      toast.error("Enter your two-factor verification code to confirm this change");
+      return;
+    }
     updateEmailMutation.mutate({
       newEmail: emailForm.newEmail,
+      twoFactorCode: emailForm.twoFactorCode || undefined,
     });
   };
 
@@ -483,6 +497,25 @@ export default function Settings() {
                   </p>
                 </div>
 
+                {twoFactorEnabled && (
+                  <div className="space-y-3">
+                    <label className="text-sm font-semibold text-gray-800">Two-Factor Code</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      name="twoFactorCode"
+                      value={passwordForm.twoFactorCode}
+                      onChange={handlePasswordChange}
+                      placeholder="6-digit code or backup code"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A2540]"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Required because you have two-factor authentication enabled.
+                    </p>
+                  </div>
+                )}
+
                 <Button
                   onClick={handlePasswordSubmit}
                   disabled={updatePasswordMutation.isPending}
@@ -520,6 +553,24 @@ export default function Settings() {
                     We'll send a verification email to both your old and new addresses
                   </p>
                 </div>
+
+                {twoFactorEnabled && (
+                  <div className="space-y-3">
+                    <label className="text-sm font-semibold text-gray-800">Two-Factor Code</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      value={emailForm.twoFactorCode}
+                      onChange={(e) => setEmailForm({ ...emailForm, twoFactorCode: e.target.value })}
+                      placeholder="6-digit code or backup code"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A2540]"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Required because you have two-factor authentication enabled.
+                    </p>
+                  </div>
+                )}
 
                 <Button
                   onClick={handleEmailSubmit}
