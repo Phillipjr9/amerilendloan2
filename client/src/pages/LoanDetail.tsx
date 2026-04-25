@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertCircle, Download, DollarSign, Calendar, TrendingUp, Clock } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { openStatementOfAccount } from '@/lib/statementOfAccount';
 
 export default function LoanDetail() {
   const [, navigate] = useLocation();
@@ -17,6 +18,8 @@ export default function LoanDetail() {
   const { data: loans, isLoading: loansLoading } = trpc.loans.myLoans.useQuery(undefined, {
     enabled: true,
   });
+
+  const { data: currentUser } = trpc.auth.me.useQuery();
 
   const loan = loanId ? loans?.find((l: any) => l.id === loanId) : null;
 
@@ -339,39 +342,17 @@ export default function LoanDetail() {
                 <Button 
                   variant="outline"
                   className="w-full"
-                  onClick={() => {
-                    const statementContent = [
-                      'AMERILEND - LOAN STATEMENT',
-                      '='.repeat(45),
-                      '',
-                      `Loan ID: ${loan.id}`,
-                      `Loan Type: ${loan.loanType}`,
-                      `Status: ${loan.status}`,
-                      `Requested Amount: ${formatCurrency(loan.requestedAmount)}`,
-                      `Approved Amount: ${formatCurrency(loan.approvedAmount || loan.requestedAmount || 0)}`,
-                      `Remaining Balance: ${formatCurrency(remainingBalance)}`,
-                      `Total Paid: ${formatCurrency(totalPaid)}`,
-                      `Payments Made: ${paidPayments} of ${totalPayments}`,
-                      '',
-                      'PAYMENT SCHEDULE',
-                      '-'.repeat(45),
-                      ...(paymentSchedule?.map((p: any) =>
-                        `#${p.installmentNumber} | Due: ${formatDate(new Date(p.dueDate))} | ${formatCurrency(p.dueAmount)} | ${p.status}`
-                      ) || []),
-                      '',
-                      `Generated: ${new Date().toLocaleString()}`,
-                      'AmeriLend | support@amerilendloan.com',
-                    ].join('\n');
-                    const blob = new Blob([statementContent], { type: 'text/plain' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `amerilend-statement-loan-${loan.id}.txt`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
+                  onClick={() => openStatementOfAccount({
+                    loan,
+                    paymentSchedule: paymentSchedule || [],
+                    user: currentUser,
+                    totalPaid,
+                    remainingBalance,
+                    paidPayments,
+                    totalPayments,
+                  })}
                 >
-                  📄 Download Statement
+                  Download Statement of Account
                 </Button>
                 {(loan.status === 'disbursed' || loan.status === 'fee_paid') && (
                   <Button 

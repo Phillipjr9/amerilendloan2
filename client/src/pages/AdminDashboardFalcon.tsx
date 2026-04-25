@@ -394,11 +394,14 @@ export default function AdminDashboardFalcon() {
 
   // Filter applications
   const filteredApplications = applications?.filter(app => {
-    // Basic search (name, email, phone)
-    const matchesSearch = searchTerm === "" || 
-      app.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      app.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      app.phone?.includes(searchTerm);
+    // Basic search (name, email, phone, tracking number, loan account number)
+    const q = searchTerm.trim().toLowerCase();
+    const matchesSearch = q === "" || 
+      app.fullName?.toLowerCase().includes(q) ||
+      app.email?.toLowerCase().includes(q) ||
+      app.phone?.toLowerCase().includes(q) ||
+      app.trackingNumber?.toLowerCase().includes(q) ||
+      (app as any).loanAccountNumber?.toLowerCase().includes(q);
     
     // Basic status filter
     const matchesStatus = statusFilter === "all" || app.status === statusFilter;
@@ -560,7 +563,7 @@ export default function AdminDashboardFalcon() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   type="search"
-                  placeholder="Search..."
+                  placeholder="Search name, email, tracking #, account #"
                   className="pl-10 w-40 lg:w-64"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -1701,7 +1704,7 @@ export default function AdminDashboardFalcon() {
                   {app.loanAccountNumber && (
                     <div className="flex justify-between text-xs text-gray-500 mt-1 pt-1 border-t border-gray-200">
                       <span>Loan Account</span>
-                      <span className="font-mono">····{app.loanAccountNumber.slice(-4)} ({app.loanAccountNumber})</span>
+                      <span className="font-mono">{app.loanAccountNumber}</span>
                     </div>
                   )}
                 </div>

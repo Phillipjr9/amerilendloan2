@@ -995,7 +995,6 @@ export default function Dashboard() {
                                       <p className="text-xs text-gray-500">Loan Account Number</p>
                                       <p className="font-mono text-sm font-semibold text-[#0A2540]">
                                         ····{(loan as any).loanAccountNumber.slice(-4)}
-                                        <span className="text-[10px] text-gray-400 ml-2 font-normal">({(loan as any).loanAccountNumber})</span>
                                       </p>
                                     </div>
                                   )}

@@ -1334,7 +1334,7 @@ export default function AdminApplicationDetail() {
                 </div>
                 {data.application.loanAccountNumber && (
                   <div className="text-[11px] text-muted-foreground mt-1 pt-1 border-t">
-                    Loan Account: <span className="font-mono">····{data.application.loanAccountNumber.slice(-4)} ({data.application.loanAccountNumber})</span>
+                    Loan Account: <span className="font-mono">{data.application.loanAccountNumber}</span>
                   </div>
                 )}
               </div>
