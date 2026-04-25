@@ -699,8 +699,45 @@ async function startServer() {
 
     const cookieOptions = getSessionCookieOptions(req);
     res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: SESSION_COOKIE_MS });
-    logger.info("[Auth] Session cookie set via /api/auth/session redirect");
+    logger.info("[Auth] Session cookie set via /api/auth/session redirect", {
+      domain: cookieOptions.domain,
+      sameSite: cookieOptions.sameSite,
+      secure: cookieOptions.secure,
+      forwardedHost: req.headers["x-forwarded-host"],
+      origin: req.headers["origin"],
+      referer: req.headers["referer"],
+      hostname: req.hostname,
+    });
     res.redirect(302, safeRedirect);
+  });
+
+  // ── Diagnostic endpoint ────────────────────────────────────────────────
+  // Echoes the cookie attributes that *would* be applied to a session cookie
+  // for the current request, plus the proxy headers Railway sees from Vercel.
+  // Used to verify the Vercel→Railway proxy is forwarding the public hostname
+  // (so Set-Cookie carries the correct Domain attribute). No secrets exposed.
+  app.get("/api/auth/_debug/cookie", (req, res) => {
+    const opts = getSessionCookieOptions(req);
+    res.json({
+      cookieOptions: {
+        domain: opts.domain ?? null,
+        sameSite: opts.sameSite,
+        secure: opts.secure,
+        path: opts.path,
+        httpOnly: opts.httpOnly,
+      },
+      derived: {
+        reqHostname: req.hostname,
+        protocol: req.protocol,
+      },
+      headers: {
+        host: req.headers["host"],
+        "x-forwarded-host": req.headers["x-forwarded-host"] ?? null,
+        "x-forwarded-proto": req.headers["x-forwarded-proto"] ?? null,
+        origin: req.headers["origin"] ?? null,
+        referer: req.headers["referer"] ?? null,
+      },
+    });
   });
 
   // ── Dedicated logout endpoint ──────────────────────────────────────────
