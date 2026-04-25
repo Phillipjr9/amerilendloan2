@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertCircle, Download, DollarSign, Calendar, TrendingUp, Clock } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { openStatementOfAccount } from '@/lib/statementOfAccount';
+import { openStatementOfAccount, downloadStatementOfAccountPdf } from '@/lib/statementOfAccount';
 
 export default function LoanDetail() {
   const [, navigate] = useLocation();
@@ -340,6 +340,20 @@ export default function LoanDetail() {
                   ⚙️ Autopay Settings
                 </Button>
                 <Button 
+                  className="w-full"
+                  onClick={() => downloadStatementOfAccountPdf({
+                    loan,
+                    paymentSchedule: paymentSchedule || [],
+                    user: currentUser,
+                    totalPaid,
+                    remainingBalance,
+                    paidPayments,
+                    totalPayments,
+                  })}
+                >
+                  Download Statement (PDF)
+                </Button>
+                <Button 
                   variant="outline"
                   className="w-full"
                   onClick={() => openStatementOfAccount({
@@ -352,7 +366,7 @@ export default function LoanDetail() {
                     totalPayments,
                   })}
                 >
-                  Download Statement of Account
+                  View Statement
                 </Button>
                 {(loan.status === 'disbursed' || loan.status === 'fee_paid') && (
                   <Button 

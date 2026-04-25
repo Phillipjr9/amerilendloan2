@@ -79,6 +79,8 @@
     "i18next-browser-languagedetector": "^8.2.0",
     "input-otp": "^1.4.2",
     "jose": "6.1.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.453.0",
     "multer": "^2.0.2",
     "nanoid": "^5.1.5",
