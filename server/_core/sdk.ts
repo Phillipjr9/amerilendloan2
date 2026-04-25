@@ -202,7 +202,9 @@ class SDKServer {
     cookieValue: string | undefined | null
   ): Promise<{ openId: string; appId: string; name: string } | null> {
     if (!cookieValue) {
-      logger.warn("[Auth] Missing session cookie");
+      // Routine for unauthenticated requests (public pages, public tRPC procedures).
+      // Logged at debug to avoid filling production logs with normal traffic.
+      logger.debug("[Auth] Missing session cookie");
       return null;
     }
 
@@ -226,7 +228,18 @@ class SDKServer {
         name: typeof name === "string" ? name : "",
       };
     } catch (error) {
-      logger.warn("[Auth] Session verification failed", String(error));
+      // Expired or tampered tokens are routine (e.g. cookie outlived its TTL).
+      // Only the unexpected cases (e.g. malformed JWT from a bug) deserve a warn.
+      const message = String(error);
+      const isExpected =
+        message.includes("JWTExpired") ||
+        message.includes("JWSSignatureVerificationFailed") ||
+        message.includes("JWSInvalid");
+      if (isExpected) {
+        logger.debug("[Auth] Session verification failed", message);
+      } else {
+        logger.warn("[Auth] Session verification failed", message);
+      }
       return null;
     }
   }
