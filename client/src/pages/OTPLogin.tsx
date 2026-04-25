@@ -203,7 +203,10 @@ export default function OTPLogin() {
       if (data.exists) {
         setExistingAccountInfo(data);
         setShowForgotPasswordOption(true);
-        toast.info(data.message);
+        // No toast: each form (login vs signup) already renders its own inline
+        // hint based on existingAccountInfo. Toasting "An account exists with
+        // this email" on the Login tab read like an error to users who were
+        // simply logging in with a real account.
       }
     },
     onError: (error: any) => {
