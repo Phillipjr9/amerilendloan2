@@ -38,6 +38,7 @@ interface HealthCheckResult {
     ageHours: number | null;
     durableStorageConfigured: boolean;
     stale: boolean;
+    lastError: string | null;
   };
   memory: {
     used: number;
@@ -177,7 +178,11 @@ function getBackupSnapshot() {
   const ageHours = health.timestamp
     ? (Date.now() - new Date(health.timestamp).getTime()) / (1000 * 60 * 60)
     : null;
-  const durableStorageConfigured = Boolean(ENV.forgeApiUrl && ENV.forgeApiKey);
+  // Forge object storage OR an explicit BACKUP_DIR (e.g. mounted Railway
+  // volume) both count as durable destinations.
+  const durableStorageConfigured = Boolean(
+    (ENV.forgeApiUrl && ENV.forgeApiKey) || process.env.BACKUP_DIR
+  );
   const stale = ageHours === null ? true : ageHours > 26;
   return {
     lastBackupTime: health.timestamp,
@@ -185,6 +190,7 @@ function getBackupSnapshot() {
     ageHours: ageHours === null ? null : Math.round(ageHours * 10) / 10,
     durableStorageConfigured,
     stale,
+    lastError: health.error || null,
   };
 }
 
