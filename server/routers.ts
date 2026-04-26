@@ -9096,7 +9096,7 @@ export const appRouter = router({
           );
 
           // Check if API key is configured
-          const apiKeysAvailable = !(!ENV.openAiApiKey && !ENV.forgeApiKey);
+          const apiKeysAvailable = Boolean(ENV.groqApiKey || ENV.geminiApiKey || ENV.openAiApiKey || ENV.forgeApiKey);
 
           
           if (!apiKeysAvailable) {
@@ -10448,7 +10448,7 @@ Format as JSON with array of applications including their recommendation.`;
 
 
           // Check if API keys are configured
-          const apiKeysAvailable = !(!ENV.openAiApiKey && !ENV.forgeApiKey);
+          const apiKeysAvailable = Boolean(ENV.groqApiKey || ENV.geminiApiKey || ENV.openAiApiKey || ENV.forgeApiKey);
 
 
           if (!apiKeysAvailable) {

@@ -19,6 +19,12 @@ const envSchema = z.object({
   // OpenAI
   OPENAI_API_KEY: z.string().optional().default(""),
 
+  // Groq (free tier, OpenAI-compatible — used as primary LLM when set)
+  GROQ_API_KEY: z.string().optional().default(""),
+
+  // Google Gemini (free tier — used as fallback when Groq/OpenAI not set)
+  GEMINI_API_KEY: z.string().optional().default(""),
+
   // Twilio (SMS)
   TWILIO_ACCOUNT_SID: z.string().optional().default(""),
   TWILIO_AUTH_TOKEN: z.string().optional().default(""),
@@ -88,6 +94,8 @@ export const ENV = {
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   openAiApiKey: process.env.OPENAI_API_KEY ?? "",
+  groqApiKey: process.env.GROQ_API_KEY ?? "",
+  geminiApiKey: process.env.GEMINI_API_KEY ?? "",
   twilioAccountSid: process.env.TWILIO_ACCOUNT_SID ?? "",
   twilioAuthToken: process.env.TWILIO_AUTH_TOKEN ?? "",
   twilioPhoneNumber: process.env.TWILIO_PHONE_NUMBER ?? "",

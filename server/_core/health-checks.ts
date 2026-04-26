@@ -199,9 +199,9 @@ function getBackupSnapshot() {
 // (?probe=llm) since it costs an API call.
 async function probeLlm(): Promise<{ ok: boolean; provider: string; latencyMs: number; error: string | null }> {
   const start = Date.now();
-  const provider = ENV.openAiApiKey ? "openai" : ENV.forgeApiKey ? "forge" : "none";
+  const provider = ENV.groqApiKey ? "groq" : ENV.geminiApiKey ? "gemini" : ENV.openAiApiKey ? "openai" : ENV.forgeApiKey ? "forge" : "none";
   if (provider === "none") {
-    return { ok: false, provider, latencyMs: 0, error: "No OPENAI_API_KEY or BUILT_IN_FORGE_API_KEY configured" };
+    return { ok: false, provider, latencyMs: 0, error: "No LLM key configured. Set GROQ_API_KEY (free), GEMINI_API_KEY (free), OPENAI_API_KEY, or BUILT_IN_FORGE_API_KEY" };
   }
   try {
     const { invokeLLM } = await import("./llm");
