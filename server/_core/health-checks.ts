@@ -194,6 +194,39 @@ function getBackupSnapshot() {
   };
 }
 
+// Live probe — actually call the LLM with a 1-token prompt to confirm the
+// configured key is valid. Only runs when explicitly requested
+// (?probe=llm) since it costs an API call.
+async function probeLlm(): Promise<{ ok: boolean; provider: string; latencyMs: number; error: string | null }> {
+  const start = Date.now();
+  const provider = ENV.openAiApiKey ? "openai" : ENV.forgeApiKey ? "forge" : "none";
+  if (provider === "none") {
+    return { ok: false, provider, latencyMs: 0, error: "No OPENAI_API_KEY or BUILT_IN_FORGE_API_KEY configured" };
+  }
+  try {
+    const { invokeLLM } = await import("./llm");
+    const res = await invokeLLM({
+      messages: [{ role: "user", content: "ping" }],
+      maxTokens: 5,
+      temperature: 0,
+    });
+    const text = res.choices?.[0]?.message?.content;
+    return {
+      ok: true,
+      provider,
+      latencyMs: Date.now() - start,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      provider,
+      latencyMs: Date.now() - start,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 // Main health check handler
 export async function healthCheck(req: Request, res: Response) {
   try {
@@ -206,6 +239,9 @@ export async function healthCheck(req: Request, res: Response) {
     const cpu = getCpuUsage();
 
     const backup = getBackupSnapshot();
+
+    // Optional live LLM probe — only runs when ?probe=llm is set in the URL.
+    const llmProbe = req.query.probe === "llm" ? await probeLlm() : undefined;
 
     // Determine overall health
     let overallStatus: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
@@ -237,6 +273,10 @@ export async function healthCheck(req: Request, res: Response) {
       memory,
       cpu,
     };
+
+    if (llmProbe) {
+      (result as any).llmProbe = llmProbe;
+    }
 
     // Return appropriate status code
     const statusCode = overallStatus === 'healthy' ? 200 : overallStatus === 'degraded' ? 200 : 503;

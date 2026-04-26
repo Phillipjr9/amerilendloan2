@@ -1990,7 +1990,51 @@ const fraudDetectionRouter = router({
 const liveChatRouter = router({
   getOrCreateSession: protectedProcedure
     .query(async ({ ctx }) => {
-      const session = await db.getOrCreateChatSession(ctx.user.id);
+      // Detect new-vs-existing so we only notify admin once per session.
+      // (This query is polled every 5s by the client; only the very first
+      // call actually creates the row, subsequent calls return the existing
+      // active session.)
+      const existing = await db.getUserActiveChatSession(ctx.user.id);
+      if (existing) return existing;
+
+      const session = await db.createChatSession(ctx.user.id);
+
+      // Fire-and-forget admin notification (do not block chat creation if email fails)
+      try {
+        const userName = ctx.user.name || ctx.user.email || `User #${ctx.user.id}`;
+        const userEmail = ctx.user.email || "(no email on file)";
+        await sendNewSupportTicketNotificationEmail(
+          session.id,
+          userName,
+          userEmail,
+          "Live chat session opened",
+          `${userName} just opened a live chat and is waiting for an agent. Please respond from the Live Chat admin panel.`,
+          "live_chat",
+          "high"
+        );
+      } catch (emailErr) {
+        logger.warn('[LiveChat] Failed to send admin notification email:', emailErr);
+      }
+
+      // Persist an in-app notification for every admin so they see a badge instantly.
+      try {
+        const admins = await db.getAllAdmins();
+        await Promise.all(
+          admins.map((admin: { id: number }) =>
+            db.createNotification({
+              userId: admin.id,
+              type: "live_chat_request",
+              title: "New live chat waiting",
+              message: `${ctx.user.name || ctx.user.email || `User #${ctx.user.id}`} is waiting in live chat (session #${session.id}).`,
+              actionUrl: "/admin/live-chat",
+              isRead: false,
+            }).catch((e: unknown) => logger.warn('[LiveChat] notification insert failed:', e))
+          )
+        );
+      } catch (notifyErr) {
+        logger.warn('[LiveChat] Failed to broadcast admin in-app notifications:', notifyErr);
+      }
+
       return session;
     }),
 
