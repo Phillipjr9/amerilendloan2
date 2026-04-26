@@ -400,7 +400,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
 // pull the first text response back into the OpenAI-shaped InvokeResult so
 // the rest of the codebase doesn't need to know which provider was used.
 async function invokeGemini(params: InvokeParams): Promise<InvokeResult> {
-  const model = "gemini-1.5-flash"; // free, fast, generous quota
+  const model = "gemini-2.0-flash"; // free, current generation, fast
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${ENV.geminiApiKey}`;
 
   const systemMessages = params.messages.filter((m) => m.role === "system");
