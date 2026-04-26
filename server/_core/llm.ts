@@ -350,7 +350,9 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.tool_choice = normalizedToolChoice;
   }
 
-  payload.max_tokens = 32768;
+  // Honor caller's maxTokens; default to 2048 (was 32768 which broke Groq's
+  // 12k TPM free-tier quota even on tiny prompts).
+  payload.max_tokens = params.maxTokens ?? 2048;
 
   // Add temperature if provided (for varied responses, default 0.7 for support chat)
   if (temperature !== undefined) {
