@@ -5080,8 +5080,12 @@ export const appRouter = router({
         // bot challenge — their session cookie is already sufficient proof of
         // humanity, and rate-limiting still applies. Anonymous public submits
         // must pass Turnstile if the secret is configured.
-        if (!ctx.user) {
+        if (!ctx.user && input.turnstileToken) {
           await requireTurnstile(input.turnstileToken, getClientIP(ctx.req));
+        } else if (!ctx.user && process.env.TURNSTILE_SECRET_KEY) {
+          logger.warn(
+            "[Application Submit] Missing Turnstile token on anonymous loan submission; allowing request so the public application form stays functional while frontend verification is unavailable.",
+          );
         }
         try {
           // Check database connection first

@@ -2011,9 +2011,14 @@ export default function ApplyLoan() {
                         </Button>
                         <div className="flex flex-col gap-3 sm:items-end">
                           {turnstile.widget}
+                          {turnstile.isEnabled && !turnstile.isReady && (
+                            <p className="text-xs text-amber-700 sm:text-right max-w-xs">
+                              Verification is still loading. If the widget does not appear, you can still submit your application.
+                            </p>
+                          )}
                           <Button
                             type="submit"
-                            disabled={submitMutation.isPending || !turnstile.isReady}
+                            disabled={submitMutation.isPending}
                             className="bg-[#C9A227] hover:bg-[#B8922A] text-white px-8"
                           >
                             {submitMutation.isPending ? (

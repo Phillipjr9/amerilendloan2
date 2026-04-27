@@ -13,7 +13,7 @@ let stripeClient: Stripe | undefined;
 if (ENV.stripeSecretKey) {
   try {
     stripeClient = new Stripe(ENV.stripeSecretKey, {
-      apiVersion: '2025-11-17.clover',
+      apiVersion: '2026-02-25.clover',
     });
     logger.info('[Stripe] Client initialized successfully');
   } catch (error) {
