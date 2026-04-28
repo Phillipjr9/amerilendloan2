@@ -817,17 +817,34 @@ async function startServer() {
       expires: new Date(0),
     });
 
-    // Clear-Site-Data tells the browser to wipe cookies, storage, and cache
-    // for this origin. Supported by Chrome, Edge, Firefox.
-    res.setHeader("Clear-Site-Data", '"cookies", "storage"');
+    // Also clear without an explicit domain in case the cookie was originally
+    // set without one (e.g. early in dev or before COOKIE_DOMAIN was set).
+    // Without this fallback the browser keeps the host-only cookie alive
+    // and the user appears to be still logged in after signout.
+    res.clearCookie(COOKIE_NAME, { path: "/" });
+    res.cookie(COOKIE_NAME, "", { path: "/", maxAge: 0, expires: new Date(0) });
+
+    // Clear-Site-Data tells the browser to wipe cookies and cache for this
+    // origin. We deliberately omit "storage" so we don't wipe the user's
+    // cookie-consent record (kept in localStorage); otherwise the consent
+    // banner would re-appear on every login/logout cycle.
+    res.setHeader("Clear-Site-Data", '"cookies", "cache"');
+
+    // Prevent any intermediary (Vercel edge, browser back/forward cache)
+    // from serving a cached version of the redirect target with stale
+    // auth state.
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
 
     logger.info("[Auth] User logged out via /api/logout – cookies cleared");
 
-    // Redirect to home page after clearing the cookie
+    // Redirect to home page after clearing the cookie. Append a cache-bust
+    // query so any stale SWR/HTTP cache for "/" doesn't replay logged-in HTML.
     const redirectTo = typeof req.query.redirect === "string" ? req.query.redirect : "/";
-    // Only allow relative redirects to prevent open-redirect attacks
     const safeRedirect = redirectTo.startsWith("/") ? redirectTo : "/";
-    res.redirect(302, safeRedirect);
+    const sep = safeRedirect.includes("?") ? "&" : "?";
+    res.redirect(302, `${safeRedirect}${sep}_logout=${Date.now()}`);
   });
 
   // tRPC API

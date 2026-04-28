@@ -24,13 +24,38 @@ export function useAuth(options?: UseAuthOptions) {
     // Immediately clear cached user data so the UI reflects logged-out state
     utils.auth.me.setData(undefined, null);
 
-    // Clear all client-side storage
-    localStorage.clear();
-    sessionStorage.clear();
+    // Selectively clear auth/session storage but PRESERVE non-auth
+    // user preferences such as the cookie-consent record and theme,
+    // so the banner doesn't pop back up after every logout.
+    const PRESERVE_KEYS = [
+      "amerilend_cookie_consent",
+      "theme",
+      "i18nextLng",
+    ];
+    try {
+      const preserved: Record<string, string> = {};
+      for (const k of PRESERVE_KEYS) {
+        const v = localStorage.getItem(k);
+        if (v !== null) preserved[k] = v;
+      }
+      localStorage.clear();
+      for (const [k, v] of Object.entries(preserved)) {
+        localStorage.setItem(k, v);
+      }
+    } catch {
+      /* storage unavailable */
+    }
+    try {
+      sessionStorage.clear();
+    } catch {
+      /* storage unavailable */
+    }
 
-    // Clear client-accessible cookies (consent, preferences, etc.)
+    // Clear client-accessible cookies (preferences, analytics, etc.) but
+    // preserve the cookie-consent record so the banner doesn't reappear.
     document.cookie.split(";").forEach((c) => {
       const name = c.split("=")[0].trim();
+      if (!name || name === "amerilend_cookie_consent") return;
       document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
       document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
     });

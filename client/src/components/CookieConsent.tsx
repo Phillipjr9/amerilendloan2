@@ -1,10 +1,13 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { Cookie, X } from "lucide-react";
+import { Cookie, Lock } from "lucide-react";
 
 const COOKIE_CONSENT_KEY = "amerilend_cookie_consent";
 
+type CookieDecision = "accepted" | "denied";
+
 type CookiePreference = {
+  decision: CookieDecision;
   essential: true;
   analytics: boolean;
   marketing: boolean;
@@ -12,46 +15,120 @@ type CookiePreference = {
   updatedAt: string;
 };
 
+function readStoredConsent(): CookiePreference | null {
+  try {
+    const raw = localStorage.getItem(COOKIE_CONSENT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<CookiePreference>;
+    if (parsed && (parsed.decision === "accepted" || parsed.decision === "denied")) {
+      return parsed as CookiePreference;
+    }
+    return {
+      decision: "accepted",
+      essential: true,
+      analytics: Boolean(parsed.analytics),
+      marketing: Boolean(parsed.marketing),
+      preferences: Boolean(parsed.preferences),
+      updatedAt: parsed.updatedAt ?? new Date().toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeConsent(next: Omit<CookiePreference, "updatedAt">) {
+  const payload: CookiePreference = {
+    ...next,
+    updatedAt: new Date().toISOString(),
+  };
+  try {
+    localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(payload));
+  } catch {
+    /* storage unavailable */
+  }
+  try {
+    const oneYear = 60 * 60 * 24 * 365;
+    document.cookie = `${COOKIE_CONSENT_KEY}=${encodeURIComponent(payload.decision)};max-age=${oneYear};path=/;SameSite=Lax`;
+  } catch {
+    /* ignore */
+  }
+  window.dispatchEvent(new CustomEvent("cookie-consent-updated", { detail: payload }));
+  return payload;
+}
+
 export default function CookieConsent() {
-  const [visible, setVisible] = useState(false);
+  const [decision, setDecision] = useState<"pending" | CookieDecision>("pending");
+  const [showBanner, setShowBanner] = useState(false);
   const [analytics, setAnalytics] = useState(true);
   const [marketing, setMarketing] = useState(false);
   const [preferences, setPreferences] = useState(true);
 
   useEffect(() => {
-    const consent = localStorage.getItem(COOKIE_CONSENT_KEY);
-    if (!consent) {
-      // Small delay so it doesn't flash on page load
-      const timer = setTimeout(() => setVisible(true), 1000);
-      return () => clearTimeout(timer);
+    const stored = readStoredConsent();
+    if (stored) {
+      setDecision(stored.decision);
+    } else {
+      const t = setTimeout(() => setShowBanner(true), 600);
+      return () => clearTimeout(t);
     }
   }, []);
 
-  function savePreference(next: Omit<CookiePreference, "updatedAt">) {
-    const payload: CookiePreference = {
-      ...next,
-      updatedAt: new Date().toISOString(),
-    };
-    localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(payload));
-    window.dispatchEvent(new CustomEvent("cookie-consent-updated", { detail: payload }));
-  }
-
   function acceptAll() {
-    savePreference({ essential: true, analytics: true, marketing: true, preferences: true });
-    setVisible(false);
-  }
-
-  function rejectOptional() {
-    savePreference({ essential: true, analytics: false, marketing: false, preferences: false });
-    setVisible(false);
+    writeConsent({ decision: "accepted", essential: true, analytics: true, marketing: true, preferences: true });
+    setDecision("accepted");
+    setShowBanner(false);
   }
 
   function saveSelected() {
-    savePreference({ essential: true, analytics, marketing, preferences });
-    setVisible(false);
+    writeConsent({ decision: "accepted", essential: true, analytics, marketing, preferences });
+    setDecision("accepted");
+    setShowBanner(false);
   }
 
-  if (!visible) return null;
+  function denyAll() {
+    writeConsent({ decision: "denied", essential: true, analytics: false, marketing: false, preferences: false });
+    setDecision("denied");
+    setShowBanner(false);
+  }
+
+  if (decision === "accepted") return null;
+
+  if (decision === "denied") {
+    return (
+      <div
+        className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cookie-block-title"
+      >
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 sm:p-8 text-center">
+          <div className="mx-auto w-14 h-14 rounded-full bg-[#FFF3CD] flex items-center justify-center mb-4">
+            <Lock className="w-7 h-7 text-[#C9A227]" />
+          </div>
+          <h2 id="cookie-block-title" className="text-xl font-semibold text-[#0A2540] mb-2">
+            Cookies are required
+          </h2>
+          <p className="text-sm text-gray-600 mb-6">
+            Amerilend uses cookies to keep you signed in, secure your session, and run essential
+            parts of the site. You must accept cookies to continue using the website.
+          </p>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={acceptAll}
+              className="w-full px-5 py-3 text-sm font-semibold text-white bg-[#0A2540] hover:bg-[#0d3158] rounded-lg transition-colors"
+            >
+              Accept Cookies & Continue
+            </button>
+            <Link href="/legal/privacy-policy" className="text-xs text-gray-500 hover:text-[#0A2540] underline">
+              Read our Privacy Policy
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!showBanner) return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 p-4 animate-in slide-in-from-bottom-4 duration-500">
@@ -60,7 +137,7 @@ export default function CookieConsent() {
         <div className="flex-1 text-sm text-gray-600 space-y-3">
           <p>
             We use cookies to enhance your experience, analyze site traffic, and personalize content.
-            You can choose which optional cookies to allow.{" "}
+            Cookies are required to use Amerilend &mdash; you can fine-tune optional categories below.{" "}
             <Link href="/legal/privacy-policy" className="text-[#0A2540] underline hover:text-[#C9A227]">
               Privacy Policy
             </Link>
@@ -101,10 +178,10 @@ export default function CookieConsent() {
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto flex-wrap">
           <button
-            onClick={rejectOptional}
+            onClick={denyAll}
             className="flex-1 sm:flex-none px-4 py-2 text-sm text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg transition-colors"
           >
-            Reject Optional
+            Decline
           </button>
           <button
             onClick={saveSelected}
@@ -119,13 +196,6 @@ export default function CookieConsent() {
             Accept All
           </button>
         </div>
-        <button
-          onClick={rejectOptional}
-          className="absolute top-2 right-2 sm:static text-gray-400 hover:text-gray-600"
-          aria-label="Close cookie banner"
-        >
-          <X className="w-4 h-4" />
-        </button>
       </div>
     </div>
   );
