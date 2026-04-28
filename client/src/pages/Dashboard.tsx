@@ -91,8 +91,17 @@ export default function Dashboard() {
   const [expandedLoan, setExpandedLoan] = useState<number | null>(null);
   const [newMessage, setNewMessage] = useState("");
 
-  // Onboarding tutorial for first-time users
-  const onboarding = useOnboarding("amerilend_dashboard_onboarding");
+  // Onboarding tutorial — auto-open ONLY for genuinely brand-new users:
+  //   * we know loans have loaded (`!isLoading`)
+  //   * they have zero applications (`loans.length === 0`)
+  // Anyone with at least one application is past the "first-time" stage and
+  // should not have the tour blocking the dashboard on every login. The hook
+  // also persists the "seen" flag in both localStorage AND a long-lived cookie
+  // so the tour doesn't reappear when one storage layer is wiped.
+  const isBrandNewUser = !isLoading && (loans?.length ?? 0) === 0;
+  const onboarding = useOnboarding("amerilend_dashboard_onboarding", {
+    autoOpen: isBrandNewUser,
+  });
   const [messageAttachment, setMessageAttachment] = useState<File | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<number | null>(null);
   const [showNewTicketForm, setShowNewTicketForm] = useState(false);
@@ -322,8 +331,11 @@ export default function Dashboard() {
   };
 
   const handleLogout = () => {
+    // logout() navigates to /api/logout (which clears the httpOnly session
+    // cookie server-side and then 302s back to "/"). Don't overwrite
+    // window.location here — that cancels the navigation to /api/logout and
+    // leaves the user authenticated.
     logout();
-    window.location.href = "/";
   };
 
   const handleSendMessage = async () => {
@@ -378,12 +390,24 @@ export default function Dashboard() {
   };
 
   // Calculate dashboard statistics
+  const ACTIVE_LOAN_STATUSES = new Set([
+    "pending",
+    "under_review",
+    "approved",
+    "fee_pending",
+    "fee_paid",
+    "disbursed",
+  ]);
   const stats = {
     total: loans?.length || 0,
-    approved: loans?.filter(l => l.status === "approved" || l.status === "fee_pending" || l.status === "fee_paid" || l.status === "disbursed").length || 0,
-    pending: loans?.filter(l => l.status === "pending").length || 0,
+    // Approved = lender said yes, but NOT fee_pending (which is shown
+    // separately as "Payment Required" so the user knows action is needed).
+    approved: loans?.filter(l => l.status === "approved" || l.status === "fee_paid" || l.status === "disbursed").length || 0,
+    pending: loans?.filter(l => l.status === "pending" || l.status === "under_review").length || 0,
+    paymentRequired: loans?.filter(l => l.status === "fee_pending").length || 0,
     totalFunded: loans?.filter(l => l.status === "disbursed").reduce((sum, l) => sum + (l.approvedAmount || 0), 0) || 0,
   };
+  const hasActiveLoan = !!loans?.some(l => ACTIVE_LOAN_STATUSES.has(l.status));
 
   if (!isAuthenticated) {
     return (
@@ -653,21 +677,6 @@ export default function Dashboard() {
                 <Download className="w-5 h-5" />
                 <span className="text-sm">Documents</span>
               </button>
-
-              <button
-                onClick={() => {
-                  setActiveTab("security");
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
-                  activeTab === "security"
-                    ? "bg-[#0A2540] text-white font-medium shadow-sm"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                <Lock className="w-5 h-5" />
-                <span className="text-sm">Security</span>
-              </button>
             </div>
 
             <div className="mt-6 pt-6 border-t border-slate-100">
@@ -783,8 +792,9 @@ export default function Dashboard() {
         {/* Main Content */}
         <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">
           <div className="max-w-7xl mx-auto">
-          {/* Analytics Dashboard - Premium Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+          {/* Analytics Dashboard - Premium Cards (only on Applications tab) */}
+          {activeTab === "applications" && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 mb-8">
             <div className="bg-white rounded-xl border border-slate-200/60 p-5 hover:shadow-md transition-all group">
               <div className="flex items-start justify-between">
                 <div>
@@ -824,6 +834,18 @@ export default function Dashboard() {
             <div className="bg-white rounded-xl border border-slate-200/60 p-5 hover:shadow-md transition-all group">
               <div className="flex items-start justify-between">
                 <div>
+                  <p className="text-sm text-slate-500 mb-1">Payment Required</p>
+                  <p className="text-3xl font-semibold text-orange-600 tracking-tight">{stats.paymentRequired}</p>
+                </div>
+                <div className="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center group-hover:bg-orange-100 transition-colors">
+                  <AlertCircle className="w-5 h-5 text-orange-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-slate-200/60 p-5 hover:shadow-md transition-all group">
+              <div className="flex items-start justify-between">
+                <div>
                   <p className="text-sm text-slate-500 mb-1">Total Funded</p>
                   <p className="text-2xl font-semibold text-emerald-600 tracking-tight">
                     {new Intl.NumberFormat("en-US", {
@@ -839,6 +861,7 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+          )}
 
           {/* Tab Content Based on activeTab */}
           {activeTab === "applications" && (
@@ -1454,13 +1477,50 @@ export default function Dashboard() {
             {/* Quick Apply Tab - NEW FEATURE */}
             {activeTab === "quick-apply" && (
               <div className="space-y-6">
-                <QuickApply 
-                  existingUserData={{
-                    name: user?.name || "",
-                    email: user?.email || "",
-                    phone: "", // Would come from user profile
-                  }}
-                />
+                {hasActiveLoan ? (
+                  <Card className="border-2 border-amber-300 bg-amber-50/50">
+                    <CardHeader>
+                      <CardTitle className="text-2xl text-[#0A2540] flex items-center gap-2">
+                        <AlertCircle className="w-6 h-6 text-amber-600" />
+                        You already have an active loan
+                      </CardTitle>
+                      <CardDescription className="text-amber-900">
+                        For your protection, only one loan can be open at a time. You can submit a new
+                        application once your current loan is fully repaid (or the application is
+                        withdrawn or rejected).
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <p className="text-sm text-amber-900">
+                        Active loans/applications:
+                      </p>
+                      <ul className="list-disc list-inside text-sm text-amber-900 space-y-1">
+                        {loans?.filter(l => ACTIVE_LOAN_STATUSES.has(l.status)).map(l => (
+                          <li key={l.id}>
+                            <span className="font-mono">{l.trackingNumber}</span>
+                            {" \u00B7 "}
+                            <span className="capitalize">{l.status.replace(/_/g, " ")}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <Button
+                        variant="outline"
+                        onClick={() => setActiveTab("applications")}
+                        className="mt-2"
+                      >
+                        View My Applications
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <QuickApply
+                    existingUserData={{
+                      name: user?.name || "",
+                      email: user?.email || "",
+                      phone: "", // Would come from user profile
+                    }}
+                  />
+                )}
               </div>
             )}
 
@@ -1885,9 +1945,22 @@ export default function Dashboard() {
               <AutoPaySettings loans={loans} />
             )}
 
-            {/* Security & 2FA Tab - NEW FEATURE #2 */}
+            {/* Security & 2FA — moved into Settings (kept here as a fallback redirect
+                in case anyone lands on this tab via a stale URL/state). */}
             {activeTab === "security" && (
-              <TwoFactorAuth />
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-2xl text-[#0A2540]">Security</CardTitle>
+                  <CardDescription>
+                    Security settings have moved to the Settings page.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button asChild>
+                    <Link href="/settings?tab=2fa">Open Settings · Security</Link>
+                  </Button>
+                </CardContent>
+              </Card>
             )}
 
             {/* Payment Schedule Section */}

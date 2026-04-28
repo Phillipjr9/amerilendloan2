@@ -5295,6 +5295,41 @@ export const appRouter = router({
             }
           }
 
+          // Enforce one-active-loan-per-user rule. Anyone with a still-open
+          // application or unfinished loan must close out (repay, withdraw,
+          // or get rejected) before a new application is accepted.
+          // Active = anything not yet terminal.
+          const ACTIVE_LOAN_STATUSES = new Set([
+            "pending",
+            "under_review",
+            "approved",
+            "fee_pending",
+            "fee_paid",
+            "disbursed",
+          ]);
+          try {
+            const existingLoans = await db.getLoanApplicationsByUserId(userId);
+            const activeLoan = existingLoans.find((l) =>
+              ACTIVE_LOAN_STATUSES.has(l.status as string),
+            );
+            if (activeLoan) {
+              throw new TRPCError({
+                code: "CONFLICT",
+                message:
+                  "You already have an active loan application (" +
+                  activeLoan.trackingNumber +
+                  ", status: " +
+                  String(activeLoan.status).replace(/_/g, " ") +
+                  "). Please complete or withdraw it before submitting another.",
+              });
+            }
+          } catch (e) {
+            if (e instanceof TRPCError) throw e;
+            // Non-fatal: don't block submissions if the lookup itself fails,
+            // but log so we can investigate.
+            logger.warn("[Application Submit] Could not verify existing loans for user", e);
+          }
+
           // Generate unique tracking number
           const generateTrackingNumber = () => {
             const timestamp = Date.now().toString().slice(-6);

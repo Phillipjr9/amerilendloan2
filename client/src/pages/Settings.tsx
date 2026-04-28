@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, Lock, Bell, Shield, Eye, EyeOff, AlertTriangle, User, Smartphone, Trash2, LogOut, Download, Globe } from "lucide-react";
+import { ArrowLeft, Lock, Bell, Shield, Eye, EyeOff, AlertTriangle, User, Smartphone, Trash2, LogOut, Download, Globe, Activity as ActivityIcon, KeyRound } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import { trpc } from "@/lib/trpc";
 import { toTitleCase } from "@shared/format";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import TwoFactorAuth from "@/components/TwoFactorAuth";
 import {
   COMPANY_PHONE_DISPLAY_SHORT,
   COMPANY_PHONE_RAW,
@@ -83,6 +84,17 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState<"password" | "email" | "bank" | "notifications" | "profile" | "language" | "2fa" | "devices" | "activity" | "privacy">("password");
   const [activityLog, setActivityLog] = useState<any[]>([]);
   const [trustedDevices, setTrustedDevices] = useState<any[]>([]);
+
+  // Honor ?tab=<name> deep links (e.g. /settings?tab=2fa from the dashboard).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    const allowed = ["password", "email", "bank", "profile", "language", "notifications", "2fa", "devices", "activity", "privacy"] as const;
+    if (tab && (allowed as readonly string[]).includes(tab)) {
+      setActiveTab(tab as any);
+    }
+  }, []);
 
   // tRPC mutations
   const updatePasswordMutation = trpc.auth.updatePassword.useMutation({
@@ -428,7 +440,7 @@ export default function Settings() {
         <div className="container mx-auto px-4 max-w-4xl">
           {/* Tabs */}
           <div className="flex gap-2 mb-6 border-b flex-wrap">
-            {["password", "email", "bank", "profile", "language", "notifications", "privacy"].map((tab) => (
+            {["password", "email", "bank", "profile", "language", "notifications", "2fa", "devices", "activity", "privacy"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab as any)}
@@ -444,8 +456,11 @@ export default function Settings() {
                 {tab === "profile" && <User className="w-4 h-4 inline mr-2" />}
                 {tab === "language" && <Globe className="w-4 h-4 inline mr-2" />}
                 {tab === "notifications" && <Bell className="w-4 h-4 inline mr-2" />}
+                {tab === "2fa" && <KeyRound className="w-4 h-4 inline mr-2" />}
+                {tab === "devices" && <Smartphone className="w-4 h-4 inline mr-2" />}
+                {tab === "activity" && <ActivityIcon className="w-4 h-4 inline mr-2" />}
                 {tab === "privacy" && <Download className="w-4 h-4 inline mr-2" />}
-                {tab === "2fa" ? "2FA" : tab === "privacy" ? "Privacy & Data" : tab}
+                {tab === "2fa" ? "Security (2FA)" : tab === "privacy" ? "Privacy & Data" : tab === "devices" ? "Devices" : tab === "activity" ? "Activity" : tab}
               </button>
             ))}
           </div>
@@ -929,6 +944,22 @@ export default function Settings() {
             </Card>
           )}
 
+          {/* Two-Factor Authentication Tab */}
+          {activeTab === "2fa" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl text-[#0A2540]">Security &amp; Two-Factor Authentication</CardTitle>
+                <CardDescription>
+                  Add an extra layer of protection to your account. When 2FA is enabled,
+                  sign-in, password changes, and bank updates require a one-time code.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TwoFactorAuth />
+              </CardContent>
+            </Card>
+          )}
+
           {/* Trusted Devices Tab */}
           {activeTab === "devices" && (
             <Card>
@@ -979,6 +1010,52 @@ export default function Settings() {
                   </div>
                 ) : (
                   <p className="text-gray-600 text-center py-8">No trusted devices found</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Activity Log Tab */}
+          {activeTab === "activity" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl text-[#0A2540]">Account Activity</CardTitle>
+                <CardDescription>
+                  Recent sign-ins and security events on your account.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button
+                  onClick={() => getActivityLogQuery.refetch()}
+                  variant="outline"
+                  className="w-full"
+                  disabled={getActivityLogQuery.isFetching}
+                >
+                  {getActivityLogQuery.isFetching ? "Loading..." : "Refresh Activity"}
+                </Button>
+                {getActivityLogQuery.data && getActivityLogQuery.data.length > 0 ? (
+                  <div className="space-y-2">
+                    {getActivityLogQuery.data.map((event: any) => (
+                      <div key={event.id} className="border border-gray-200 rounded-lg p-3 flex items-start justify-between">
+                        <div>
+                          <p className="font-medium text-gray-800 capitalize">{(event.action || "event").replace(/_/g, " ")}</p>
+                          {event.ipAddress && (
+                            <p className="text-xs text-gray-500">IP: {event.ipAddress}</p>
+                          )}
+                          {event.userAgent && (
+                            <p className="text-xs text-gray-500 truncate max-w-md">{event.userAgent}</p>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 whitespace-nowrap ml-4">
+                          {event.createdAt ? new Date(event.createdAt).toLocaleString() : ""}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-600 text-center py-8">
+                    {getActivityLogQuery.isLoading ? "Loading activity..." : "No activity recorded yet"}
+                  </p>
                 )}
               </CardContent>
             </Card>

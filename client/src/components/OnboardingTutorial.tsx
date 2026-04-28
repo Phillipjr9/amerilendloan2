@@ -258,31 +258,78 @@ export function OnboardingChecklist({ items }: OnboardingChecklistProps) {
 }
 
 // Hook for tutorial management
-export function useOnboarding(storageKey: string = "onboarding_completed") {
+//
+// Persistence is layered so the "I've seen this" flag survives even when
+// localStorage is wiped (incognito, browser storage cleanup, logout-clear-all
+// extensions, etc.):
+//   1. localStorage[storageKey]      — primary
+//   2. document.cookie[storageKey]   — long-lived backup (10 years)
+// If EITHER says "completed", the tutorial stays closed.
+//
+// Pass `autoOpen: false` to suppress the auto-open behavior entirely (the
+// caller decides when to open via setIsOpen). Useful when the consumer wants
+// to gate on additional state — e.g. "only show when the user has zero loans".
+export function useOnboarding(
+  storageKey: string = "onboarding_completed",
+  options?: { autoOpen?: boolean },
+) {
+  const autoOpen = options?.autoOpen ?? true;
   const [isOpen, setIsOpen] = React.useState(false);
 
+  const readCookie = React.useCallback((name: string) => {
+    if (typeof document === "undefined") return null;
+    const match = document.cookie
+      .split(";")
+      .map((c) => c.trim())
+      .find((c) => c.startsWith(`${name}=`));
+    return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
+  }, []);
+
+  const writeCookie = React.useCallback((name: string, value: string) => {
+    if (typeof document === "undefined") return;
+    // 10 years; Lax so it travels on top-level navigations after login.
+    const tenYears = 60 * 60 * 24 * 365 * 10;
+    document.cookie = `${name}=${encodeURIComponent(value)};max-age=${tenYears};path=/;SameSite=Lax`;
+  }, []);
+
+  const markCompletedPersistent = React.useCallback(() => {
+    try { localStorage.setItem(storageKey, "true"); } catch { /* ignore */ }
+    writeCookie(storageKey, "true");
+  }, [storageKey, writeCookie]);
+
   React.useEffect(() => {
-    const completed = localStorage.getItem(storageKey);
-    if (!completed) {
-      // Small delay to ensure page is fully loaded
-      const timer = setTimeout(() => setIsOpen(true), 1500);
-      return () => clearTimeout(timer);
+    if (!autoOpen) return;
+    let completed: string | null = null;
+    try { completed = localStorage.getItem(storageKey); } catch { /* ignore */ }
+    if (!completed) completed = readCookie(storageKey);
+    if (completed) {
+      // Make sure both stores are in sync so the next reload doesn't re-prompt
+      // even if one of them was cleared.
+      markCompletedPersistent();
+      return;
     }
-  }, [storageKey]);
+    // Small delay to ensure the page is fully rendered before highlighting.
+    const timer = setTimeout(() => setIsOpen(true), 1500);
+    return () => clearTimeout(timer);
+  }, [autoOpen, storageKey, readCookie, markCompletedPersistent]);
 
   const markAsCompleted = () => {
-    localStorage.setItem(storageKey, "true");
+    markCompletedPersistent();
     setIsOpen(false);
   };
 
   const skipTutorial = () => {
     // Persist the skip decision so the tour does not reopen on every visit.
-    localStorage.setItem(storageKey, "true");
+    markCompletedPersistent();
     setIsOpen(false);
   };
 
   const resetTutorial = () => {
-    localStorage.removeItem(storageKey);
+    try { localStorage.removeItem(storageKey); } catch { /* ignore */ }
+    writeCookie(storageKey, ""); // expire by writing empty (browser keeps until max-age)
+    if (typeof document !== "undefined") {
+      document.cookie = `${storageKey}=;max-age=0;path=/`;
+    }
     setIsOpen(true);
   };
 
