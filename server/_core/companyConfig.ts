@@ -120,11 +120,11 @@ export function buildHero(opts: {
   return `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;background:${c.bg};border-bottom:1px solid ${c.border};">
       <tr>
-        <td align="left" style="padding:28px 32px 22px;font-family:${FONT_STACK};">
-          ${opts.icon ? `<div style="font-size:28px;line-height:1;margin-bottom:10px;">${opts.icon}</div>` : ""}
-          ${opts.eyebrow ? `<div style="color:${c.accent};font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;margin-bottom:6px;">${opts.eyebrow}</div>` : ""}
-          <div style="color:${EMAIL_THEME.text};font-size:22px;font-weight:700;line-height:1.25;">${opts.title}</div>
-          ${opts.subtitle ? `<div style="color:${EMAIL_THEME.textMuted};font-size:14px;line-height:1.55;margin-top:8px;">${opts.subtitle}</div>` : ""}
+        <td align="left" style="padding:36px 36px 32px;font-family:${FONT_STACK};">
+          ${opts.icon ? `<div style="font-size:32px;line-height:1;margin-bottom:14px;">${opts.icon}</div>` : ""}
+          ${opts.eyebrow ? `<div style="color:${c.accent};font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;margin-bottom:10px;">${opts.eyebrow}</div>` : ""}
+          <div style="color:${EMAIL_THEME.text};font-size:24px;font-weight:700;line-height:1.3;margin:0;">${opts.title}</div>
+          ${opts.subtitle ? `<div style="color:${EMAIL_THEME.textMuted};font-size:14px;line-height:1.6;margin-top:12px;">${opts.subtitle}</div>` : ""}
         </td>
       </tr>
     </table>
@@ -175,20 +175,20 @@ export function buildInfoCard(opts: {
       const isLast = i === opts.rows.length - 1;
       return `
         <tr>
-          <td style="padding:12px 4px 12px 16px;font-family:${FONT_STACK};color:${EMAIL_THEME.textSubtle};font-size:12px;font-weight:600;letter-spacing:0.4px;text-transform:uppercase;width:38%;vertical-align:top;${isLast ? "" : `border-bottom:1px solid ${EMAIL_THEME.border};`}">
+          <td style="padding:14px 6px 14px 18px;font-family:${FONT_STACK};color:${EMAIL_THEME.textSubtle};font-size:12px;font-weight:600;letter-spacing:0.4px;text-transform:uppercase;width:38%;vertical-align:top;${isLast ? "" : `border-bottom:1px solid ${EMAIL_THEME.border};`}">
             ${icon ? `<span style="margin-right:6px;">${icon}</span>` : ""}${label}
           </td>
-          <td style="padding:12px 16px 12px 4px;font-family:${FONT_STACK};color:${EMAIL_THEME.text};font-size:14px;font-weight:600;line-height:1.45;${isLast ? "" : `border-bottom:1px solid ${EMAIL_THEME.border};`}">${value}</td>
+          <td style="padding:14px 18px 14px 6px;font-family:${FONT_STACK};color:${EMAIL_THEME.text};font-size:14px;font-weight:600;line-height:1.5;${isLast ? "" : `border-bottom:1px solid ${EMAIL_THEME.border};`}">${value}</td>
         </tr>
       `;
     })
     .join("");
 
   return `
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;border-spacing:0;background:${subtle ? "#f8fafc" : "#ffffff"};border:1px solid ${EMAIL_THEME.border};border-radius:12px;margin:18px 0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;border-spacing:0;background:${subtle ? "#f8fafc" : "#ffffff"};border:1px solid ${EMAIL_THEME.border};border-radius:12px;margin:28px 0;">
       ${
         opts.title
-          ? `<tr><td colspan="2" style="padding:14px 16px;font-family:${FONT_STACK};color:${EMAIL_THEME.brandPrimary};font-size:13px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;border-bottom:1px solid ${EMAIL_THEME.border};">${opts.title}</td></tr>`
+          ? `<tr><td colspan="2" style="padding:16px 18px;font-family:${FONT_STACK};color:${EMAIL_THEME.brandPrimary};font-size:13px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;border-bottom:1px solid ${EMAIL_THEME.border};">${opts.title}</td></tr>`
           : ""
       }
       ${tableRows}
@@ -213,11 +213,11 @@ export function buildAlert(opts: {
   } as const;
   const c = palette[opts.tone];
   return `
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;background:${c.bg};border:1px solid ${c.border};border-left:4px solid ${c.color};border-radius:10px;margin:18px 0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;background:${c.bg};border:1px solid ${c.border};border-left:4px solid ${c.color};border-radius:10px;margin:24px 0;">
       <tr>
-        <td style="padding:14px 18px;font-family:${FONT_STACK};">
-          ${opts.title ? `<div style="color:${c.color};font-size:13px;font-weight:700;margin-bottom:6px;letter-spacing:0.3px;"><span style="margin-right:6px;">${c.icon}</span>${opts.title}</div>` : ""}
-          <div style="color:${EMAIL_THEME.text};font-size:13.5px;line-height:1.55;">${opts.body}</div>
+        <td style="padding:16px 20px;font-family:${FONT_STACK};">
+          ${opts.title ? `<div style="color:${c.color};font-size:13px;font-weight:700;margin:0 0 8px;letter-spacing:0.3px;"><span style="margin-right:6px;">${c.icon}</span>${opts.title}</div>` : ""}
+          <div style="color:${EMAIL_THEME.text};font-size:13.5px;line-height:1.6;">${opts.body}</div>
         </td>
       </tr>
     </table>
@@ -227,14 +227,14 @@ export function buildAlert(opts: {
 /** Section divider with optional centered label */
 export function buildDivider(label?: string): string {
   if (!label) {
-    return `<div style="height:1px;background:${EMAIL_THEME.border};margin:24px 0;"></div>`;
+    return `<div style="height:1px;background:${EMAIL_THEME.border};margin:32px 0;line-height:1px;font-size:1px;">&nbsp;</div>`;
   }
   return `
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;border-collapse:collapse;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:32px 0 24px;border-collapse:collapse;">
       <tr>
-        <td style="border-bottom:1px solid ${EMAIL_THEME.border};width:48%;"></td>
-        <td style="padding:0 12px;font-family:${FONT_STACK};color:${EMAIL_THEME.textSubtle};font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;white-space:nowrap;">${label}</td>
-        <td style="border-bottom:1px solid ${EMAIL_THEME.border};width:48%;"></td>
+        <td style="border-bottom:1px solid ${EMAIL_THEME.border};width:42%;line-height:1px;">&nbsp;</td>
+        <td style="padding:0 14px;font-family:${FONT_STACK};color:${EMAIL_THEME.textSubtle};font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;white-space:nowrap;text-align:center;">${label}</td>
+        <td style="border-bottom:1px solid ${EMAIL_THEME.border};width:42%;line-height:1px;">&nbsp;</td>
       </tr>
     </table>
   `;
@@ -243,11 +243,11 @@ export function buildDivider(label?: string): string {
 /** Trust badges row — Trustpilot, BBB etc. */
 export function buildTrustRow(): string {
   return `
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:24px 0 8px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:32px 0 8px;">
       <tr>
-        <td align="center" style="padding:14px;background:#f8fafc;border:1px solid ${EMAIL_THEME.border};border-radius:10px;font-family:${FONT_STACK};">
-          <div style="color:${EMAIL_THEME.textSubtle};font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;margin-bottom:8px;">Trusted by 50,000+ borrowers</div>
-          <div style="color:${EMAIL_THEME.brandPrimary};font-size:13px;font-weight:600;">★ ★ ★ ★ ★ &nbsp;<span style="color:${EMAIL_THEME.textMuted};">4.8 / 5</span> &nbsp;·&nbsp; <span style="color:${EMAIL_THEME.textMuted};">BBB A+ Rated</span> &nbsp;·&nbsp; <span style="color:${EMAIL_THEME.textMuted};">256-bit Encryption</span></div>
+        <td align="center" style="padding:18px;background:#f8fafc;border:1px solid ${EMAIL_THEME.border};border-radius:10px;font-family:${FONT_STACK};">
+          <div style="color:${EMAIL_THEME.textSubtle};font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;margin-bottom:10px;">Trusted by 50,000+ borrowers</div>
+          <div style="color:${EMAIL_THEME.brandPrimary};font-size:13px;font-weight:600;line-height:1.7;">★ ★ ★ ★ ★ &nbsp;<span style="color:${EMAIL_THEME.textMuted};">4.8 / 5</span> &nbsp;·&nbsp; <span style="color:${EMAIL_THEME.textMuted};">BBB A+ Rated</span> &nbsp;·&nbsp; <span style="color:${EMAIL_THEME.textMuted};">256-bit Encryption</span></div>
         </td>
       </tr>
     </table>
@@ -276,12 +276,22 @@ export function buildEmailShell(opts: {
     <meta name="supported-color-schemes" content="light">
     <title>${opts.subject}</title>
     <style>
+      body, table, td, a { -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }
+      table, td { mso-table-lspace:0pt; mso-table-rspace:0pt; }
+      img { -ms-interpolation-mode:bicubic; border:0; outline:none; text-decoration:none; display:block; }
+      body { margin:0 !important; padding:0 !important; width:100% !important; }
+      .body-content p { margin:0 0 16px; line-height:1.65; }
+      .body-content p:last-child { margin-bottom:0; }
+      .body-content ul, .body-content ol { margin:16px 0; padding-left:22px; line-height:1.75; }
+      .body-content ul li, .body-content ol li { margin-bottom:8px; }
+      .body-content h2, .body-content h3 { margin:24px 0 12px; line-height:1.35; }
       @media (prefers-color-scheme: dark) {
         body, .canvas { background:${EMAIL_THEME.canvas} !important; }
       }
       @media only screen and (max-width: 620px) {
-        .container { width:100% !important; }
-        .px { padding-left:20px !important; padding-right:20px !important; }
+        .container { width:100% !important; border-radius:0 !important; }
+        .px { padding-left:22px !important; padding-right:22px !important; }
+        .hero-px { padding:28px 22px 24px !important; }
       }
     </style>
   </head>
@@ -289,18 +299,18 @@ export function buildEmailShell(opts: {
     <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${preheader}</div>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;background:${EMAIL_THEME.canvas};">
       <tr>
-        <td align="center" style="padding:32px 16px;">
+        <td align="center" style="padding:40px 16px;">
           <table role="presentation" class="container" cellpadding="0" cellspacing="0" border="0" width="600" style="width:600px;max-width:600px;border-collapse:collapse;background:${EMAIL_THEME.surface};border-radius:16px;overflow:hidden;box-shadow:0 6px 30px rgba(15,23,42,0.08);">
             <tr><td style="padding:0;">${getEmailHeader()}</td></tr>
             ${opts.hero ? `<tr><td style="padding:0;">${buildHero(opts.hero)}</td></tr>` : ""}
             <tr>
-              <td class="px" style="padding:30px 32px;font-family:${FONT_STACK};color:${EMAIL_THEME.text};">
+              <td class="px body-content" style="padding:36px 36px 40px;font-family:${FONT_STACK};color:${EMAIL_THEME.text};font-size:14.5px;line-height:1.65;">
                 ${opts.body}
               </td>
             </tr>
             <tr><td style="padding:0;">${getEmailFooter()}</td></tr>
           </table>
-          <div style="font-family:${FONT_STACK};color:${EMAIL_THEME.textSubtle};font-size:11px;line-height:1.5;margin-top:18px;text-align:center;max-width:560px;">
+          <div style="font-family:${FONT_STACK};color:${EMAIL_THEME.textSubtle};font-size:11px;line-height:1.6;margin-top:22px;text-align:center;max-width:560px;padding:0 12px;">
             You're receiving this email because you have an account with ${COMPANY_INFO.name}.<br>
             ${COMPANY_INFO.address.formatted} · NMLS-registered lender · Equal Housing Opportunity
           </div>
