@@ -15,7 +15,8 @@ import {
   Eye, ChevronLeft, ChevronRight, Loader2, AlertTriangle,
   FileText, CreditCard, DollarSign, Clock, Activity,
   StickyNote, RefreshCw, Mail, Phone, MapPin,
-  Calendar, Globe, Lock, Unlock, Snowflake
+  Calendar, Globe, Lock, Unlock, Snowflake,
+  XCircle as XCircleIcon
 } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
@@ -269,6 +270,76 @@ export default function AdminUserManagement() {
       utils.admin.getUserFullProfile.invalidate();
     },
     onError: (err) => toast.error(err.message),
+  });
+
+  // ── Verification documents (per-user) ───────────────────────────────────
+  const [docPreview, setDocPreview] = useState<{
+    id: number;
+    url: string | null;
+    loading: boolean;
+    fileName: string;
+    mimeType: string;
+    documentType: string;
+    status: string;
+  } | null>(null);
+  const [docRejectDialog, setDocRejectDialog] = useState<{ id: number; reason: string } | null>(null);
+
+  const openDocumentPreview = async (doc: {
+    id: number;
+    fileName: string;
+    mimeType: string;
+    documentType: string;
+    status: string;
+    filePath: string;
+  }) => {
+    setDocPreview({
+      id: doc.id,
+      url: null,
+      loading: true,
+      fileName: doc.fileName,
+      mimeType: doc.mimeType,
+      documentType: doc.documentType,
+      status: doc.status,
+    });
+    try {
+      const res = await fetch(`/api/view-document/${doc.id}`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setDocPreview((prev) => (prev ? { ...prev, url: data.url, loading: false } : prev));
+      } else {
+        setDocPreview((prev) => (prev ? { ...prev, url: doc.filePath, loading: false } : prev));
+      }
+    } catch {
+      setDocPreview((prev) => (prev ? { ...prev, url: doc.filePath, loading: false } : prev));
+    }
+  };
+
+  const approveDocMutation = trpc.verification.adminApprove.useMutation({
+    onSuccess: () => {
+      toast.success("Document approved");
+      utils.admin.getUserFullProfile.invalidate();
+      setDocPreview(null);
+    },
+    onError: (err) => toast.error(err.message || "Approval failed"),
+  });
+
+  const rejectDocMutation = trpc.verification.adminReject.useMutation({
+    onSuccess: () => {
+      toast.success("Document rejected");
+      utils.admin.getUserFullProfile.invalidate();
+      setDocRejectDialog(null);
+      setDocPreview(null);
+    },
+    onError: (err) => toast.error(err.message || "Rejection failed"),
+  });
+
+  const reverifyDocMutation = trpc.verification.adminRequestReverification.useMutation({
+    onSuccess: () => {
+      toast.success("Re-verification requested");
+      utils.admin.getUserFullProfile.invalidate();
+      setDocPreview(null);
+    },
+    onError: (err) => toast.error(err.message || "Request failed"),
   });
 
   const handleOpenEdit = (user: Record<string, unknown>) => {
@@ -667,10 +738,15 @@ export default function AdminUserManagement() {
           {/* Documents Tab */}
           <TabsContent value="documents">
             <Card>
-              <CardHeader><CardTitle>Verification Documents</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle>Verification Documents</CardTitle>
+                <CardDescription>
+                  Click <strong>View</strong> to open the actual file the user uploaded. Approve, reject, or request a re-upload directly from here.
+                </CardDescription>
+              </CardHeader>
               <CardContent>
                 {!profile.documents?.length ? (
-                  <p className="text-gray-500 text-center py-8">No documents</p>
+                  <p className="text-gray-500 text-center py-8">No documents uploaded</p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -681,18 +757,90 @@ export default function AdminUserManagement() {
                           <th className="text-left p-3">File</th>
                           <th className="text-left p-3">Status</th>
                           <th className="text-left p-3">Uploaded</th>
+                          <th className="text-right p-3">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {profile.documents.map((doc) => (
-                          <tr key={doc.id} className="border-b hover:bg-gray-50">
-                            <td className="p-3">{doc.id}</td>
-                            <td className="p-3">{doc.documentType}</td>
-                            <td className="p-3">{doc.fileName || "N/A"}</td>
-                            <td className="p-3"><Badge variant="outline">{doc.status}</Badge></td>
-                            <td className="p-3">{new Date(doc.createdAt).toLocaleDateString()}</td>
-                          </tr>
-                        ))}
+                        {profile.documents.map((doc) => {
+                          const sizeKb = doc.fileSize ? Math.round(doc.fileSize / 1024) : 0;
+                          const statusBadgeClass =
+                            doc.status === "approved"
+                              ? "bg-green-100 text-green-800 border-green-300"
+                              : doc.status === "rejected"
+                                ? "bg-red-100 text-red-800 border-red-300"
+                                : doc.status === "under_review"
+                                  ? "bg-blue-100 text-blue-800 border-blue-300"
+                                  : "bg-yellow-100 text-yellow-800 border-yellow-300";
+                          return (
+                            <tr key={doc.id} className="border-b hover:bg-gray-50 align-top">
+                              <td className="p-3 font-mono text-xs text-gray-500">#{doc.id}</td>
+                              <td className="p-3">
+                                <div className="font-medium">{doc.documentType}</div>
+                              </td>
+                              <td className="p-3">
+                                <div className="font-medium truncate max-w-[220px]" title={doc.fileName || ""}>
+                                  {doc.fileName || "—"}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {doc.mimeType || "unknown"}{sizeKb ? ` · ${sizeKb} KB` : ""}
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <Badge variant="outline" className={statusBadgeClass}>
+                                  {doc.status}
+                                </Badge>
+                              </td>
+                              <td className="p-3 whitespace-nowrap text-gray-700">
+                                {new Date(doc.createdAt).toLocaleDateString()}
+                                <div className="text-xs text-gray-400">
+                                  {new Date(doc.createdAt).toLocaleTimeString()}
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <div className="flex flex-wrap gap-1 justify-end">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 px-2 gap-1"
+                                    onClick={() =>
+                                      openDocumentPreview({
+                                        id: doc.id,
+                                        fileName: doc.fileName,
+                                        mimeType: doc.mimeType,
+                                        documentType: doc.documentType,
+                                        status: doc.status,
+                                        filePath: doc.filePath,
+                                      })
+                                    }
+                                  >
+                                    <Eye className="w-3 h-3" /> View
+                                  </Button>
+                                  {doc.status !== "approved" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 px-2 gap-1 border-green-300 text-green-700 hover:bg-green-50"
+                                      onClick={() => approveDocMutation.mutate({ id: doc.id })}
+                                      disabled={approveDocMutation.isPending}
+                                    >
+                                      Approve
+                                    </Button>
+                                  )}
+                                  {doc.status !== "rejected" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 px-2 gap-1 border-red-300 text-red-700 hover:bg-red-50"
+                                      onClick={() => setDocRejectDialog({ id: doc.id, reason: "" })}
+                                    >
+                                      Reject
+                                    </Button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -1208,6 +1356,161 @@ export default function AdminUserManagement() {
               >
                 {updateNotesMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Save Notes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Verification Document Preview */}
+        <Dialog open={!!docPreview} onOpenChange={(open) => !open && setDocPreview(null)}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" /> {docPreview?.documentType}
+              </DialogTitle>
+              <DialogDescription className="flex flex-wrap items-center gap-2">
+                <span>{docPreview?.fileName}</span>
+                <span className="text-gray-400">·</span>
+                <span>{docPreview?.mimeType}</span>
+                {docPreview?.status && (
+                  <>
+                    <span className="text-gray-400">·</span>
+                    <Badge variant="outline">{docPreview.status}</Badge>
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="min-h-[400px] flex items-center justify-center bg-gray-50 rounded-lg overflow-hidden">
+              {docPreview?.loading ? (
+                <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+              ) : !docPreview?.url ? (
+                <p className="text-sm text-gray-500">Unable to load document.</p>
+              ) : docPreview.mimeType?.startsWith("image/") ? (
+                <img
+                  src={docPreview.url}
+                  alt={docPreview.fileName}
+                  className="max-w-full max-h-[70vh] object-contain"
+                />
+              ) : docPreview.mimeType === "application/pdf" ? (
+                <iframe
+                  src={docPreview.url}
+                  title={docPreview.fileName}
+                  className="w-full h-[70vh] border-0"
+                />
+              ) : (
+                <div className="text-center p-8">
+                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-sm text-gray-600 mb-4">
+                    Preview not available for this file type.
+                  </p>
+                  <a
+                    href={docPreview.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline text-sm"
+                  >
+                    Open in new tab
+                  </a>
+                </div>
+              )}
+            </div>
+            <DialogFooter className="flex flex-wrap gap-2 justify-between sm:justify-between">
+              <div className="flex gap-2">
+                {docPreview?.url && (
+                  <Button asChild variant="outline" size="sm">
+                    <a href={docPreview.url} target="_blank" rel="noopener noreferrer">
+                      Open in new tab
+                    </a>
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {docPreview && docPreview.status !== "approved" && (
+                  <Button
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    onClick={() => approveDocMutation.mutate({ id: docPreview.id })}
+                    disabled={approveDocMutation.isPending}
+                  >
+                    {approveDocMutation.isPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+                    Approve
+                  </Button>
+                )}
+                {docPreview && docPreview.status !== "rejected" && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setDocRejectDialog({ id: docPreview.id, reason: "" })}
+                  >
+                    Reject
+                  </Button>
+                )}
+                {docPreview && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      reverifyDocMutation.mutate({
+                        id: docPreview.id,
+                        requestReason: "Please re-upload a clearer version of this document.",
+                      })
+                    }
+                    disabled={reverifyDocMutation.isPending}
+                  >
+                    Request re-upload
+                  </Button>
+                )}
+                <Button size="sm" variant="ghost" onClick={() => setDocPreview(null)}>
+                  Close
+                </Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reject Document Dialog */}
+        <Dialog open={!!docRejectDialog} onOpenChange={(open) => !open && setDocRejectDialog(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-600">
+                <XCircleIcon className="w-5 h-5" /> Reject Document
+              </DialogTitle>
+              <DialogDescription>
+                Tell the user why this document was rejected. They will receive an email with the reason.
+              </DialogDescription>
+            </DialogHeader>
+            <div>
+              <Label>Rejection reason</Label>
+              <Textarea
+                value={docRejectDialog?.reason || ""}
+                onChange={(e) =>
+                  setDocRejectDialog((prev) => (prev ? { ...prev, reason: e.target.value } : prev))
+                }
+                placeholder="e.g. Image is blurry, document is expired, name does not match account…"
+                rows={4}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDocRejectDialog(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={
+                  !docRejectDialog?.reason.trim() || rejectDocMutation.isPending
+                }
+                onClick={() => {
+                  if (!docRejectDialog) return;
+                  rejectDocMutation.mutate({
+                    id: docRejectDialog.id,
+                    rejectionReason: docRejectDialog.reason.trim(),
+                  });
+                }}
+              >
+                {rejectDocMutation.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Reject Document
               </Button>
             </DialogFooter>
           </DialogContent>
