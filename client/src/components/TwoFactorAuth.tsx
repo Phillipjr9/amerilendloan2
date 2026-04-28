@@ -20,6 +20,8 @@ export default function TwoFactorAuth() {
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [copiedCode, setCopiedCode] = useState<number | null>(null);
   const [disablePassword, setDisablePassword] = useState("");
+  const [regeneratedCodes, setRegeneratedCodes] = useState<string[]>([]);
+  const [showRegenDialog, setShowRegenDialog] = useState(false);
 
   // Fetch current 2FA status from server
   const { data: twoFASettings, isLoading: settingsLoading } = trpc.auth.get2FASettings.useQuery();
@@ -73,7 +75,8 @@ export default function TwoFactorAuth() {
   const regenBackupMutation = trpc.twoFactor.generateBackupCodes.useMutation({
     onSuccess: (res) => {
       const data = (res as any).data ?? res;
-      setBackupCodes(data.backupCodes || []);
+      setRegeneratedCodes(data.backupCodes || []);
+      setShowRegenDialog(true);
       toast.success("Backup codes regenerated");
     },
     onError: (err) => toast.error(err.message || "Failed to regenerate backup codes"),
@@ -107,6 +110,11 @@ export default function TwoFactorAuth() {
 
   const handleFinishSetup = () => {
     setShowSetupDialog(false);
+    setBackupCodes([]);
+    setVerificationCode("");
+    setTotpSecret("");
+    setQrCodeUrl("");
+    setSetupStep("method");
     utils.auth.get2FASettings.invalidate();
     toast.success("Two-factor authentication enabled!");
   };
@@ -226,31 +234,6 @@ export default function TwoFactorAuth() {
                 )}
                 Regenerate
               </Button>
-            </div>
-          )}
-
-          {/* Show newly generated backup codes */}
-          {backupCodes.length > 0 && !showSetupDialog && (
-            <div className="space-y-3 border rounded-lg p-4 bg-amber-50">
-              <p className="text-sm font-semibold text-amber-900">⚠️ Your Backup Codes (save these now)</p>
-              <div className="grid grid-cols-2 gap-2">
-                {backupCodes.map((code, index) => (
-                  <button
-                    key={index}
-                    onClick={() => copyToClipboard(code, index)}
-                    className="p-2 bg-white rounded border hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <code className="text-xs font-mono">{code}</code>
-                      {copiedCode === index ? (
-                        <Check className="w-3 h-3 text-green-600" />
-                      ) : (
-                        <Copy className="w-3 h-3 text-gray-400" />
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
             </div>
           )}
 
@@ -480,6 +463,41 @@ export default function TwoFactorAuth() {
             <Button variant="destructive" onClick={handleDisable2FA} disabled={disableMutation.isPending}>
               {disableMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Disable 2FA
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Regenerated Backup Codes Dialog */}
+      <Dialog open={showRegenDialog} onOpenChange={(open) => { setShowRegenDialog(open); if (!open) setRegeneratedCodes([]); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>New Backup Codes</DialogTitle>
+            <DialogDescription>
+              Save these codes in a safe place. Each can only be used once. Your previous backup codes are no longer valid.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-2 py-2">
+            {regeneratedCodes.map((code, index) => (
+              <button
+                key={index}
+                onClick={() => copyToClipboard(code, index)}
+                className="p-2 bg-amber-50 rounded border hover:bg-amber-100 transition-colors"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <code className="text-xs font-mono">{code}</code>
+                  {copiedCode === index ? (
+                    <Check className="w-3 h-3 text-green-600" />
+                  ) : (
+                    <Copy className="w-3 h-3 text-gray-400" />
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => { setShowRegenDialog(false); setRegeneratedCodes([]); }}>
+              I've Saved These Codes
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -16,7 +16,11 @@ import {
   COMPANY_SUPPORT_EMAIL,
   SUPPORT_HOURS_WEEKDAY,
   SUPPORT_HOURS_WEEKEND,
+  APP_TITLE,
+  APP_LOGO,
 } from "@/const";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 function formatPhoneNumber(value: string): string {
   const digits = value.replace(/\D/g, "").slice(0, 10);
@@ -155,6 +159,8 @@ export default function Settings() {
   const getTrustedDevicesQuery = trpc.auth.getTrustedDevices.useQuery(undefined, {
     enabled: isAuthenticated && activeTab === "devices",
   });
+
+  const trustCurrentDeviceMutation = trpc.auth.trustCurrentDevice.useMutation();
 
   const removeTrustedDeviceMutation = trpc.auth.removeTrustedDevice.useMutation({
     onSuccess: () => {
@@ -981,6 +987,32 @@ export default function Settings() {
                   Load Devices
                 </Button>
 
+                <Button
+                  onClick={async () => {
+                    try {
+                      const fp = `${navigator.userAgent}|${navigator.language}|${screen.width}x${screen.height}|${new Date().getTimezoneOffset()}`;
+                      let hash = 0;
+                      for (let i = 0; i < fp.length; i++) hash = ((hash << 5) - hash) + fp.charCodeAt(i);
+                      const fingerprint = `dev_${Math.abs(hash).toString(36)}_${Date.now().toString(36)}`;
+                      const ua = navigator.userAgent;
+                      const browser = ua.match(/(Chrome|Firefox|Safari|Edge|Opera)\/[\d.]+/i)?.[1] ?? "Browser";
+                      const os = /Windows/i.test(ua) ? "Windows" : /Mac/i.test(ua) ? "macOS" : /Linux/i.test(ua) ? "Linux" : /Android/i.test(ua) ? "Android" : /iPhone|iPad|iOS/i.test(ua) ? "iOS" : "Unknown";
+                      await trustCurrentDeviceMutation.mutateAsync({
+                        deviceName: `${browser} on ${os}`,
+                        deviceFingerprint: fingerprint,
+                      });
+                      toast.success("This device added to your trusted list");
+                      getTrustedDevicesQuery.refetch();
+                    } catch (err: any) {
+                      toast.error(err?.message || "Failed to trust this device");
+                    }
+                  }}
+                  disabled={trustCurrentDeviceMutation.isPending}
+                  className="w-full bg-[#0A2540] hover:bg-[#0d3a5c] text-white"
+                >
+                  {trustCurrentDeviceMutation.isPending ? "Adding..." : "Trust This Device"}
+                </Button>
+
                 {trustedDevices.length > 0 ? (
                   <div className="space-y-3">
                     {trustedDevices.map((device) => (
@@ -993,7 +1025,7 @@ export default function Settings() {
                               <p className="text-xs text-gray-500 mt-1">IP: {device.ipAddress}</p>
                             )}
                             <p className="text-xs text-gray-500 mt-1">
-                              Last used: {new Date(device.lastUsedAt).toLocaleString()}
+                              Last used: {device.lastUsedAt ? new Date(device.lastUsedAt).toLocaleString() : (device.createdAt ? new Date(device.createdAt).toLocaleString() : "—")}
                             </p>
                           </div>
                           <Button
@@ -1009,7 +1041,11 @@ export default function Settings() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-600 text-center py-8">No trusted devices found</p>
+                  <div className="text-center py-8 px-4 bg-gray-50 border border-dashed rounded-lg">
+                    <Smartphone className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-gray-700 font-medium">No trusted devices yet</p>
+                    <p className="text-sm text-gray-500 mt-1">Click "Trust This Device" above to remember the browser you're currently using.</p>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -1038,7 +1074,10 @@ export default function Settings() {
                     {getActivityLogQuery.data.map((event: any) => (
                       <div key={event.id} className="border border-gray-200 rounded-lg p-3 flex items-start justify-between">
                         <div>
-                          <p className="font-medium text-gray-800 capitalize">{(event.action || "event").replace(/_/g, " ")}</p>
+                          <p className="font-medium text-gray-800 capitalize">{(event.activityType || event.action || "event").replace(/_/g, " ")}</p>
+                          {event.description && (
+                            <p className="text-sm text-gray-600 mt-0.5">{event.description}</p>
+                          )}
                           {event.ipAddress && (
                             <p className="text-xs text-gray-500">IP: {event.ipAddress}</p>
                           )}
@@ -1118,7 +1157,7 @@ export default function Settings() {
                     <Download className="w-5 h-5" /> Export Your Data
                   </h3>
                   <p className="text-sm text-gray-600 mb-4">
-                    Download a complete copy of your personal data including your profile, loan applications, payment history, rewards, and referrals. This is provided in compliance with GDPR and data portability regulations.
+                    Download a branded PDF copy of your personal data including your profile, loan applications, payment history, rewards, and referrals. This is provided in compliance with GDPR and data portability regulations.
                   </p>
                   <Button
                     onClick={async () => {
@@ -1126,24 +1165,248 @@ export default function Settings() {
                         toast.info("Preparing your data export...");
                         const res = await fetch("/api/trpc/dataExport.exportMyData", { credentials: "include" });
                         const json = await res.json();
-                        const exportData = json?.result?.data?.json ?? json?.result?.data ?? json;
-                        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
-                        const url = URL.createObjectURL(blob);
-                        const link = document.createElement("a");
-                        link.href = url;
-                        link.download = `amerilend-data-export-${new Date().toISOString().split("T")[0]}.json`;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                        URL.revokeObjectURL(url);
+                        const exportData: any = json?.result?.data?.json ?? json?.result?.data ?? json;
+
+                        const fmtCurrency = (cents: number | null | undefined) =>
+                          cents == null ? "—" : `$${(Number(cents) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                        const fmtDate = (d: any) => (d ? new Date(d).toLocaleString() : "—");
+
+                        const doc = new jsPDF({ unit: "pt", format: "letter" });
+                        const pageWidth = doc.internal.pageSize.getWidth();
+                        const pageHeight = doc.internal.pageSize.getHeight();
+                        const margin = 48;
+
+                        // Try to embed company logo (best-effort; may be blocked by CORS)
+                        let logoH = 0;
+                        try {
+                          const imgRes = await fetch(APP_LOGO, { mode: "cors" });
+                          const blob = await imgRes.blob();
+                          const dataUrl: string = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(String(reader.result));
+                            reader.onerror = reject;
+                            reader.readAsDataURL(blob);
+                          });
+                          doc.addImage(dataUrl, "JPEG", margin, margin, 60, 60);
+                          logoH = 60;
+                        } catch { /* logo optional */ }
+
+                        // Header
+                        doc.setFont("helvetica", "bold");
+                        doc.setFontSize(20);
+                        doc.setTextColor(10, 37, 64);
+                        doc.text(APP_TITLE, margin + (logoH ? 72 : 0), margin + 22);
+                        doc.setFont("helvetica", "normal");
+                        doc.setFontSize(9);
+                        doc.setTextColor(80, 80, 80);
+                        doc.text("Personal Lending Solutions", margin + (logoH ? 72 : 0), margin + 38);
+                        doc.text(`${COMPANY_SUPPORT_EMAIL}  •  ${COMPANY_PHONE_DISPLAY_SHORT}`, margin + (logoH ? 72 : 0), margin + 52);
+
+                        // Title block
+                        let cursorY = margin + 90;
+                        doc.setDrawColor(201, 162, 39);
+                        doc.setLineWidth(1.5);
+                        doc.line(margin, cursorY, pageWidth - margin, cursorY);
+                        cursorY += 20;
+                        doc.setFontSize(16);
+                        doc.setTextColor(10, 37, 64);
+                        doc.setFont("helvetica", "bold");
+                        doc.text("Personal Data Export", margin, cursorY);
+                        cursorY += 18;
+                        doc.setFont("helvetica", "normal");
+                        doc.setFontSize(9);
+                        doc.setTextColor(100, 100, 100);
+                        doc.text(`Generated: ${new Date().toLocaleString()}`, margin, cursorY);
+                        cursorY += 12;
+                        doc.text("Provided in compliance with GDPR data portability requirements.", margin, cursorY);
+                        cursorY += 24;
+
+                        const u = exportData?.user || {};
+                        autoTable(doc, {
+                          startY: cursorY,
+                          head: [["Account Information", ""]],
+                          body: [
+                            ["Customer ID", String(u.id ?? "—")],
+                            ["Name", String(u.name ?? (`${u.firstName ?? ""} ${u.lastName ?? ""}`.trim() || "—"))],
+                            ["Email", String(u.email ?? "—")],
+                            ["Login Method", String(u.loginMethod ?? "—")],
+                            ["Account Created", fmtDate(u.createdAt)],
+                          ],
+                          theme: "grid",
+                          styles: { fontSize: 9, cellPadding: 6 },
+                          headStyles: { fillColor: [10, 37, 64], textColor: 255, fontStyle: "bold" },
+                          columnStyles: { 0: { fontStyle: "bold", cellWidth: 160 } },
+                          margin: { left: margin, right: margin },
+                        });
+                        cursorY = (doc as any).lastAutoTable.finalY + 18;
+
+                        const profile = exportData?.profile;
+                        if (profile && typeof profile === "object") {
+                          const profileRows = Object.entries(profile)
+                            .filter(([k]) => !["id", "userId", "createdAt", "updatedAt"].includes(k))
+                            .map(([k, v]) => [
+                              k.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase()),
+                              v == null || v === "" ? "—" : String(v),
+                            ]);
+                          if (profileRows.length > 0) {
+                            autoTable(doc, {
+                              startY: cursorY,
+                              head: [["Profile Details", ""]],
+                              body: profileRows,
+                              theme: "grid",
+                              styles: { fontSize: 9, cellPadding: 6 },
+                              headStyles: { fillColor: [10, 37, 64], textColor: 255, fontStyle: "bold" },
+                              columnStyles: { 0: { fontStyle: "bold", cellWidth: 160 } },
+                              margin: { left: margin, right: margin },
+                            });
+                            cursorY = (doc as any).lastAutoTable.finalY + 18;
+                          }
+                        }
+
+                        const loans = Array.isArray(exportData?.loanApplications) ? exportData.loanApplications : [];
+                        autoTable(doc, {
+                          startY: cursorY,
+                          head: [["Tracking #", "Type", "Status", "Requested", "Approved", "Fee", "Created"]],
+                          body: loans.length > 0 ? loans.map((l: any) => [
+                            l.trackingNumber ?? `#${l.id}`,
+                            l.loanType ?? "—",
+                            l.status ?? "—",
+                            fmtCurrency(l.requestedAmount),
+                            fmtCurrency(l.approvedAmount),
+                            fmtCurrency(l.processingFeeAmount),
+                            fmtDate(l.createdAt),
+                          ]) : [["—", "—", "—", "—", "—", "—", "No loan applications"]],
+                          theme: "striped",
+                          styles: { fontSize: 8, cellPadding: 5 },
+                          headStyles: { fillColor: [201, 162, 39], textColor: 255, fontStyle: "bold" },
+                          margin: { left: margin, right: margin },
+                          showHead: "everyPage",
+                          didDrawPage: () => {
+                            doc.setFontSize(11);
+                            doc.setFont("helvetica", "bold");
+                            doc.setTextColor(10, 37, 64);
+                            doc.text("Loan Applications", margin, cursorY - 6);
+                          },
+                        });
+                        cursorY = (doc as any).lastAutoTable.finalY + 18;
+
+                        const payments = Array.isArray(exportData?.payments) ? exportData.payments : [];
+                        autoTable(doc, {
+                          startY: cursorY,
+                          head: [["ID", "Amount", "Method", "Provider", "Status", "Date"]],
+                          body: payments.length > 0 ? payments.map((p: any) => [
+                            String(p.id),
+                            fmtCurrency(p.amount),
+                            p.paymentMethod ?? "—",
+                            p.paymentProvider ?? "—",
+                            p.status ?? "—",
+                            fmtDate(p.createdAt),
+                          ]) : [["—", "—", "—", "—", "—", "No payments"]],
+                          theme: "striped",
+                          styles: { fontSize: 8, cellPadding: 5 },
+                          headStyles: { fillColor: [201, 162, 39], textColor: 255, fontStyle: "bold" },
+                          margin: { left: margin, right: margin },
+                          showHead: "everyPage",
+                          didDrawPage: () => {
+                            doc.setFontSize(11);
+                            doc.setFont("helvetica", "bold");
+                            doc.setTextColor(10, 37, 64);
+                            doc.text("Payment History", margin, cursorY - 6);
+                          },
+                        });
+                        cursorY = (doc as any).lastAutoTable.finalY + 18;
+
+                        const r = exportData?.rewards || {};
+                        autoTable(doc, {
+                          startY: cursorY,
+                          head: [["Rewards Summary", ""]],
+                          body: [
+                            ["Credit Balance", fmtCurrency(r.creditBalance)],
+                            ["Cashback Balance", fmtCurrency(r.cashbackBalance)],
+                            ["Total Earned", fmtCurrency(r.totalEarned)],
+                            ["Total Redeemed", fmtCurrency(r.totalRedeemed)],
+                          ],
+                          theme: "grid",
+                          styles: { fontSize: 9, cellPadding: 6 },
+                          headStyles: { fillColor: [10, 37, 64], textColor: 255, fontStyle: "bold" },
+                          columnStyles: { 0: { fontStyle: "bold", cellWidth: 160 } },
+                          margin: { left: margin, right: margin },
+                        });
+                        cursorY = (doc as any).lastAutoTable.finalY + 18;
+
+                        const refs = Array.isArray(exportData?.referrals) ? exportData.referrals : [];
+                        if (refs.length > 0) {
+                          autoTable(doc, {
+                            startY: cursorY,
+                            head: [["Code", "Status", "Bonus", "Created", "Completed"]],
+                            body: refs.map((ref: any) => [
+                              ref.referralCode ?? "—",
+                              ref.status ?? "—",
+                              fmtCurrency(ref.referrerBonus),
+                              fmtDate(ref.createdAt),
+                              fmtDate(ref.completedAt),
+                            ]),
+                            theme: "striped",
+                            styles: { fontSize: 8, cellPadding: 5 },
+                            headStyles: { fillColor: [201, 162, 39], textColor: 255, fontStyle: "bold" },
+                            margin: { left: margin, right: margin },
+                            showHead: "everyPage",
+                            didDrawPage: () => {
+                              doc.setFontSize(11);
+                              doc.setFont("helvetica", "bold");
+                              doc.setTextColor(10, 37, 64);
+                              doc.text("Referrals", margin, cursorY - 6);
+                            },
+                          });
+                        }
+
+                        // Footer on every page
+                        const pageCount = doc.getNumberOfPages();
+                        for (let i = 1; i <= pageCount; i++) {
+                          doc.setPage(i);
+                          doc.setDrawColor(220, 220, 220);
+                          doc.setLineWidth(0.5);
+                          doc.line(margin, pageHeight - 50, pageWidth - margin, pageHeight - 50);
+                          doc.setFontSize(8);
+                          doc.setTextColor(120, 120, 120);
+                          doc.setFont("helvetica", "normal");
+                          doc.text(
+                            `${APP_TITLE}  •  ${COMPANY_SUPPORT_EMAIL}  •  ${COMPANY_PHONE_DISPLAY_SHORT}`,
+                            margin,
+                            pageHeight - 36
+                          );
+                          doc.text(
+                            `${SUPPORT_HOURS_WEEKDAY}  •  ${SUPPORT_HOURS_WEEKEND}`,
+                            margin,
+                            pageHeight - 24
+                          );
+                          doc.text(
+                            `Page ${i} of ${pageCount}`,
+                            pageWidth - margin,
+                            pageHeight - 24,
+                            { align: "right" }
+                          );
+                          doc.text(
+                            "Confidential — for the named account holder only",
+                            pageWidth - margin,
+                            pageHeight - 36,
+                            { align: "right" }
+                          );
+                        }
+
+                        const filename = `${APP_TITLE.toLowerCase().replace(/\s+/g, "-")}-data-export-${new Date().toISOString().split("T")[0]}.pdf`;
+                        doc.save(filename);
+                        // suppress unused warning
+                        void COMPANY_PHONE_RAW;
                         toast.success("Data exported successfully!");
                       } catch (err) {
+                        console.error("PDF export failed:", err);
                         toast.error("Failed to export data. Please try again.");
                       }
                     }}
                     className="bg-[#0A2540] hover:bg-[#0d3a5c] text-white"
                   >
-                    <Download className="w-4 h-4 mr-2" /> Download My Data (JSON)
+                    <Download className="w-4 h-4 mr-2" /> Download My Data (PDF)
                   </Button>
                 </div>
 

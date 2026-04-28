@@ -23,10 +23,12 @@ export function useUserNotifications() {
     return [];
   });
   
-  // Initialize lastCheck from localStorage or use current time for first visit
+  // Initialize lastCheck from localStorage. On first visit use epoch so any
+  // recent loan/ticket/payment events get surfaced as notifications instead
+  // of being silently filtered out by the "newer than now()" comparison.
   const [lastCheck, setLastCheck] = useState<Date>(() => {
     const stored = localStorage.getItem('notificationsLastCheck');
-    return stored ? new Date(stored) : new Date();
+    return stored ? new Date(stored) : new Date(0);
   });
 
   // Fetch real data from tRPC queries

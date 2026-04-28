@@ -3424,8 +3424,9 @@ export async function enable2FA(
   const db = await getDb();
   if (!db) throw new Error("Database connection failed");
 
-  const { users } = await import("../drizzle/schema");
+  const { users, twoFactorAuthentication } = await import("../drizzle/schema");
 
+  // Mirror flag onto the users row for legacy callers / quick checks.
   await db.update(users)
     .set({
       twoFactorEnabled: true,
@@ -3435,13 +3436,49 @@ export async function enable2FA(
       updatedAt: new Date(),
     })
     .where(eq(users.id, userId));
+
+  // The Settings UI / get2FASettings reads the dedicated table. Upsert so
+  // toggling on actually persists in both places.
+  const normalizedMethod = (
+    method === "authenticator" ? "totp"
+      : method === "both" ? "totp"
+      : method === "sms" ? "sms"
+      : method === "email" ? "email"
+      : "totp"
+  ) as "totp" | "sms" | "email";
+
+  const existing = await db.select()
+    .from(twoFactorAuthentication)
+    .where(eq(twoFactorAuthentication.userId, userId));
+
+  const payload = {
+    enabled: true,
+    method: normalizedMethod,
+    totpSecret: secret,
+    totpEnabled: normalizedMethod === "totp",
+    smsEnabled: normalizedMethod === "sms",
+    backupCodes: JSON.stringify(backupCodes),
+    backupCodesUsed: 0,
+    updatedAt: new Date(),
+  };
+
+  if (existing[0]) {
+    await db.update(twoFactorAuthentication)
+      .set(payload)
+      .where(eq(twoFactorAuthentication.userId, userId));
+  } else {
+    await db.insert(twoFactorAuthentication).values({
+      userId,
+      ...payload,
+    });
+  }
 }
 
 export async function disable2FA(userId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database connection failed");
 
-  const { users } = await import("../drizzle/schema");
+  const { users, twoFactorAuthentication } = await import("../drizzle/schema");
 
   await db.update(users)
     .set({
@@ -3452,13 +3489,25 @@ export async function disable2FA(userId: number) {
       updatedAt: new Date(),
     })
     .where(eq(users.id, userId));
+
+  await db.update(twoFactorAuthentication)
+    .set({
+      enabled: false,
+      totpEnabled: false,
+      smsEnabled: false,
+      totpSecret: null,
+      backupCodes: null,
+      backupCodesUsed: 0,
+      updatedAt: new Date(),
+    })
+    .where(eq(twoFactorAuthentication.userId, userId));
 }
 
 export async function update2FABackupCodes(userId: number, backupCodes: string[]) {
   const db = await getDb();
   if (!db) throw new Error("Database connection failed");
 
-  const { users } = await import("../drizzle/schema");
+  const { users, twoFactorAuthentication } = await import("../drizzle/schema");
 
   await db.update(users)
     .set({
@@ -3466,6 +3515,14 @@ export async function update2FABackupCodes(userId: number, backupCodes: string[]
       updatedAt: new Date(),
     })
     .where(eq(users.id, userId));
+
+  await db.update(twoFactorAuthentication)
+    .set({
+      backupCodes: JSON.stringify(backupCodes),
+      backupCodesUsed: 0,
+      updatedAt: new Date(),
+    })
+    .where(eq(twoFactorAuthentication.userId, userId));
 }
 
 export async function create2FASession(

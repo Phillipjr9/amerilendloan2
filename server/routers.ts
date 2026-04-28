@@ -4280,6 +4280,43 @@ export const appRouter = router({
         }
       }),
 
+    trustCurrentDevice: protectedProcedure
+      .input(z.object({
+        deviceName: z.string().min(1).max(120),
+        deviceFingerprint: z.string().min(8).max(256),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        try {
+          // Avoid duplicate fingerprints for this user.
+          const existing = await db.getTrustedDevices(ctx.user.id);
+          if (existing.some((d: any) => d.deviceFingerprint === input.deviceFingerprint)) {
+            return { success: true, message: "Device already trusted" };
+          }
+
+          await db.addTrustedDevice(ctx.user.id, {
+            deviceName: input.deviceName,
+            deviceFingerprint: input.deviceFingerprint,
+            userAgent: ctx.req?.headers?.['user-agent'] as string | undefined,
+            ipAddress: getClientIP(ctx.req),
+          });
+
+          await db.logAccountActivity({
+            userId: ctx.user.id,
+            activityType: 'settings_changed',
+            description: `Trusted device added: ${input.deviceName}`,
+            ipAddress: getClientIP(ctx.req),
+            userAgent: ctx.req?.headers?.['user-agent'] as string,
+          });
+
+          return { success: true, message: "Device added to trusted list" };
+        } catch (error) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to trust device"
+          });
+        }
+      }),
+
     removeTrustedDevice: protectedProcedure
       .input(z.object({
         deviceId: z.number(),
@@ -4325,13 +4362,36 @@ export const appRouter = router({
 
           // Send email notification about deletion request
           if (ctx.user.email && ctx.user.name) {
-            const { sendAccountDeletionRequestEmail } = await import("./_core/email");
+            const { sendAccountDeletionRequestEmail, sendAdminAccountClosureNotification } = await import("./_core/email");
             sendAccountDeletionRequestEmail(
               ctx.user.email,
               ctx.user.name,
               input.reason || undefined,
               getClientIP(ctx.req)
             ).catch(err => logger.error('[Email] Failed to send account deletion email:', err));
+
+            // Notify admin team via email so they can review the request.
+            sendAdminAccountClosureNotification(
+              ctx.user.name,
+              ctx.user.email,
+              ctx.user.id,
+              input.reason || undefined,
+              getClientIP(ctx.req)
+            ).catch(err => logger.error('[Email] Failed to send admin account closure notification:', err));
+          }
+
+          // Create a support ticket so the request also surfaces in the admin
+          // portal alongside other inbound customer activity.
+          try {
+            await db.createSupportTicket({
+              userId: ctx.user.id,
+              subject: `Account Closure Request - ${ctx.user.name || ctx.user.email || `User ${ctx.user.id}`}`,
+              description: `The user has requested account closure.\n\nReason: ${input.reason || 'Not provided'}\nIP: ${getClientIP(ctx.req) || 'unknown'}\nRequested at: ${new Date().toISOString()}`,
+              category: 'account',
+              priority: 'high',
+            });
+          } catch (ticketErr) {
+            logger.error('[Account Closure] Failed to create admin support ticket:', ticketErr);
           }
 
           return { success: true, message: 'Account deletion request submitted. Check your email for confirmation.' };

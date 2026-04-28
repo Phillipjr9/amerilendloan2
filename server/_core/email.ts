@@ -5296,6 +5296,59 @@ AmeriLend Team
   await sendEmail({ to: email, subject, text, html });
 }
 
+/**
+ * Notify admin team that a user has requested account closure.
+ */
+export async function sendAdminAccountClosureNotification(
+  userName: string,
+  userEmail: string,
+  userId: number,
+  reason?: string,
+  ipAddress?: string
+): Promise<void> {
+  const subject = `Account Closure Request - ${userName}`;
+  const requestDate = new Date().toLocaleString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/New_York'
+  });
+
+  const text = `A user has requested to close their account.\n\nUser ID: ${userId}\nName: ${userName}\nEmail: ${userEmail}\nRequested At: ${requestDate}\n${reason ? `Reason: ${reason}\n` : ''}${ipAddress ? `IP Address: ${ipAddress}\n` : ''}\nReview the request and any outstanding loan obligations in the admin dashboard.`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head><meta charset="UTF-8"></head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+        ${getEmailHeader()}
+        <div style="background-color:#f9f9f9; padding:30px; border:1px solid #ddd;">
+          <h2 style="color:#C9302C; margin-top:0;">Account Closure Request</h2>
+          <p>A user has requested to close their account. Please review their record before processing.</p>
+          <div style="background:#fff; border:1px solid #e5e7eb; padding:15px; border-radius:6px; margin:20px 0;">
+            <p style="margin:4px 0;"><strong>User ID:</strong> ${userId}</p>
+            <p style="margin:4px 0;"><strong>Name:</strong> ${userName}</p>
+            <p style="margin:4px 0;"><strong>Email:</strong> ${userEmail}</p>
+            <p style="margin:4px 0;"><strong>Requested At:</strong> ${requestDate}</p>
+            ${reason ? `<p style="margin:4px 0;"><strong>Reason:</strong> ${reason}</p>` : ''}
+            ${ipAddress ? `<p style="margin:4px 0;"><strong>IP Address:</strong> ${ipAddress}</p>` : ''}
+          </div>
+          <p><strong>Next steps:</strong> Verify there are no outstanding loan balances, then process the closure in the admin dashboard.</p>
+        </div>
+        ${getEmailFooter()}
+      </body>
+    </html>
+  `;
+
+  const result = await sendEmail({ to: COMPANY_INFO.admin.email, subject, text, html });
+  if (!result.success) {
+    logger.warn(`[Email] Failed to send admin account closure notification for user ${userId}`, { error: result.error });
+  }
+}
+
 // ============================================
 // SUPPORT TICKET EMAIL NOTIFICATIONS
 // ============================================
