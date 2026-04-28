@@ -61,6 +61,8 @@ import QuickApply from "@/components/QuickApply";
 import LoanStatusTimeline from "@/components/LoanStatusTimeline";
 import { SkeletonCard, SkeletonPaymentCard, SkeletonStats } from "@/components/SkeletonCard";
 import TwoFactorAuth from "@/components/TwoFactorAuth";
+import AnimatedNumber from "@/components/AnimatedNumber";
+import { motion, AnimatePresence } from "framer-motion";
 import PaymentHistoryAnalytics from "@/components/PaymentHistoryAnalytics";
 import AutoPaySettings from "@/components/AutoPaySettings";
 import PaymentMethodManager from "@/components/PaymentMethodManager";
@@ -794,73 +796,94 @@ export default function Dashboard() {
           <div className="max-w-7xl mx-auto">
           {/* Analytics Dashboard - Premium Cards (only on Applications tab) */}
           {activeTab === "applications" && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 mb-8">
-            <div className="bg-white rounded-xl border border-slate-200/60 p-5 hover:shadow-md transition-all group">
+          <motion.div
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 mb-8"
+            initial="hidden"
+            animate="visible"
+            variants={{
+              hidden: {},
+              visible: { transition: { staggerChildren: 0.06, delayChildren: 0.05 } },
+            }}
+          >
+            <motion.div variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } }} className="bg-white rounded-xl border border-slate-200/60 p-5 hover:shadow-md transition-all group">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-slate-500 mb-1">Total Applications</p>
-                  <p className="text-3xl font-semibold text-[#0A2540] tracking-tight">{stats.total}</p>
+                  <p className="text-3xl font-semibold text-[#0A2540] tracking-tight">
+                    <AnimatedNumber value={stats.total} />
+                  </p>
                 </div>
                 <div className="w-11 h-11 rounded-xl bg-[#0A2540]/5 flex items-center justify-center group-hover:bg-[#0A2540]/10 transition-colors">
                   <FileText className="w-5 h-5 text-[#0A2540]" />
                 </div>
               </div>
-            </div>
+            </motion.div>
 
-            <div className="bg-white rounded-xl border border-slate-200/60 p-5 hover:shadow-md transition-all group">
+            <motion.div variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } }} className="bg-white rounded-xl border border-slate-200/60 p-5 hover:shadow-md transition-all group">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-slate-500 mb-1">Approved</p>
-                  <p className="text-3xl font-semibold text-emerald-600 tracking-tight">{stats.approved}</p>
+                  <p className="text-3xl font-semibold text-emerald-600 tracking-tight">
+                    <AnimatedNumber value={stats.approved} />
+                  </p>
                 </div>
                 <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
                   <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                 </div>
               </div>
-            </div>
+            </motion.div>
 
-            <div className="bg-white rounded-xl border border-slate-200/60 p-5 hover:shadow-md transition-all group">
+            <motion.div variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } }} className="bg-white rounded-xl border border-slate-200/60 p-5 hover:shadow-md transition-all group">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-slate-500 mb-1">Pending Review</p>
-                  <p className="text-3xl font-semibold text-amber-600 tracking-tight">{stats.pending}</p>
+                  <p className="text-3xl font-semibold text-amber-600 tracking-tight">
+                    <AnimatedNumber value={stats.pending} />
+                  </p>
                 </div>
                 <div className="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center group-hover:bg-amber-100 transition-colors">
                   <Clock className="w-5 h-5 text-amber-600" />
                 </div>
               </div>
-            </div>
+            </motion.div>
 
-            <div className="bg-white rounded-xl border border-slate-200/60 p-5 hover:shadow-md transition-all group">
+            <motion.div variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } }} className="bg-white rounded-xl border border-slate-200/60 p-5 hover:shadow-md transition-all group">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-slate-500 mb-1">Payment Required</p>
-                  <p className="text-3xl font-semibold text-orange-600 tracking-tight">{stats.paymentRequired}</p>
+                  <p className="text-3xl font-semibold text-orange-600 tracking-tight">
+                    <AnimatedNumber value={stats.paymentRequired} />
+                  </p>
                 </div>
                 <div className="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center group-hover:bg-orange-100 transition-colors">
                   <AlertCircle className="w-5 h-5 text-orange-600" />
                 </div>
               </div>
-            </div>
+            </motion.div>
 
-            <div className="bg-white rounded-xl border border-slate-200/60 p-5 hover:shadow-md transition-all group">
+            <motion.div variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } }} className="bg-white rounded-xl border border-slate-200/60 p-5 hover:shadow-md transition-all group">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-slate-500 mb-1">Total Funded</p>
                   <p className="text-2xl font-semibold text-emerald-600 tracking-tight">
-                    {new Intl.NumberFormat("en-US", {
-                      style: "currency",
-                      currency: "USD",
-                      maximumFractionDigits: 0,
-                    }).format((stats.totalFunded || 0) / 100)}
+                    <AnimatedNumber
+                      value={(stats.totalFunded || 0) / 100}
+                      format={(n) =>
+                        new Intl.NumberFormat("en-US", {
+                          style: "currency",
+                          currency: "USD",
+                          maximumFractionDigits: 0,
+                        }).format(n)
+                      }
+                    />
                   </p>
                 </div>
                 <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
                   <TrendingUp className="w-5 h-5 text-emerald-600" />
                 </div>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
           )}
 
           {/* Tab Content Based on activeTab */}
@@ -1002,9 +1025,24 @@ export default function Dashboard() {
                       <SkeletonCard />
                     </div>
                   ) : filteredLoans && filteredLoans.length > 0 ? (
-                    <div className="space-y-4">
+                    <motion.div
+                      className="space-y-4"
+                      initial="hidden"
+                      animate="visible"
+                      variants={{
+                        hidden: {},
+                        visible: { transition: { staggerChildren: 0.05 } },
+                      }}
+                    >
                       {filteredLoans.map((loan) => (
-                        <Card key={loan.id} id={`loan-${loan.id}`} className="border-l-4 border-l-[#0A2540]">
+                        <motion.div
+                          key={loan.id}
+                          variants={{
+                            hidden: { opacity: 0, y: 10 },
+                            visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] } },
+                          }}
+                        >
+                        <Card id={`loan-${loan.id}`} className="border-l-4 border-l-[#0A2540]">
                           <CardContent className="p-6">
                             <button
                               onClick={() => setExpandedLoan(expandedLoan === loan.id ? null : loan.id)}
@@ -1452,8 +1490,9 @@ export default function Dashboard() {
                             )}
                           </CardContent>
                         </Card>
+                        </motion.div>
                       ))}
-                    </div>
+                    </motion.div>
                   ) : (
                     <div className="text-center py-12">
                       <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
@@ -1478,6 +1517,11 @@ export default function Dashboard() {
             {activeTab === "quick-apply" && (
               <div className="space-y-6">
                 {hasActiveLoan ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: -12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                  >
                   <Card className="border-2 border-amber-300 bg-amber-50/50">
                     <CardHeader>
                       <CardTitle className="text-2xl text-[#0A2540] flex items-center gap-2">
@@ -1512,6 +1556,7 @@ export default function Dashboard() {
                       </Button>
                     </CardContent>
                   </Card>
+                  </motion.div>
                 ) : (
                   <QuickApply
                     existingUserData={{

@@ -3,7 +3,8 @@ import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch, Redirect } from "wouter";
+import { Route, Switch, Redirect, useLocation } from "wouter";
+import { AnimatePresence } from "framer-motion";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import LanguageSelector from "./components/LanguageSelector";
@@ -11,6 +12,7 @@ import Home from "./pages/Home";
 import ChatWidget from "./components/ChatWidget";
 import CookieConsent from "./components/CookieConsent";
 import useRobotsNoindex from "./hooks/useRobotsNoindex";
+import PageTransition from "./components/PageTransition";
 
 // Lazy-loaded route components for code splitting
 const ApplyLoan = lazy(() => import("./pages/ApplyLoan"));
@@ -80,10 +82,13 @@ function Router() {
   // Auto-noindex private routes (dashboards, admin, payments, auth) so
   // search engines stop treating them as canonical landing pages.
   useRobotsNoindex();
+  const [location] = useLocation();
 
   return (
     <Suspense fallback={<RouteLoadingFallback />}>
-    <Switch>
+    <AnimatePresence mode="wait" initial={false}>
+      <PageTransition routeKey={location}>
+    <Switch location={location}>
       <Route path={"/"} component={Home} />
       <Route path={"/check-offers"} component={CheckOffers} />
       <Route path="/prequalify">{() => <Redirect to="/check-offers" />}</Route>
@@ -154,6 +159,8 @@ function Router() {
       {/* Final fallback route */}
       <Route component={NotFound} />
     </Switch>
+      </PageTransition>
+    </AnimatePresence>
     </Suspense>
   );
 }
