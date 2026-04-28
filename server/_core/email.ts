@@ -1100,76 +1100,56 @@ export async function sendApplicationDisbursedNotificationEmail(
   estimatedArrivalDate: string
 ): Promise<void> {
   const formattedAmount = formatCurrency(disbursedAmount);
-  const subject = "Your Loan Has Been Disbursed – AmeriLend";
-  
-  const text = `Dear ${fullName},\n\nYour loan funds have been disbursed.\n\nDisbursement Details:\nTracking Number: ${trackingNumber}\nDisbursed Amount: $${formattedAmount}\nEstimated Arrival: ${estimatedArrivalDate}\n\nFunds typically appear in your bank account within 1\u20132 business days. Some banks may take an additional day to post the deposit.\n\nWhat to do next:\n- Check your bank account for the deposit.\n- Sign in to your dashboard to view your loan details and payment schedule.\n- Contact us if you have not received the funds within 2 business days.\n\nRegards,\nThe AmeriLend Team`;
+  const subject = `💸 $${formattedAmount} disbursed — your AmeriLend funds are on the way`;
+  const text = `Hi ${fullName},\n\nGreat news — we just released your loan funds.\n\nDisbursement Summary\n  Tracking #: ${trackingNumber}\n  Amount Disbursed: $${formattedAmount}\n  Estimated Arrival: ${estimatedArrivalDate}\n\nFunds typically post within 1–2 business days. Some banks may take an additional day.\n\nWhat to do next\n  • Watch your bank account for the deposit\n  • Sign in to your dashboard for your repayment schedule: ${COMPANY_INFO.website}/dashboard\n  • Contact us if funds don't arrive within 2 business days\n\nQuestions? ${COMPANY_INFO.contact.email} · ${COMPANY_INFO.contact.phone}\n\n— The AmeriLend Team`;
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${subject}</title>
-      </head>
-      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 0;">
-        ${getEmailHeader()}
-        <div style="background-color: #f9f9f9; padding: 30px; border-left: 1px solid #ddd; border-right: 1px solid #ddd;">
-          <div style="text-align: center; margin-bottom: 20px;">
-            <div style="background-color: #28a745; color: white; display: inline-block; padding: 15px 25px; border-radius: 5px; font-size: 20px; font-weight: bold;">
-              FUNDS DISBURSED
-            </div>
-          </div>
-          <h2 style="color: #0033A0; margin-top: 10px;">Your loan has been disbursed</h2>
-          <p style="font-size: 16px; color: #555;">Dear ${fullName}, your loan funds have been sent to your bank account.</p>
-          
-          <div style="background-color: #d4edda; border-left: 6px solid #28a745; padding: 20px; margin: 30px 0; border-radius: 5px;">
-            <h3 style="margin-top: 0; color: #28a745;">Disbursement Confirmed</h3>
-            <table style="width: 100%; margin-top: 15px;">
-              <tr>
-                <td style="padding: 10px 0; border-bottom: 1px solid #c3e6cb;"><strong>Tracking Number:</strong></td>
-                <td style="padding: 10px 0; border-bottom: 1px solid #c3e6cb; text-align: right; font-family: monospace;">${trackingNumber}</td>
-              </tr>
-              <tr>
-                <td style="padding: 10px 0; border-bottom: 1px solid #c3e6cb;"><strong>Amount Disbursed:</strong></td>
-                <td style="padding: 10px 0; border-bottom: 1px solid #c3e6cb; text-align: right; font-size: 18px; font-weight: bold; color: #28a745;">$${formattedAmount}</td>
-              </tr>
-              <tr>
-                <td style="padding: 10px 0;"><strong>Estimated Arrival:</strong></td>
-                <td style="padding: 10px 0; text-align: right;">${estimatedArrivalDate}</td>
-              </tr>
-            </table>
-          </div>
+  const html = buildEmailShell({
+    subject,
+    preheader: `$${formattedAmount} on its way — expected by ${estimatedArrivalDate}.`,
+    hero: { icon: "💸", eyebrow: "Funds released", title: `$${formattedAmount} is on the way`, subtitle: `Your loan has been disbursed. Expected arrival: <strong>${estimatedArrivalDate}</strong>.`, tone: "success" },
+    body: `
+      <p style="margin:0 0 6px;font-size:15px;color:#0f172a;">Hi <strong>${fullName}</strong>,</p>
+      <p style="margin:0 0 18px;font-size:14px;color:#475569;line-height:1.6;">We just released your funds. Here are the details — keep this email for your records.</p>
 
-          <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 5px;">
-            <p style="margin: 0; color: #856404;"><strong>📌 Important:</strong> Your funds should appear in your bank account within 1-2 business days. Some banks may take an additional day to process deposits.</p>
-          </div>
+      ${buildInfoCard({
+        title: "Disbursement Summary",
+        rows: [
+          ["Tracking #", `<span style=\"font-family:'SF Mono','Courier New',monospace;color:#0033A0;font-weight:700;\">${trackingNumber}</span>`],
+          ["Amount Disbursed", `<span style=\"color:#0f7b3a;font-weight:800;font-size:18px;\">$${formattedAmount}</span>`],
+          ["Estimated Arrival", `<span style=\"color:#0f172a;font-weight:600;\">${estimatedArrivalDate}</span>`],
+          ["Status", `<span style=\"display:inline-block;background:#dff5e6;color:#0f7b3a;padding:3px 12px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;\">Disbursed</span>`],
+        ],
+      })}
 
-          <h3 style="color: #0033A0; margin-top: 30px;">What You Should Know</h3>
-          <div style="background-color: #f0f8ff; padding: 15px; border-radius: 5px; margin: 15px 0;">
-            <ul style="margin: 0; padding-left: 20px; line-height: 2;">
-              <li><strong>Monitor your account</strong> - Check your bank account for the deposit</li>
-              <li><strong>Payment schedule</strong> - Your loan payments will begin according to your agreement</li>
-              <li><strong>View your dashboard</strong> - Log in to see your payment schedule and account details</li>
-              <li><strong>Contact us</strong> - If funds don't arrive within 2 business days, reach out immediately</li>
-            </ul>
-          </div>
+      ${buildAlert({ tone: "warning", title: "What to expect", body: `Funds typically post within <strong>1–2 business days</strong>. A small number of banks may take an additional day to process the deposit. Weekends and federal holidays do not count as business days.` })}
 
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="https://www.amerilendloan.com/dashboard" style="background-color: #FFA500; color: white; padding: 14px 40px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">View Your Account</a>
-          </div>
+      ${buildDivider("What to do next")}
 
-          <div style="background-color: #e7f3ff; border: 1px solid #b3d9ff; padding: 15px; margin: 20px 0; border-radius: 5px;">
-            <h4 style="margin-top: 0; color: #0033A0;">Thank you for choosing AmeriLend</h4>
-            <p style="margin-bottom: 0; color: #555;">If you have any questions about your loan or need assistance, our support team is available during business hours.</p>
-          </div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 16px;">
+        ${[
+          ["🏦", "Check your bank account", "Watch for the incoming deposit. The amount will match the figure above."],
+          ["📊", "Review your repayment schedule", "Sign in to your dashboard to see your due dates and payment options."],
+          ["📞", "Funds delayed?", "If 2 full business days pass with no deposit, contact us so we can investigate."],
+        ].map(([icon, h, t]) => `
+          <tr>
+            <td valign="top" style="width:42px;padding:8px 12px 8px 0;">
+              <div style="width:32px;height:32px;background:#dff5e6;color:#0f7b3a;border-radius:8px;text-align:center;line-height:32px;font-size:16px;">${icon}</div>
+            </td>
+            <td valign="top" style="padding:6px 0;">
+              <div style="color:#0033A0;font-weight:700;font-size:14px;">${h}</div>
+              <div style="color:#475569;font-size:13px;line-height:1.55;margin-top:2px;">${t}</div>
+            </td>
+          </tr>
+        `).join("")}
+      </table>
 
-          <p style="margin-top: 30px; color: #666; font-size: 14px;">Need help? Contact us at <a href="mailto:${COMPANY_INFO.contact.email}" style="color: #0033A0;">${COMPANY_INFO.contact.email}</a> or ${COMPANY_INFO.contact.phone}.</p>
-        </div>
-        ${getEmailFooter()}
-      </body>
-    </html>
-  `;
+      <div style="margin:24px 0 8px;text-align:center;">
+        ${buildButton({ label: "View Loan Details", href: `${COMPANY_INFO.website}/dashboard` })}
+      </div>
+
+      ${buildTrustRow()}
+    `,
+  });
 
   await sendEmail({ to: email, subject, text, html });
 }
@@ -1457,67 +1437,55 @@ export async function sendSignupWelcomeEmail(
   email: string,
   fullName: string
 ): Promise<void> {
-  const subject = "Welcome to AmeriLend";
-  const text = `Dear ${fullName},\n\nThank you for creating an AmeriLend account.\n\nYou can now sign in to your dashboard and submit a loan application.\n\nNext Steps:\n1. Sign in to your dashboard.\n2. Complete your loan application.\n3. Upload the required identification and income documents.\n4. Wait for your approval decision.\n\nIf you need help at any point, contact our support team at support@amerilendloan.com or call (945) 212-1609.\n\nRegards,\nThe AmeriLend Team`;
+  const subject = `Welcome to AmeriLend, ${fullName.split(" ")[0] || fullName} 👋`;
+  const text = `Hi ${fullName},\n\nWelcome to AmeriLend — your account is ready.\n\nYou can now sign in and apply for a loan. Most decisions are returned in under 24 hours.\n\nGet started: ${COMPANY_INFO.website}/dashboard\n\nWhat you can do with your account\n  • Apply for an installment or short-term loan in minutes\n  • Track your application status in real time\n  • Securely upload ID and income documents\n  • Manage payments and view your repayment schedule\n  • Reach our customer support team during business hours\n\nNext steps\n  1. Complete your application\n  2. Upload a government-issued ID and proof of income\n  3. Receive your decision (most within 24 hours)\n\nQuestions? ${COMPANY_INFO.contact.email} · ${COMPANY_INFO.contact.phone}\n\n— The AmeriLend Team`;
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${subject}</title>
-      </head>
-      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 0;">
-        ${getEmailHeader()}
-        <div style="background-color: #f9f9f9; padding: 30px; border-left: 1px solid #ddd; border-right: 1px solid #ddd;">
-          <div style="text-align: center; margin-bottom: 20px;">
-            <div style="background-color: #0033A0; color: white; display: inline-block; padding: 15px 25px; border-radius: 5px; font-size: 18px; font-weight: bold;">
-              Welcome to AmeriLend
-            </div>
-          </div>
+  const html = buildEmailShell({
+    subject,
+    preheader: `Your AmeriLend account is ready — here's how to get the funds you need, fast.`,
+    hero: { icon: "🎉", eyebrow: "Welcome aboard", title: `Welcome, ${fullName.split(" ")[0] || fullName}!`, subtitle: "Your AmeriLend account is ready. Apply in minutes — most decisions return in under 24 hours.", tone: "success" },
+    body: `
+      <p style="margin:0 0 6px;font-size:15px;color:#0f172a;">Hi <strong>${fullName}</strong>,</p>
+      <p style="margin:0 0 18px;font-size:14px;color:#475569;line-height:1.6;">Thanks for joining AmeriLend. We've helped thousands of borrowers cover unexpected expenses, consolidate debt, and finance life's big moments — and we're glad you're here.</p>
 
-          <h2 style="color: #0033A0; margin-top: 10px;">Welcome, ${fullName}</h2>
-          <p style="font-size: 16px; color: #555;">Your AmeriLend account has been created. You can now sign in to your dashboard and apply for a loan.</p>
+      <div style="margin:24px 0;text-align:center;">
+        ${buildButton({ label: "Open Your Dashboard", href: `${COMPANY_INFO.website}/dashboard`, variant: "secondary" })}
+      </div>
 
-          <div style="background-color: #e7f3ff; border-left: 4px solid #0033A0; padding: 20px; margin: 20px 0; border-radius: 5px;">
-            <h3 style="margin-top: 0; color: #0033A0;">What you can do with your account</h3>
-            <ul style="margin: 10px 0; padding-left: 20px;">
-              <li>Apply for an installment or short-term loan</li>
-              <li>Track the status of your application in real time</li>
-              <li>Upload identification and income documents securely</li>
-              <li>Manage payments and view your repayment schedule</li>
-              <li>Reach our customer support team during business hours</li>
-            </ul>
-          </div>
+      ${buildDivider("What you can do")}
 
-          <h3 style="color: #0033A0; margin-top: 30px;">Next steps</h3>
-          <div style="background-color: #f0f8ff; padding: 15px; border-radius: 5px; margin: 15px 0;">
-            <ol style="margin: 0; padding-left: 20px; line-height: 2;">
-              <li style="margin: 10px 0;"><strong>Complete your application</strong> – tell us about yourself and how much you need.</li>
-              <li style="margin: 10px 0;"><strong>Upload your documents</strong> – a government-issued ID and proof of income.</li>
-              <li style="margin: 10px 0;"><strong>Receive your decision</strong> – most applications are reviewed within 24 hours.</li>
-            </ol>
-          </div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 16px;">
+        ${[
+          ["💰", "Apply in minutes", "Installment or short-term loans, your choice."],
+          ["📊", "Real-time tracking", "Watch your application progress every step of the way."],
+          ["🔒", "Secure document upload", "Bank-grade encryption for ID and income docs."],
+          ["📅", "Easy payments", "View your repayment schedule and pay in one click."],
+        ].map(([icon, h, t]) => `
+          <tr>
+            <td valign="top" style="width:42px;padding:8px 12px 8px 0;">
+              <div style="width:32px;height:32px;background:#eef2ff;color:#0033A0;border-radius:8px;text-align:center;line-height:32px;font-size:16px;">${icon}</div>
+            </td>
+            <td valign="top" style="padding:6px 0;">
+              <div style="color:#0033A0;font-weight:700;font-size:14px;">${h}</div>
+              <div style="color:#475569;font-size:13px;line-height:1.55;margin-top:2px;">${t}</div>
+            </td>
+          </tr>
+        `).join("")}
+      </table>
 
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="https://www.amerilendloan.com/dashboard" style="background-color: #FFA500; color: white; padding: 14px 40px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">Go to your dashboard</a>
-          </div>
+      ${buildDivider("Next steps")}
 
-          <h3 style="color: #0033A0; margin-top: 30px;">Need help?</h3>
-          <p style="color: #555;">Our support team is available during business hours. You can reach us at:</p>
-          <ul style="padding-left: 20px;">
-            <li>Email: <a href="mailto:support@amerilendloan.com" style="color: #0033A0;">support@amerilendloan.com</a></li>
-            <li>Phone: <span style="color: #0033A0; font-weight: bold;">(945) 212-1609</span></li>
-            <li>Hours: Monday–Friday 8am–8pm CT, Saturday–Sunday 9am–5pm CT</li>
-          </ul>
+      <ol style="margin:0 0 16px 22px;padding:0;color:#475569;font-size:14px;line-height:1.85;">
+        <li><strong style=\"color:#0f172a;\">Complete your application</strong> — tell us about yourself and how much you need.</li>
+        <li><strong style=\"color:#0f172a;\">Upload your documents</strong> — a government-issued ID and proof of income.</li>
+        <li><strong style=\"color:#0f172a;\">Get your decision</strong> — most applications are reviewed within 24 hours.</li>
+      </ol>
 
-          <p style="margin-top: 30px; color: #666; font-size: 14px;">Thank you for choosing AmeriLend.</p>
-        </div>
-        ${getEmailFooter()}
-      </body>
-    </html>
-  `;
+      ${buildAlert({ tone: "info", title: "Need help getting started?", body: `Our team is one click away. Email <a href=\"mailto:${COMPANY_INFO.contact.email}\" style=\"color:#0033A0;font-weight:600;\">${COMPANY_INFO.contact.email}</a> or call <a href=\"tel:${COMPANY_INFO.contact.phoneFormatted.replace(/\D/g, '')}\" style=\"color:#0033A0;font-weight:600;\">${COMPANY_INFO.contact.phone}</a> — Mon–Fri 8am–8pm CT, Sat–Sun 9am–5pm CT.` })}
+
+      ${buildTrustRow()}
+    `,
+  });
 
   const result = await sendEmail({ to: email, subject, text, html });
   if (!result.success) {
@@ -2062,52 +2030,42 @@ export async function sendPasswordChangeConfirmationEmail(
   email: string,
   userName: string
 ): Promise<void> {
-  const subject = "Password Changed Successfully - AmeriLend";
-  const text = `Dear ${userName},\n\nYour password has been successfully changed. If you did not make this change, please contact us immediately at support@amerilendloan.com.\n\nFor security reasons, we recommend:\n- Using a strong, unique password\n- Never sharing your password with anyone\n- Logging out of all devices if you suspect unauthorized access\n\nBest regards,\nThe AmeriLend Security Team`;
+  const changeTime = new Date().toLocaleString("en-US", { timeZone: "America/New_York", weekday: "long", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  const subject = "Your AmeriLend password was just changed";
+  const text = `Hi ${userName},\n\nYour AmeriLend password was changed on ${changeTime} EST.\n\nIf this was you, no action is needed.\n\nIf this wasn't you:\n  1. Reset your password at ${COMPANY_INFO.website}/account/security\n  2. Sign out of all devices\n  3. Contact us immediately: ${COMPANY_INFO.contact.email} · ${COMPANY_INFO.contact.phone}\n\nSecurity tips\n  • Use a unique password (at least 12 characters mixing letters, numbers, and symbols)\n  • Turn on two-factor authentication\n  • Never share your password — AmeriLend will never ask for it\n\n— The AmeriLend Security Team`;
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${subject}</title>
-      </head>
-      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 0;">
-        ${getEmailHeader()}
-        <div style="background-color: #f9f9f9; padding: 30px; border-left: 1px solid #ddd; border-right: 1px solid #ddd;">
-          <div style="text-align: center; margin-bottom: 20px;">
-            <div style="background-color: #28a745; color: white; display: inline-block; padding: 15px 25px; border-radius: 5px; font-size: 18px; font-weight: bold;">
-              ✓ Password Changed
-            </div>
-          </div>
+  const html = buildEmailShell({
+    subject,
+    preheader: `Password changed on ${changeTime} EST. Wasn't you? Lock your account in seconds.`,
+    hero: { icon: "🔑", eyebrow: "Security update", title: "Your password was changed", subtitle: `On <strong>${changeTime} EST</strong> from your AmeriLend account.`, tone: "info" },
+    body: `
+      <p style="margin:0 0 6px;font-size:15px;color:#0f172a;">Hi <strong>${userName}</strong>,</p>
+      <p style="margin:0 0 18px;font-size:14px;color:#475569;line-height:1.6;">Your AmeriLend password was just changed. We're letting you know in case it wasn't you.</p>
 
-          <h2 style="color: #0033A0; margin-top: 10px;">Your Password Has Been Changed</h2>
-          <p style="font-size: 16px; color: #555;">Hi ${userName},</p>
-          <p style="font-size: 16px; color: #555;">Your password was successfully changed on your AmeriLend account. If you did not make this change, please secure your account immediately.</p>
+      ${buildAlert({ tone: "success", title: "Was this you?", body: `Great \u2014 no further action needed. Your account is up to date.` })}
 
-          <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 20px; margin: 20px 0; border-radius: 5px;">
-            <h3 style="margin-top: 0; color: #856404;">⚠️ Security Reminder</h3>
-            <ul style="margin: 10px 0; padding-left: 20px; color: #856404;">
-              <li>Use a strong, unique password (at least 8 characters with numbers and special characters)</li>
-              <li>Never share your password with anyone</li>
-              <li>If you notice suspicious activity, change your password immediately</li>
-              <li>Log out of all devices if you suspect unauthorized access</li>
-            </ul>
-          </div>
+      ${buildAlert({ tone: "danger", title: "Wasn't you? Lock down your account.", body: `
+        <ol style=\"margin:6px 0 0 18px;padding:0;color:#0f172a;font-size:13.5px;line-height:1.7;\">
+          <li><strong>Reset your password</strong> immediately at <a href=\"${COMPANY_INFO.website}/account/security\" style=\"color:#b91c1c;font-weight:600;\">${COMPANY_INFO.website}/account/security</a></li>
+          <li><strong>Sign out everywhere</strong> from the same page.</li>
+          <li><strong>Email or call us</strong>: <a href=\"mailto:${COMPANY_INFO.contact.email}\" style=\"color:#b91c1c;font-weight:600;\">${COMPANY_INFO.contact.email}</a> \u00b7 <a href=\"tel:${COMPANY_INFO.contact.phoneFormatted.replace(/\\D/g, '')}\" style=\"color:#b91c1c;font-weight:600;\">${COMPANY_INFO.contact.phone}</a></li>
+        </ol>
+      ` })}
 
-          <div style="background-color: #e3f2fd; border-left: 4px solid #0033A0; padding: 15px; margin: 20px 0; border-radius: 5px;">
-            <p style="margin: 0; color: #1565c0;">
-              <strong>Questions?</strong> Contact our support team at <a href="mailto:support@amerilendloan.com" style="color: #0033A0;">support@amerilendloan.com</a> or call <strong>(945) 212-1609</strong>
-            </p>
-          </div>
+      <div style="margin:24px 0 8px;text-align:center;">
+        ${buildButton({ label: "Manage Account Security", href: `${COMPANY_INFO.website}/account/security` })}
+      </div>
 
-          <p style="margin-top: 30px; color: #666; font-size: 14px;">This is an automated security notification. Please do not reply to this email.</p>
-        </div>
-        ${getEmailFooter()}
-      </body>
-    </html>
-  `;
+      ${buildDivider("Password best practices")}
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+        <tr><td style="padding:5px 0;color:#475569;font-size:13px;">• Use at least 12 characters mixing letters, numbers, and symbols.</td></tr>
+        <tr><td style="padding:5px 0;color:#475569;font-size:13px;">• Don't reuse passwords from other sites \u2014 a leak elsewhere shouldn't unlock your loan account.</td></tr>
+        <tr><td style="padding:5px 0;color:#475569;font-size:13px;">• Turn on <strong>two-factor authentication</strong> in your security settings.</td></tr>
+        <tr><td style="padding:5px 0;color:#475569;font-size:13px;">• AmeriLend will <strong>never</strong> ask you for your password by phone, text, or email.</td></tr>
+      </table>
+    `,
+  });
 
   const result = await sendEmail({ to: email, subject, text, html });
   if (!result.success) {
@@ -2660,148 +2618,78 @@ export async function sendPaymentReceiptEmail(
   });
   const receiptNumber = `RCP-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
-  const subject = `Payment Receipt #${receiptNumber} - AmeriLend Processing Fee`;
+  const subject = `Receipt #${receiptNumber} \u2014 $${formattedAmount} processing fee received`;
 
-  const text = `
-Dear ${fullName},
+  const methodSummary = paymentMethod === "card"
+    ? `${cardBrand || "Card"} ending in ${cardLast4 || "\u2022\u2022\u2022\u2022"}`
+    : `${cryptoCurrency || "Crypto"} (${cryptoAmount || "\u2014"})`;
 
-Thank you for your payment! Your processing fee payment has been successfully received and processed.
+  const text = `Hi ${fullName},\n\nThanks \u2014 we received your processing fee payment.\n\nReceipt\n  Number: ${receiptNumber}\n  Date: ${receiptDate} at ${receiptTime}\n  Loan Tracking #: ${trackingNumber}\n  Amount Paid: $${formattedAmount}\n  Method: ${methodSummary}\n${paymentMethod === "card" ? `  Transaction ID: ${transactionId || "\u2014"}\n` : `  Crypto Amount: ${cryptoAmount || "\u2014"} ${cryptoCurrency || ""}\n  Wallet: ${walletAddress || "\u2014"}\n`}\nWhat happens next\n  \u2022 Your loan application moves into final processing\n  \u2022 Funds are typically released in 1\u20132 business days\n  \u2022 You'll get a disbursement email the moment funds go out\n\nKeep this receipt for your records.\n\nView your application: ${COMPANY_INFO.website}/dashboard\n\n\u2014 The AmeriLend Team`;
 
-PAYMENT RECEIPT
-================
+  const methodRows: Array<[string, string] | [string, string, string]> = paymentMethod === "card"
+    ? [
+        ["Card", `<span style=\"color:#0f172a;\">${cardBrand || "Card"}</span>`, "💳"],
+        ["Card Number", `<span style=\"font-family:'SF Mono','Courier New',monospace;\">\u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 ${cardLast4 || "\u2022\u2022\u2022\u2022"}</span>`],
+        ["Transaction ID", `<span style=\"font-family:'SF Mono','Courier New',monospace;font-size:12px;color:#64748b;\">${transactionId || "—"}</span>`],
+      ]
+    : [
+        ["Currency", `<span style=\"color:#0f172a;font-weight:700;\">${cryptoCurrency || "—"}</span>`, "🪙"],
+        ["Crypto Amount", `<span style=\"color:#0f172a;font-weight:700;\">${cryptoAmount || "—"} ${cryptoCurrency || ""}</span>`],
+        ["Wallet", `<span style=\"font-family:'SF Mono','Courier New',monospace;font-size:11px;color:#64748b;word-break:break-all;\">${walletAddress || "—"}</span>`],
+      ];
 
-Receipt Number: ${receiptNumber}
-Date: ${receiptDate} at ${receiptTime}
-Loan Tracking #: ${trackingNumber}
-Amount: $${formattedAmount}
-Payment Method: ${paymentMethod === 'card' ? 'Credit/Debit Card' : 'Cryptocurrency'}
-${paymentMethod === 'card' ? `Card: ${cardBrand} ending in ${cardLast4}\nTransaction ID: ${transactionId}` : `Cryptocurrency: ${cryptoCurrency}\nCrypto Amount: ${cryptoAmount}\nWallet Address: ${walletAddress}`}
+  const html = buildEmailShell({
+    subject,
+    preheader: `$${formattedAmount} payment received \u00b7 receipt ${receiptNumber}.`,
+    hero: { icon: "🧾", eyebrow: "Payment confirmed", title: `$${formattedAmount} received \u2014 thank you`, subtitle: `Receipt <strong>#${receiptNumber}</strong> \u00b7 ${receiptDate}`, tone: "success" },
+    body: `
+      <p style="margin:0 0 6px;font-size:15px;color:#0f172a;">Hi <strong>${fullName}</strong>,</p>
+      <p style="margin:0 0 18px;font-size:14px;color:#475569;line-height:1.6;">Your processing fee has been received in full. Here's your itemized receipt \u2014 please keep it for your records.</p>
 
-Your loan application is now processing. You can track the status using your loan tracking number: ${trackingNumber}
+      ${buildInfoCard({
+        title: "Receipt details",
+        rows: [
+          ["Receipt #", `<span style=\"font-family:'SF Mono','Courier New',monospace;color:#0033A0;font-weight:700;\">${receiptNumber}</span>`, "🔖"],
+          ["Date & Time", `${receiptDate} at ${receiptTime}`, "🕒"],
+          ["Loan Tracking #", `<span style=\"font-family:'SF Mono','Courier New',monospace;color:#0033A0;font-weight:700;\">${trackingNumber}</span>`, "📋"],
+          ["Amount Paid", `<span style=\"color:#0f7b3a;font-weight:800;font-size:18px;\">$${formattedAmount}</span>`, "💰"],
+          ["Status", `<span style=\"display:inline-block;background:#dff5e6;color:#0f7b3a;padding:3px 12px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;\">Paid</span>`, "✅"],
+        ],
+      })}
 
-If you have any questions about your payment or loan application, please contact our support team.
+      ${buildInfoCard({
+        title: paymentMethod === "card" ? "Card payment method" : "Crypto payment method",
+        rows: methodRows,
+        emphasis: "subtle",
+      })}
 
-Best regards,
-AmeriLend Support Team
-  `;
-
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      </head>
-      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333;">
-        ${getEmailHeader()}
-        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="margin: 0; color: #0033A0; font-size: 28px;">✓ Payment Received</h1>
-            <p style="margin: 10px 0 0 0; color: #666; font-size: 16px;">Your processing fee has been successfully received</p>
-          </div>
-
-          <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
-            <h2 style="margin-top: 0; color: #0033A0; font-size: 20px;">Receipt Details</h2>
-            <table style="width: 100%; margin-top: 15px; border-collapse: collapse;">
-              <tr style="border-bottom: 1px solid #dee2e6;">
-                <td style="padding: 12px 0; color: #666;"><strong>Receipt Number:</strong></td>
-                <td style="padding: 12px 0; text-align: right; font-family: monospace; color: #0033A0; font-weight: bold;">${receiptNumber}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #dee2e6;">
-                <td style="padding: 12px 0; color: #666;"><strong>Date & Time:</strong></td>
-                <td style="padding: 12px 0; text-align: right;">${receiptDate} at ${receiptTime}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #dee2e6;">
-                <td style="padding: 12px 0; color: #666;"><strong>Loan Tracking #:</strong></td>
-                <td style="padding: 12px 0; text-align: right; font-family: monospace; font-weight: bold;">${trackingNumber}</td>
-              </tr>
-              <tr style="border-bottom: 2px solid #28a745;">
-                <td style="padding: 12px 0; color: #666;"><strong>Amount Paid:</strong></td>
-                <td style="padding: 12px 0; text-align: right; font-size: 20px; font-weight: bold; color: #28a745;">$${formattedAmount}</td>
-              </tr>
-            </table>
-          </div>
-
-          <div style="background-color: #e7f3ff; border-left: 4px solid #0033A0; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
-            <h3 style="margin-top: 0; color: #0033A0;">Payment Method</h3>
-            ${paymentMethod === 'card' 
-              ? `<table style="width: 100%; margin-top: 10px;">
-                  <tr style="border-bottom: 1px solid #b3d9ff;">
-                    <td style="padding: 8px 0;"><strong>Card Type:</strong></td>
-                    <td style="padding: 8px 0; text-align: right;">${cardBrand}</td>
-                  </tr>
-                  <tr style="border-bottom: 1px solid #b3d9ff;">
-                    <td style="padding: 8px 0;"><strong>Card Number:</strong></td>
-                    <td style="padding: 8px 0; text-align: right;">•••• •••• •••• ${cardLast4}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0;"><strong>Transaction ID:</strong></td>
-                    <td style="padding: 8px 0; text-align: right; font-family: monospace; font-size: 12px;">${transactionId}</td>
-                  </tr>
-                </table>`
-              : `<table style="width: 100%; margin-top: 10px;">
-                  <tr style="border-bottom: 1px solid #b3d9ff;">
-                    <td style="padding: 8px 0;"><strong>Cryptocurrency:</strong></td>
-                    <td style="padding: 8px 0; text-align: right;">${cryptoCurrency}</td>
-                  </tr>
-                  <tr style="border-bottom: 1px solid #b3d9ff;">
-                    <td style="padding: 8px 0;"><strong>Crypto Amount:</strong></td>
-                    <td style="padding: 8px 0; text-align: right;"><strong>${cryptoAmount} ${cryptoCurrency}</strong></td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0;"><strong>Wallet Address:</strong></td>
-                    <td style="padding: 8px 0; text-align: right; font-family: monospace; font-size: 11px; word-break: break-all;">${walletAddress}</td>
-                  </tr>
-                </table>`
-            }
-          </div>
-
-          <div style="background-color: #d4edda; border-left: 4px solid #28a745; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
-            <h3 style="margin-top: 0; color: #155724;">What's Next?</h3>
-            <ul style="margin: 10px 0; padding-left: 20px; color: #155724;">
-              <li style="margin-bottom: 8px;">Your loan application is now processing</li>
-              <li style="margin-bottom: 8px;">You'll receive updates via email as your application progresses</li>
-              <li>You can track your application status using your loan tracking number</li>
-            </ul>
-          </div>
-
-          <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
-            <h3 style="margin-top: 0; color: #856404;">💡 Important Information</h3>
-            <p style="margin: 0; color: #856404; font-size: 14px;">Please save this receipt for your records. Your receipt number and tracking number can be used to reference this transaction.</p>
-          </div>
-
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${COMPANY_INFO.website}/dashboard" style="background-color: #0033A0; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">View Your Application</a>
-          </div>
-
-          <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 30px 0;">
-            <h3 style="margin-top: 0; color: #333;">Application Summary</h3>
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr style="background-color: #e7e7e7;">
-                <td style="padding: 10px; font-weight: bold;">Item</td>
-                <td style="padding: 10px; text-align: right; font-weight: bold;">Amount</td>
-              </tr>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;margin:18px 0;">
+        <tr>
+          <td style="padding:14px 18px;font-family:-apple-system,sans-serif;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td style="padding: 10px; border-bottom: 1px solid #dee2e6;">Processing Fee</td>
-                <td style="padding: 10px; border-bottom: 1px solid #dee2e6; text-align: right; font-weight: bold;">$${formattedAmount}</td>
+                <td style="color:#64748b;font-size:13px;font-weight:600;">Subtotal (Processing fee)</td>
+                <td style="text-align:right;color:#0f172a;font-weight:600;font-size:13px;">$${formattedAmount}</td>
+              </tr>
+              <tr><td colspan="2" style="border-top:1px solid #e2e8f0;padding-top:8px;"></td></tr>
+              <tr>
+                <td style="color:#0033A0;font-size:14px;font-weight:800;letter-spacing:0.4px;text-transform:uppercase;padding-top:6px;">Total Paid</td>
+                <td style="text-align:right;color:#0f7b3a;font-weight:800;font-size:18px;padding-top:6px;">$${formattedAmount} <span style="color:#64748b;font-size:11px;font-weight:600;">USD</span></td>
               </tr>
             </table>
-          </div>
+          </td>
+        </tr>
+      </table>
 
-          <div style="border-top: 1px solid #dee2e6; padding-top: 20px; margin-top: 30px;">
-            <p style="margin: 0; color: #666; font-size: 13px;">
-              <strong>Contact Us:</strong><br>
-              Email: <a href="mailto:support@amerilendloan.com" style="color: #0033A0;">support@amerilendloan.com</a><br>
-              Website: <a href="${COMPANY_INFO.website}" style="color: #0033A0;">${COMPANY_INFO.website}</a>
-            </p>
-          </div>
+      ${buildAlert({ tone: "info", title: "What happens next", body: `Your loan application is now in <strong>final processing</strong>. Funds typically release within 1\u20132 business days \u2014 you'll receive a disbursement email the moment they go out.` })}
 
-          <p style="margin-top: 20px; color: #999; font-size: 12px; text-align: center;">This is an automated receipt. Please do not reply to this email. For inquiries, contact our support team.</p>
-        </div>
-        ${getEmailFooter()}
-      </body>
-    </html>
-  `;
+      <div style="margin:24px 0 8px;text-align:center;">
+        ${buildButton({ label: "View Application Status", href: `${COMPANY_INFO.website}/dashboard` })}
+      </div>
+
+      ${buildTrustRow()}
+    `,
+  });
 
   await sendEmail({ to: email, subject, text, html });
 }
