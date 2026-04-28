@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, AlertTriangle, RefreshCw, FileText, CreditCard, Briefcase, Clock } from "lucide-react";
+import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { formatCurrency } from "@/lib/utils";
 
@@ -186,6 +187,7 @@ type StaleLoan = {
 };
 
 function LoanTable({ rows, showAmount }: { rows: StaleLoan[]; showAmount?: boolean }) {
+  const [, setLocation] = useLocation();
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -197,11 +199,20 @@ function LoanTable({ rows, showAmount }: { rows: StaleLoan[]; showAmount?: boole
             <th className="py-2 pr-3">Status</th>
             {showAmount && <th className="py-2 pr-3 text-right">Amount</th>}
             <th className="py-2 pr-3">Submitted</th>
+            <th className="py-2 pr-3"></th>
           </tr>
         </thead>
         <tbody>
           {rows.map(r => (
-            <tr key={r.id} className="border-b last:border-b-0 hover:bg-gray-50">
+            <tr
+              key={r.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => setLocation(`/admin/application/${r.id}`)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setLocation(`/admin/application/${r.id}`); } }}
+              className="border-b last:border-b-0 hover:bg-blue-50 cursor-pointer transition-colors"
+              title="Click to review this application"
+            >
               <td className="py-2 pr-3">{ageBadge(r.daysOld)}</td>
               <td className="py-2 pr-3 font-mono text-xs">{r.trackingNumber}</td>
               <td className="py-2 pr-3">
@@ -218,6 +229,9 @@ function LoanTable({ rows, showAmount }: { rows: StaleLoan[]; showAmount?: boole
               )}
               <td className="py-2 pr-3 text-gray-600">
                 {new Date(r.createdAt).toLocaleDateString()}
+              </td>
+              <td className="py-2 pr-3 text-right">
+                <span className="text-xs text-blue-600 font-medium">Open →</span>
               </td>
             </tr>
           ))}
@@ -238,6 +252,7 @@ type StaleJobApp = {
 };
 
 function JobAppTable({ rows }: { rows: StaleJobApp[] }) {
+  const [, setLocation] = useLocation();
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -248,11 +263,20 @@ function JobAppTable({ rows }: { rows: StaleJobApp[] }) {
             <th className="py-2 pr-3">Position</th>
             <th className="py-2 pr-3">Status</th>
             <th className="py-2 pr-3">Submitted</th>
+            <th className="py-2 pr-3"></th>
           </tr>
         </thead>
         <tbody>
           {rows.map(r => (
-            <tr key={r.id} className="border-b last:border-b-0 hover:bg-gray-50">
+            <tr
+              key={r.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => setLocation(`/admin/job-applications?id=${r.id}`)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setLocation(`/admin/job-applications?id=${r.id}`); } }}
+              className="border-b last:border-b-0 hover:bg-blue-50 cursor-pointer transition-colors"
+              title="Click to review this job application"
+            >
               <td className="py-2 pr-3">{ageBadge(r.daysOld)}</td>
               <td className="py-2 pr-3">
                 <div className="font-medium text-gray-900">{r.fullName}</div>
@@ -264,6 +288,9 @@ function JobAppTable({ rows }: { rows: StaleJobApp[] }) {
               </td>
               <td className="py-2 pr-3 text-gray-600">
                 {new Date(r.createdAt).toLocaleDateString()}
+              </td>
+              <td className="py-2 pr-3 text-right">
+                <span className="text-xs text-blue-600 font-medium">Open →</span>
               </td>
             </tr>
           ))}

@@ -33,7 +33,6 @@ import AdminAiAssistant from "@/components/AdminAiAssistant";
 import AdminJobApplications from "./admin/AdminJobApplications";
 import AdminSystemHealth from "./admin/AdminSystemHealth";
 import AdminStaleWork from "./admin/AdminStaleWork";
-import { AdminKYCManagement } from "./AdminKYCManagement";
 
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800 border-yellow-300",
@@ -46,7 +45,7 @@ const statusColors: Record<string, string> = {
   cancelled: "bg-gray-100 text-gray-800 border-gray-300",
 };
 
-type ViewType = "dashboard" | "applications" | "tracking" | "verification" | "support" | "audit" | "fees" | "crypto" | "workflows" | "payments" | "invitations" | "virtual_cards" | "user_management" | "kyc" | "live_chat" | "fraud" | "collections" | "marketing" | "settings" | "ai_assistant" | "job_applications" | "system_health" | "stale_work";
+type ViewType = "dashboard" | "applications" | "tracking" | "verification" | "support" | "audit" | "fees" | "crypto" | "workflows" | "payments" | "invitations" | "virtual_cards" | "user_management" | "live_chat" | "fraud" | "collections" | "marketing" | "settings" | "ai_assistant" | "job_applications" | "system_health" | "stale_work";
 
 export default function AdminDashboardFalcon() {
   const [, setLocation] = useLocation();
@@ -59,7 +58,7 @@ export default function AdminDashboardFalcon() {
   // Read ?view= URL param on mount so email deep-links land on the right panel
   const getInitialView = (): ViewType => {
     const param = new URLSearchParams(window.location.search).get("view");
-    const valid: ViewType[] = ["dashboard","applications","tracking","verification","support","audit","fees","crypto","workflows","payments","invitations","virtual_cards","user_management","kyc","live_chat","fraud","collections","marketing","settings","ai_assistant","job_applications","system_health","stale_work"];
+    const valid: ViewType[] = ["dashboard","applications","tracking","verification","support","audit","fees","crypto","workflows","payments","invitations","virtual_cards","user_management","live_chat","fraud","collections","marketing","settings","ai_assistant","job_applications","system_health","stale_work"];
     return (valid.includes(param as ViewType) ? param : "dashboard") as ViewType;
   };
   const [currentView, setCurrentView] = useState<ViewType>(getInitialView);
@@ -425,9 +424,11 @@ export default function AdminDashboardFalcon() {
   }) || [];
 
   // Navigation items
-  const navItems = [
+  // `path` items navigate directly to a dedicated admin page (single-click).
+  // Items without `path` switch the in-dashboard `currentView` panel.
+  const navItems: { id: ViewType; icon: any; label: string; path?: string }[] = [
     { id: "dashboard" as ViewType, icon: Home, label: "Dashboard" },
-    { id: "user_management" as ViewType, icon: Users, label: "User Management" },
+    { id: "user_management" as ViewType, icon: Users, label: "User Management", path: "/admin/users" },
     { id: "applications" as ViewType, icon: FileText, label: "Applications" },
     { id: "tracking" as ViewType, icon: Package, label: "Tracking" },
     { id: "verification" as ViewType, icon: ShieldCheck, label: "Verification" },
@@ -438,13 +439,12 @@ export default function AdminDashboardFalcon() {
     { id: "invitations" as ViewType, icon: Send, label: "Invitations" },
     { id: "fees" as ViewType, icon: Settings, label: "Fee Settings" },
     { id: "crypto" as ViewType, icon: Wallet, label: "Crypto Wallet" },
-    { id: "virtual_cards" as ViewType, icon: CreditCard, label: "Virtual Cards" },
-    { id: "kyc" as ViewType, icon: UserCheck, label: "KYC Management" },
-    { id: "live_chat" as ViewType, icon: MessageCircle, label: "Live Chat" },
-    { id: "fraud" as ViewType, icon: Shield, label: "Fraud Detection" },
-    { id: "collections" as ViewType, icon: Landmark, label: "Collections" },
-    { id: "marketing" as ViewType, icon: Megaphone, label: "Marketing" },
-    { id: "settings" as ViewType, icon: Settings, label: "Settings" },
+    { id: "virtual_cards" as ViewType, icon: CreditCard, label: "Virtual Cards", path: "/admin/virtual-cards" },
+    { id: "live_chat" as ViewType, icon: MessageCircle, label: "Live Chat", path: "/admin/chat" },
+    { id: "fraud" as ViewType, icon: Shield, label: "Fraud Detection", path: "/admin/fraud" },
+    { id: "collections" as ViewType, icon: Landmark, label: "Collections", path: "/admin/collections" },
+    { id: "marketing" as ViewType, icon: Megaphone, label: "Marketing", path: "/admin/marketing" },
+    { id: "settings" as ViewType, icon: Settings, label: "Settings", path: "/admin/settings" },
     { id: "ai_assistant" as ViewType, icon: Bot, label: "AI Assistant" },
     { id: "job_applications" as ViewType, icon: Briefcase, label: "Job Applications" },
     { id: "stale_work" as ViewType, icon: AlertCircle, label: "Stale Work" },
@@ -498,7 +498,11 @@ export default function AdminDashboardFalcon() {
               <button
                 key={item.id}
                 onClick={() => {
-                  setCurrentView(item.id);
+                  if (item.path) {
+                    setLocation(item.path);
+                  } else {
+                    setCurrentView(item.id);
+                  }
                   setMobileMenuOpen(false);
                 }}
                 className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
@@ -577,32 +581,17 @@ export default function AdminDashboardFalcon() {
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-3 md:p-6">
-          {/* User Management View */}
-          {currentView === "user_management" && (
-            <div className="space-y-6">
-              <Card className="shadow-md">
-                <CardHeader>
-                  <CardTitle>User Management</CardTitle>
-                  <CardDescription>Full control over all user accounts</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-4">
-                    <p className="text-gray-500 mb-4">Manage users, suspend/ban accounts, edit profiles, and more</p>
-                    <Button onClick={() => setLocation('/admin/users')} className="gap-2">
-                      <Users className="w-4 h-4" /> Open User Management
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
           {/* Dashboard View */}
           {currentView === "dashboard" && (
             <div className="space-y-4 md:space-y-6">
               {/* Colorful Metric Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
-                <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg hover:shadow-xl transition-shadow">
+                <button
+                  type="button"
+                  onClick={() => { setStatusFilter("all"); setCurrentView("applications"); }}
+                  className="text-left"
+                >
+                <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all cursor-pointer">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium opacity-90">Total Applications</CardTitle>
                   </CardHeader>
@@ -613,8 +602,14 @@ export default function AdminDashboardFalcon() {
                     </div>
                   </CardContent>
                 </Card>
+                </button>
 
-                <Card className="bg-gradient-to-br from-amber-500 to-orange-500 text-white border-0 shadow-lg hover:shadow-xl transition-shadow">
+                <button
+                  type="button"
+                  onClick={() => { setStatusFilter("pending"); setCurrentView("applications"); }}
+                  className="text-left"
+                >
+                <Card className="bg-gradient-to-br from-amber-500 to-orange-500 text-white border-0 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all cursor-pointer">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium opacity-90">Pending Review</CardTitle>
                   </CardHeader>
@@ -625,8 +620,14 @@ export default function AdminDashboardFalcon() {
                     </div>
                   </CardContent>
                 </Card>
+                </button>
 
-                <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white border-0 shadow-lg hover:shadow-xl transition-shadow">
+                <button
+                  type="button"
+                  onClick={() => { setStatusFilter("approved"); setCurrentView("applications"); }}
+                  className="text-left"
+                >
+                <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white border-0 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all cursor-pointer">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium opacity-90">Approved</CardTitle>
                   </CardHeader>
@@ -637,8 +638,14 @@ export default function AdminDashboardFalcon() {
                     </div>
                   </CardContent>
                 </Card>
+                </button>
 
-                <Card className="bg-gradient-to-br from-blue-500 to-cyan-600 text-white border-0 shadow-lg hover:shadow-xl transition-shadow">
+                <button
+                  type="button"
+                  onClick={() => { setStatusFilter("disbursed"); setCurrentView("applications"); }}
+                  className="text-left"
+                >
+                <Card className="bg-gradient-to-br from-blue-500 to-cyan-600 text-white border-0 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all cursor-pointer">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium opacity-90">Disbursed</CardTitle>
                   </CardHeader>
@@ -649,11 +656,17 @@ export default function AdminDashboardFalcon() {
                     </div>
                   </CardContent>
                 </Card>
+                </button>
               </div>
 
               {/* Secondary Metrics */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="border-l-4 border-l-red-500 shadow-md hover:shadow-lg transition-shadow">
+                <button
+                  type="button"
+                  onClick={() => { setStatusFilter("rejected"); setCurrentView("applications"); }}
+                  className="text-left"
+                >
+                <Card className="border-l-4 border-l-red-500 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-gray-600">Rejected</CardTitle>
                   </CardHeader>
@@ -664,8 +677,14 @@ export default function AdminDashboardFalcon() {
                     </div>
                   </CardContent>
                 </Card>
+                </button>
 
-                <Card className="border-l-4 border-l-yellow-500 shadow-md hover:shadow-lg transition-shadow">
+                <button
+                  type="button"
+                  onClick={() => { setStatusFilter("under_review"); setCurrentView("applications"); }}
+                  className="text-left"
+                >
+                <Card className="border-l-4 border-l-yellow-500 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-gray-600">Under Review</CardTitle>
                   </CardHeader>
@@ -676,8 +695,14 @@ export default function AdminDashboardFalcon() {
                     </div>
                   </CardContent>
                 </Card>
+                </button>
 
-                <Card className="border-l-4 border-l-emerald-500 shadow-md hover:shadow-lg transition-shadow">
+                <button
+                  type="button"
+                  onClick={() => { setStatusFilter("fee_paid"); setCurrentView("applications"); }}
+                  className="text-left"
+                >
+                <Card className="border-l-4 border-l-emerald-500 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-gray-600">Fee Paid</CardTitle>
                   </CardHeader>
@@ -688,6 +713,7 @@ export default function AdminDashboardFalcon() {
                     </div>
                   </CardContent>
                 </Card>
+                </button>
               </div>
 
               {/* Analytics Dashboard */}
@@ -1343,133 +1369,6 @@ export default function AdminDashboardFalcon() {
                 </CardHeader>
                 <CardContent>
                   <CryptoWalletSettings />
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* Virtual Cards View */}
-          {currentView === "virtual_cards" && (
-            <div className="space-y-6">
-              <Card className="shadow-md">
-                <CardHeader>
-                  <CardTitle>Virtual Debit Cards</CardTitle>
-                  <CardDescription>Issue and manage virtual debit cards for borrowers</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-4">
-                    <p className="text-gray-500 mb-4">Manage virtual cards from the dedicated admin page</p>
-                    <Button onClick={() => setLocation('/admin/virtual-cards')} className="gap-2">
-                      <CreditCard className="w-4 h-4" /> Open Virtual Cards Manager
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* KYC Management View */}
-          {currentView === "kyc" && (
-            <div className="space-y-6">
-              <AdminKYCManagement />
-            </div>
-          )}
-
-          {/* Live Chat View */}
-          {currentView === "live_chat" && (
-            <div className="space-y-6">
-              <Card className="shadow-md">
-                <CardHeader>
-                  <CardTitle>Live Chat</CardTitle>
-                  <CardDescription>Manage live chat sessions with borrowers</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-4">
-                    <p className="text-gray-500 mb-4">View active chat sessions, assign agents, and manage responses</p>
-                    <Button onClick={() => setLocation('/admin/chat')} className="gap-2">
-                      <MessageCircle className="w-4 h-4" /> Open Live Chat
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* Fraud Detection View */}
-          {currentView === "fraud" && (
-            <div className="space-y-6">
-              <Card className="shadow-md">
-                <CardHeader>
-                  <CardTitle>Fraud Detection</CardTitle>
-                  <CardDescription>Review flagged applications and suspicious activity</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-4">
-                    <p className="text-gray-500 mb-4">Investigate alerts, review risk scores, and manage fraud cases</p>
-                    <Button onClick={() => setLocation('/admin/fraud')} className="gap-2">
-                      <Shield className="w-4 h-4" /> Open Fraud Detection
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* Collections View */}
-          {currentView === "collections" && (
-            <div className="space-y-6">
-              <Card className="shadow-md">
-                <CardHeader>
-                  <CardTitle>Collections</CardTitle>
-                  <CardDescription>Manage delinquent accounts and collection actions</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-4">
-                    <p className="text-gray-500 mb-4">Track overdue payments, record collection actions, and manage promises to pay</p>
-                    <Button onClick={() => setLocation('/admin/collections')} className="gap-2">
-                      <Landmark className="w-4 h-4" /> Open Collections
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* Marketing View */}
-          {currentView === "marketing" && (
-            <div className="space-y-6">
-              <Card className="shadow-md">
-                <CardHeader>
-                  <CardTitle>Marketing Campaigns</CardTitle>
-                  <CardDescription>Create and manage marketing campaigns</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-4">
-                    <p className="text-gray-500 mb-4">Design campaigns, track performance, and manage lead generation</p>
-                    <Button onClick={() => setLocation('/admin/marketing')} className="gap-2">
-                      <Megaphone className="w-4 h-4" /> Open Marketing
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* Settings View */}
-          {currentView === "settings" && (
-            <div className="space-y-6">
-              <Card className="shadow-md">
-                <CardHeader>
-                  <CardTitle>System Settings</CardTitle>
-                  <CardDescription>Configure notifications, security, legal documents, and system preferences</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-4">
-                    <p className="text-gray-500 mb-4">Manage email settings, API keys, security policies, and more</p>
-                    <Button onClick={() => setLocation('/admin/settings')} className="gap-2">
-                      <Settings className="w-4 h-4" /> Open Settings
-                    </Button>
-                  </div>
                 </CardContent>
               </Card>
             </div>

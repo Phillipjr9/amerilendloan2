@@ -83,28 +83,28 @@ export default function Home() {
           HEADER / NAV
          ════════════════════════════════════════════════════ */}
       <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="container mx-auto px-4 h-20 flex items-center justify-between gap-3">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2 min-w-0 flex-shrink-0">
             <img
               src="/images/logo-new.jpg"
               alt="AmeriLend"
-              className="h-9 w-auto rounded"
+              className="h-12 md:h-14 w-auto rounded object-contain"
             />
-            <span className="text-xl font-bold text-[#0A2540] hidden sm:inline">
+            <span className="text-2xl font-bold text-[#0A2540] hidden lg:inline">
               AmeriLend
             </span>
           </Link>
 
           <a
             href={`tel:${COMPANY_PHONE_RAW}`}
-            className="hidden lg:flex items-center text-xs text-gray-600 hover:text-[#0A2540]"
+            className="hidden xl:flex items-center text-xs text-gray-600 hover:text-[#0A2540]"
           >
             {COMPANY_PHONE_DISPLAY_SHORT}
           </a>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
+          <nav className="hidden md:flex items-center gap-6 lg:gap-8 text-sm font-medium text-gray-600">
             <Link href="/about" className="hover:text-[#0A2540] transition-colors">
               About
             </Link>
