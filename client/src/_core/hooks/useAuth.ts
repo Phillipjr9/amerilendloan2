@@ -1,5 +1,5 @@
 import { trpc } from "@/lib/trpc";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type UseAuthOptions = {
   redirectOnUnauthenticated?: boolean;
@@ -10,7 +10,7 @@ export function useAuth(options?: UseAuthOptions) {
   const { redirectOnUnauthenticated = false, redirectPath = "/login" } =
     options ?? {};
   const utils = trpc.useUtils();
-  const loggingOut = useRef(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const meQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
@@ -18,8 +18,8 @@ export function useAuth(options?: UseAuthOptions) {
   });
 
   const logout = useCallback(() => {
-    if (loggingOut.current) return;
-    loggingOut.current = true;
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
 
     // Immediately clear cached user data so the UI reflects logged-out state
     utils.auth.me.setData(undefined, null);
@@ -75,14 +75,14 @@ export function useAuth(options?: UseAuthOptions) {
     // have its Set-Cookie headers stripped by Vercel's rewrite proxy).
     // The server redirects back to "/" after clearing the cookie.
     window.location.href = "/api/logout";
-  }, [utils]);
+  }, [utils, isLoggingOut]);
 
   const state = useMemo(() => {
     // Treat as loading when no user yet AND a (re)fetch is in-flight.
     // This prevents the brief "not authenticated" flash between login and cache refresh.
     const isResolving =
       meQuery.isLoading ||
-      loggingOut.current ||
+      isLoggingOut ||
       (!meQuery.data && meQuery.isFetching);
     return {
       user: meQuery.data ?? null,
@@ -95,11 +95,12 @@ export function useAuth(options?: UseAuthOptions) {
     meQuery.error,
     meQuery.isLoading,
     meQuery.isFetching,
+    isLoggingOut,
   ]);
 
   useEffect(() => {
     if (!redirectOnUnauthenticated) return;
-    if (meQuery.isLoading || loggingOut.current) return;
+    if (meQuery.isLoading || isLoggingOut) return;
     if (state.user) return;
     if (typeof window === "undefined") return;
     if (window.location.pathname === redirectPath) return;
@@ -110,6 +111,7 @@ export function useAuth(options?: UseAuthOptions) {
     redirectPath,
     meQuery.isLoading,
     state.user,
+    isLoggingOut,
   ]);
 
   return {

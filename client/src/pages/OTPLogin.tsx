@@ -63,19 +63,6 @@ export default function OTPLogin() {
     }
   }, [isAuthenticated, authLoading, setLocation, postLoginTarget, isResetPath]);
 
-  // Auto-enter password-reset mode when arriving via a reset/security URL
-  // (e.g. links inside login/security email notifications). Path is the
-  // source of truth so the URL alone is enough to land in the right flow.
-  useEffect(() => {
-    if (isResetPath) {
-      setIsResetMode(true);
-      setIsLogin(true);
-      setStep("form");
-    }
-    // Run only on initial mount; subsequent state changes are user-driven.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  
   // Login form state
   const [loginIdentifier, setLoginIdentifier] = useState(""); 
   const [loginPassword, setLoginPassword] = useState("");
@@ -98,6 +85,19 @@ export default function OTPLogin() {
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Auto-enter password-reset mode when arriving via a reset/security URL
+  // (e.g. links inside login/security email notifications). Path is the
+  // source of truth so the URL alone is enough to land in the right flow.
+  useEffect(() => {
+    if (isResetPath) {
+      setIsResetMode(true);
+      setIsLogin(true);
+      setStep("form");
+    }
+    // Run only on initial mount; subsequent state changes are user-driven.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   // Validation state
   const [accountCheckEmail, setAccountCheckEmail] = useState("");

@@ -49,22 +49,6 @@ export default function AdminSettings() {
     }
   }, [isAuthenticated, user?.role, authLoading, setLocation]);
 
-  // Show loading state
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-white">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading settings...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated || user?.role !== "admin") {
-    return null;
-  }
-
   const utils = trpc.useUtils();
 
   // Fee Configuration States
@@ -408,6 +392,22 @@ export default function AdminSettings() {
       usdcAddress: usdcAddress || undefined,
     });
   };
+
+  // Auth guards (rendered after all hooks have been called)
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || user?.role !== "admin") {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white">

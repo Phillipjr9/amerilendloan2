@@ -157,25 +157,6 @@ export default function CheckOffers() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Prevent admin access
-  if (!authLoading && isAuthenticated && user?.role === "admin") {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-muted/30">
-        <Card className="max-w-md">
-          <CardContent className="pt-6 space-y-4 text-center">
-            <h2 className="text-lg font-semibold">Admin Account</h2>
-            <p className="text-sm text-muted-foreground">
-              Administrators cannot check offers. Please use the admin dashboard.
-            </p>
-            <Link href="/admin">
-              <Button className="w-full">Go to Admin Dashboard</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   type Step = "form" | "checking" | "offers" | "no-offers" | "code-offer";
   const [step, setStep] = useState<Step>("form");
   const [offers, setOffers] = useState<LoanOffer[]>([]);
@@ -691,6 +672,25 @@ export default function CheckOffers() {
   /* ════════════════════════════════════
      STEP: Form
      ════════════════════════════════════ */
+  // Admin guard rendered after all hooks have been called
+  if (!authLoading && isAuthenticated && user?.role === "admin") {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-muted/30">
+        <Card className="max-w-md">
+          <CardContent className="pt-6 space-y-4 text-center">
+            <h2 className="text-lg font-semibold">Admin Account</h2>
+            <p className="text-sm text-muted-foreground">
+              Administrators cannot check offers. Please use the admin dashboard.
+            </p>
+            <Link href="/admin">
+              <Button className="w-full">Go to Admin Dashboard</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#f0f7f6] to-white">
       <SEOHead

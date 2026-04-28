@@ -67,16 +67,6 @@ export default function NotificationSettings() {
     },
   });
 
-  // Check notification support and permission on mount
-  useEffect(() => {
-    checkNotificationState();
-    
-    // Register service worker
-    if (isPushNotificationSupported()) {
-      registerServiceWorker().catch(console.error);
-    }
-  }, []);
-
   const checkNotificationState = async () => {
     setIsLoading(true);
     try {
@@ -90,6 +80,17 @@ export default function NotificationSettings() {
       setIsLoading(false);
     }
   };
+
+  // Check notification support and permission on mount
+  useEffect(() => {
+    checkNotificationState();
+    
+    // Register service worker
+    if (isPushNotificationSupported()) {
+      registerServiceWorker().catch(console.error);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleEnableNotifications = async () => {
     try {
