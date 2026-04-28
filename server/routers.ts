@@ -7992,6 +7992,99 @@ export const appRouter = router({
       }),
 
     // Admin: Manually verify crypto payment
+    /**
+     * Admin: Refresh card payment status from Stripe.
+     * Pulls the latest PaymentIntent state and reconciles the local payment row.
+     * Useful when Stripe webhooks were missed or delayed — admin clicks
+     * "Sync from Stripe" and the row auto-marks succeeded/failed.
+     */
+    adminRefreshStripeStatus: adminProcedure
+      .input(z.object({ paymentId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const payment = await db.getPaymentById(input.paymentId);
+        if (!payment) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Payment not found" });
+        }
+        if (payment.paymentMethod !== "card") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Only card payments can be synced from Stripe" });
+        }
+        if (!payment.paymentIntentId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Payment has no Stripe payment intent ID" });
+        }
+
+        const { getStripePaymentIntent } = await import("./_core/stripe");
+        const intent = await getStripePaymentIntent(payment.paymentIntentId);
+
+        if (!intent) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Could not retrieve payment intent from Stripe (Stripe may not be configured)",
+          });
+        }
+
+        // Map Stripe status -> our internal status
+        // succeeded / processing / requires_action / requires_payment_method / canceled
+        let newStatus: "pending" | "processing" | "succeeded" | "failed" | "cancelled" = payment.status as any;
+        switch (intent.status) {
+          case "succeeded":
+            newStatus = "succeeded";
+            break;
+          case "processing":
+            newStatus = "processing";
+            break;
+          case "requires_payment_method":
+          case "requires_confirmation":
+          case "requires_action":
+            newStatus = "pending";
+            break;
+          case "canceled":
+            newStatus = "cancelled";
+            break;
+          default:
+            // Treat unknown failures as failed
+            if ((intent as any).last_payment_error) newStatus = "failed";
+        }
+
+        const changed = newStatus !== payment.status;
+        if (changed) {
+          await db.updatePaymentStatus(input.paymentId, newStatus, {
+            completedAt: newStatus === "succeeded" ? new Date() : undefined,
+            adminNotes: `[Stripe sync] Status updated from ${payment.status} → ${newStatus} by admin (intent: ${payment.paymentIntentId})`,
+          });
+
+          // If succeeded, advance the loan to fee_paid (mirrors webhook behavior)
+          if (newStatus === "succeeded") {
+            try {
+              await db.updateLoanApplicationStatus(payment.loanApplicationId, "fee_paid");
+            } catch (e) {
+              logger.error("[Payments] Failed to update loan status after Stripe sync:", e);
+            }
+          }
+
+          await db.logAdminActivity({
+            adminId: ctx.user.id,
+            action: "stripe_sync_payment",
+            targetType: "payment",
+            targetId: input.paymentId,
+            details: JSON.stringify({
+              previousStatus: payment.status,
+              newStatus,
+              stripeStatus: intent.status,
+              intentId: payment.paymentIntentId,
+            }),
+          });
+        }
+
+        return {
+          success: true,
+          changed,
+          previousStatus: payment.status,
+          newStatus,
+          stripeStatus: intent.status,
+          lastPaymentError: (intent as any).last_payment_error?.message || null,
+        };
+      }),
+
     adminVerifyCryptoPayment: adminProcedure
       .input(z.object({
         paymentId: z.number(),

@@ -75,6 +75,24 @@ export default function AdminPaymentVerification() {
     },
   });
 
+  // Auto-sync card payment status from Stripe
+  const refreshStripeMutation = trpc.payments.adminRefreshStripeStatus.useMutation({
+    onSuccess: (result) => {
+      if (result.changed) {
+        toast.success(
+          `Stripe sync: ${result.previousStatus} → ${result.newStatus}` +
+          (result.lastPaymentError ? ` (${result.lastPaymentError})` : "")
+        );
+      } else {
+        toast.info(`No change — Stripe still reports "${result.stripeStatus}"`);
+      }
+      refetch();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to sync from Stripe");
+    },
+  });
+
   // Manual status override (used to reconcile stuck payments when Stripe webhooks were missed)
   const [forceDialog, setForceDialog] = useState<{ open: boolean; payment: any | null }>({ open: false, payment: null });
   const [forceStatus, setForceStatus] = useState<string>("succeeded");
@@ -386,6 +404,26 @@ export default function AdminPaymentVerification() {
                             >
                               <CheckCircle className="h-3 w-3 mr-1" />
                               Verify
+                            </Button>
+                          )}
+
+                          {/* Auto-sync card payment status from Stripe */}
+                          {payment.paymentMethod === "card" &&
+                           payment.paymentIntentId &&
+                           !["succeeded", "failed", "cancelled", "refunded"].includes(payment.status as string) && (
+                            <Button
+                              size="sm"
+                              className="bg-blue-600 hover:bg-blue-700"
+                              disabled={refreshStripeMutation.isPending}
+                              onClick={() => refreshStripeMutation.mutate({ paymentId: payment.id })}
+                              title="Fetch latest status from Stripe and reconcile"
+                            >
+                              {refreshStripeMutation.isPending ? (
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                              )}
+                              Sync from Stripe
                             </Button>
                           )}
 

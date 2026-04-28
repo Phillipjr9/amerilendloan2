@@ -131,7 +131,11 @@ export default function AdminDashboardFalcon() {
     { enabled: disbursementDialog.open && !!disbursementDialog.applicationId }
   );
   const { data: ticketsData, refetch: refetchTickets, isLoading: ticketsLoading } = trpc.supportTickets.adminGetAll.useQuery({ status: ticketStatusFilter });
-  const tickets = ticketsData?.data || [];
+  // Tolerate both `{ success, data }` and bare-array response shapes
+  const tickets: any[] =
+    Array.isArray(ticketsData)
+      ? ticketsData
+      : (ticketsData as any)?.data || [];
   const { data: ticketMessagesData, refetch: refetchTicketMessages } = trpc.supportTickets.getMessages.useQuery(
     { ticketId: selectedTicket || 0 },
     { enabled: !!selectedTicket }
@@ -1153,20 +1157,28 @@ export default function AdminDashboardFalcon() {
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle>Support Tickets</CardTitle>
-                      <CardDescription>Manage customer support requests</CardDescription>
+                      <CardDescription>
+                        {tickets.length} ticket{tickets.length !== 1 ? "s" : ""} found
+                      </CardDescription>
                     </div>
-                    <Select value={ticketStatusFilter || "all"} onValueChange={(val) => setTicketStatusFilter(val === "all" ? undefined : val)}>
-                      <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Filter by status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Tickets</SelectItem>
-                        <SelectItem value="open">Open</SelectItem>
-                        <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="resolved">Resolved</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => refetchTickets()}>
+                        <Loader2 className={`h-4 w-4 mr-2 ${ticketsLoading ? "animate-spin" : "hidden"}`} />
+                        Refresh
+                      </Button>
+                      <Select value={ticketStatusFilter || "all"} onValueChange={(val) => setTicketStatusFilter(val === "all" ? undefined : val)}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Filter by status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Tickets</SelectItem>
+                          <SelectItem value="open">Open</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="resolved">Resolved</SelectItem>
+                          <SelectItem value="closed">Closed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -1183,7 +1195,14 @@ export default function AdminDashboardFalcon() {
                               <div className="flex-1">
                                 <CardTitle className="text-lg">#{ticket.id} - {ticket.subject}</CardTitle>
                                 <CardDescription className="mt-1">
-                                  Category: {ticket.category} | Priority: {ticket.priority}
+                                  {(ticket.userName || ticket.userEmail) && (
+                                    <span className="font-medium text-gray-700">
+                                      From: {ticket.userName || "—"}{ticket.userEmail ? ` <${ticket.userEmail}>` : ""}
+                                    </span>
+                                  )}
+                                  <span className="block text-xs text-gray-500 mt-0.5">
+                                    Category: {ticket.category} · Priority: {ticket.priority}
+                                  </span>
                                 </CardDescription>
                               </div>
                               <Badge className={

@@ -83,8 +83,16 @@ export default function AdvancedAnalytics() {
   const disbursementData = Object.values(dailyDisbursements).slice(-14);
 
   // Calculate key metrics
-  const approvalRate = applications.length > 0
-    ? ((applications.filter((a: any) => a.status === 'approved').length / applications.length) * 100).toFixed(1)
+  // NOTE: Use server-side `loans.adminStatistics` for headline numbers so
+  // they always match the dashboard stat cards (avoids client/server drift
+  // and timezone-based date filtering inconsistencies).
+  const totalApplicationsAll = stats?.totalApplications ?? applications.length;
+  const approvedCountAll =
+    (stats?.approved ?? 0) +
+    (stats?.fee_paid ?? 0) +
+    (stats?.disbursed ?? 0);
+  const approvalRate = totalApplicationsAll > 0
+    ? ((approvedCountAll / totalApplicationsAll) * 100).toFixed(1)
     : '0';
 
   const avgProcessingTime = applications.length > 0
