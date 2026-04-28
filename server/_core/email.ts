@@ -4,8 +4,19 @@
  */
 
 import { ENV } from "./env";
-import { getEmailHeader, getEmailFooter, COMPANY_INFO } from "./companyConfig";
-import { getLocationFromIP } from "./geolocation";
+import {
+  getEmailHeader,
+  getEmailFooter,
+  buildEmailShell,
+  buildHero,
+  buildButton,
+  buildInfoCard,
+  buildAlert,
+  buildDivider,
+  buildTrustRow,
+  COMPANY_INFO,
+} from "./companyConfig";
+import { getLocationFromIP, formatIPForDisplay } from "./geolocation";
 import { logger } from "./logger";
 
 export type EmailPayload = {
@@ -248,43 +259,32 @@ export async function sendOTPEmail(email: string, code: string, purpose: "signup
 
   const { subject, title, message } = purposes[purpose];
 
-  const text = `Your verification code is: ${code}\n\nThis code will expire in 10 minutes.\n\nIf you didn't request this code, please ignore this email.`;
+  const text = `${title}\n\nYour verification code is: ${code}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this code, ignore this email and your account will remain secure.\n\n— The AmeriLend Security Team`;
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${subject}</title>
-      </head>
-      <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 0; background-color: #f0f2f5;">
-        <div style="background-color: #ffffff; overflow: hidden; box-shadow: 0 2px 20px rgba(0,0,0,0.08);">
-          ${getEmailHeader()}
-          <div style="padding: 35px 30px;">
-            <div style="text-align: center; margin-bottom: 20px;">
-              <h2 style="color: #0033A0; margin: 0 0 8px 0; font-size: 22px; font-weight: 700;">${title}</h2>
-              <p style="color: #666; margin: 0; font-size: 14px;">${message}</p>
-            </div>
-            
-            <div style="background: linear-gradient(135deg, #001a4d 0%, #0033A0 100%); color: white; padding: 28px; border-radius: 14px; text-align: center; margin: 24px 0; box-shadow: 0 4px 15px rgba(0,51,160,0.3);">
-              <p style="margin: 0 0 8px 0; font-size: 13px; color: rgba(255,255,255,0.8); text-transform: uppercase; letter-spacing: 1px;">Your verification code</p>
-              <p style="margin: 0; font-size: 40px; font-weight: 700; letter-spacing: 8px; font-family: 'Courier New', monospace;">${code}</p>
-            </div>
-            
-            <div style="text-align: center; margin: 20px 0;">
-              <p style="color: #6b7280; font-size: 13px; margin: 0;">⏱ This code expires in <strong>10 minutes</strong></p>
-            </div>
-            
-            <div style="background-color: #fef3c7; border: 1px solid #fcd34d; border-radius: 10px; padding: 14px 18px; margin-top: 24px; text-align: center;">
-              <p style="margin: 0; color: #92400e; font-size: 13px;">🔒 If you didn't request this code, you can safely ignore this email.</p>
-            </div>
-          </div>
-          ${getEmailFooter()}
-        </div>
-      </body>
-    </html>
-  `;
+  const heroIcon = purpose === "reset" ? "🔑" : purpose === "login" ? "🔐" : "✉️";
+  const html = buildEmailShell({
+    subject,
+    preheader: `${title} — your one-time code is ${code}`,
+    hero: { icon: heroIcon, eyebrow: "Verification Required", title, subtitle: message, tone: "info" },
+    body: `
+      <p style="margin:0 0 6px;font-size:15px;color:#0f172a;">Hi there,</p>
+      <p style="margin:0 0 18px;font-size:14px;color:#475569;line-height:1.6;">${message} Enter the code below to continue. It will expire in <strong>10 minutes</strong>.</p>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;background:linear-gradient(135deg,#001a4d 0%,#0033A0 100%);border-radius:14px;margin:18px 0;">
+        <tr>
+          <td align="center" style="padding:30px 24px;">
+            <div style="font-size:11px;letter-spacing:2.4px;color:rgba(255,255,255,0.75);font-weight:700;text-transform:uppercase;margin-bottom:10px;">Your verification code</div>
+            <div style="font-size:38px;letter-spacing:14px;color:#ffffff;font-weight:800;font-family:'SF Mono','Courier New',monospace;">${code}</div>
+            <div style="margin-top:12px;color:#FFA500;font-size:12px;font-weight:600;letter-spacing:0.6px;">⏱  Expires in 10 minutes</div>
+          </td>
+        </tr>
+      </table>
+
+      ${buildAlert({ tone: "warning", title: "Did not request this?", body: `You can safely ignore this email — your account is secure as long as no one else knows the code. Never share verification codes with anyone, including AmeriLend staff. <a href="mailto:${COMPANY_INFO.contact.email}" style="color:${"#a15c00"};font-weight:600;">Report it</a>.` })}
+
+      <p style="margin:14px 0 0;font-size:12px;color:#64748b;line-height:1.55;text-align:center;">For your security, never share this code over the phone, by text, or email.<br>AmeriLend will never ask for your code.</p>
+    `,
+  });
 
   const result = await sendEmail({ to: email, subject, text, html });
   if (!result.success) {
@@ -303,77 +303,56 @@ export async function sendLoanApplicationReceivedEmail(
   requestedAmount: number
 ): Promise<void> {
   const formattedAmount = formatCurrency(requestedAmount);
-  const subject = "Loan Application Received - AmeriLend";
-  const text = `Dear ${fullName},\n\nThank you for submitting your loan application to AmeriLend!\n\nYour application has been received and is now under review.\n\nApplication Details:\nTracking Number: ${trackingNumber}\nRequested Amount: $${formattedAmount}\n\nWhat's Next?\n- Our team will review your application within 24 hours\n- You'll receive an email notification once a decision is made\n- You can track your application status in your dashboard\n\nIf you have any questions, please contact our support team.\n\nBest regards,\nThe AmeriLend Team`;
-  
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${subject}</title>
-      </head>
-      <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 0; background-color: #f0f2f5;">
-        <div style="background-color: #ffffff; overflow: hidden; box-shadow: 0 2px 20px rgba(0,0,0,0.08);">
-          ${getEmailHeader()}
-          <div style="padding: 35px 30px;">
-            <!-- Success Icon -->
-            <div style="text-align: center; margin-bottom: 20px;">
-              <div style="display: inline-block; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-radius: 50%; width: 64px; height: 64px; line-height: 64px; font-size: 28px;">📋</div>
-              <h2 style="color: #0033A0; margin: 12px 0 5px 0; font-size: 22px; font-weight: 700;">Application Received</h2>
-              <p style="color: #888; margin: 0; font-size: 13px;">Your loan application is now under review</p>
-            </div>
+  const subject = "We've received your loan application — AmeriLend";
+  const text = `Hi ${fullName},\n\nThanks for applying with AmeriLend. Your application has been received and is now in our underwriting queue.\n\nApplication Summary\n  Tracking number: ${trackingNumber}\n  Requested amount: $${formattedAmount}\n  Status: Under Review\n  Submitted: ${new Date().toLocaleString("en-US", { timeZone: "America/Chicago" })} CT\n\nWhat happens next\n  1. Our underwriting team reviews your application (typically within 24 hours).\n  2. You'll receive an email decision the moment it's ready.\n  3. You can track real-time status anytime at ${COMPANY_INFO.website}/dashboard\n\nQuestions? ${COMPANY_INFO.contact.email} · ${COMPANY_INFO.contact.phone}\n\n— The AmeriLend Team`;
 
-            <p style="color: #444; font-size: 15px;">Hi <strong>${fullName}</strong>,</p>
-            <p style="color: #555; font-size: 14px;">Thank you for applying with AmeriLend. We've received your application and our underwriting team is reviewing it.</p>
-            
-            <!-- Application Details Card -->
-            <div style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 24px 0;">
-              <table style="width: 100%; border-collapse: collapse;">
-                <tr>
-                  <td style="padding: 10px 0; color: #64748b; font-size: 13px;">Tracking Number</td>
-                  <td style="padding: 10px 0; color: #0033A0; font-size: 16px; font-weight: 700; font-family: 'Courier New', monospace; text-align: right;">${trackingNumber}</td>
-                </tr>
-                <tr><td colspan="2" style="border-bottom: 1px solid #e2e8f0;"></td></tr>
-                <tr>
-                  <td style="padding: 10px 0; color: #64748b; font-size: 13px;">Requested Amount</td>
-                  <td style="padding: 10px 0; color: #1e293b; font-size: 16px; font-weight: 700; text-align: right;">$${formattedAmount}</td>
-                </tr>
-                <tr><td colspan="2" style="border-bottom: 1px solid #e2e8f0;"></td></tr>
-                <tr>
-                  <td style="padding: 10px 0; color: #64748b; font-size: 13px;">Status</td>
-                  <td style="padding: 10px 0; text-align: right;">
-                    <span style="background-color: #FFA500; color: #fff; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;">Under Review</span>
-                  </td>
-                </tr>
-              </table>
-            </div>
+  const html = buildEmailShell({
+    subject,
+    preheader: `Application ${trackingNumber} for $${formattedAmount} is now under review.`,
+    hero: { icon: "📋", eyebrow: "Step 1 of 3 complete", title: "We've received your application", subtitle: "Our underwriting team will review your file and email you a decision — typically within 24 hours.", tone: "info" },
+    body: `
+      <p style="margin:0 0 6px;font-size:15px;color:#0f172a;">Hi <strong>${fullName}</strong>,</p>
+      <p style="margin:0 0 18px;font-size:14px;color:#475569;line-height:1.6;">Thank you for trusting AmeriLend with your financing needs. Below is a summary of the application we received — please save this email for your records.</p>
 
-            <!-- Next Steps -->
-            <div style="margin: 24px 0;">
-              <p style="color: #0033A0; font-weight: 700; font-size: 15px; margin: 0 0 14px 0;">What happens next?</p>
-              <div style="display: flex; align-items: flex-start; margin-bottom: 12px;">
-                <div style="min-width: 28px; height: 28px; background: #0033A0; color: #fff; border-radius: 50%; text-align: center; line-height: 28px; font-size: 13px; font-weight: 700; margin-right: 12px;">1</div>
-                <p style="margin: 4px 0 0 0; color: #555; font-size: 14px;">Our team reviews your application within <strong>24 hours</strong></p>
-              </div>
-              <div style="display: flex; align-items: flex-start; margin-bottom: 12px;">
-                <div style="min-width: 28px; height: 28px; background: #0033A0; color: #fff; border-radius: 50%; text-align: center; line-height: 28px; font-size: 13px; font-weight: 700; margin-right: 12px;">2</div>
-                <p style="margin: 4px 0 0 0; color: #555; font-size: 14px;">You'll receive an email with our decision</p>
-              </div>
-              <div style="display: flex; align-items: flex-start;">
-                <div style="min-width: 28px; height: 28px; background: #0033A0; color: #fff; border-radius: 50%; text-align: center; line-height: 28px; font-size: 13px; font-weight: 700; margin-right: 12px;">3</div>
-                <p style="margin: 4px 0 0 0; color: #555; font-size: 14px;">Track real-time status on your <a href="${COMPANY_INFO.website}/dashboard" style="color: #0033A0; font-weight: 600; text-decoration: none;">dashboard</a></p>
-              </div>
-            </div>
+      ${buildInfoCard({
+        title: "Application Summary",
+        rows: [
+          ["Tracking #", `<span style=\"font-family:'SF Mono','Courier New',monospace;color:#0033A0;font-weight:700;\">${trackingNumber}</span>`],
+          ["Requested Amount", `<span style=\"color:#0f172a;font-weight:700;\">$${formattedAmount}</span>`],
+          ["Submitted", `${new Date().toLocaleString("en-US", { timeZone: "America/Chicago", weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} CT`],
+          ["Status", `<span style=\"display:inline-block;background:#FFA500;color:#1a1a1a;padding:3px 12px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;\">Under Review</span>`],
+        ],
+      })}
 
-            <p style="color: #888; font-size: 13px; margin-top: 24px; text-align: center;">Questions? Contact us at <a href="mailto:${COMPANY_INFO.contact.email}" style="color: #0033A0; text-decoration: none; font-weight: 600;">${COMPANY_INFO.contact.email}</a> or <a href="tel:${COMPANY_INFO.contact.phoneFormatted.replace(/\D/g, '')}" style="color: #0033A0; text-decoration: none; font-weight: 600;">${COMPANY_INFO.contact.phone}</a></p>
-          </div>
-          ${getEmailFooter()}
-        </div>
-      </body>
-    </html>
-  `;
+      ${buildDivider("What happens next")}
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+        ${[
+          ["1", "Application review", "Our underwriting team verifies the information you provided. Usually within 24 hours, often much faster."],
+          ["2", "Email decision", "You'll get an email with our decision and any next steps."],
+          ["3", "Funds released", `Once approved and the small processing fee is paid, funds are typically disbursed within 1–2 business days.`],
+        ].map(([n, h, t]) => `
+          <tr>
+            <td valign="top" style="width:42px;padding:8px 12px 8px 0;">
+              <div style="width:32px;height:32px;background:#0033A0;color:#ffffff;border-radius:50%;text-align:center;line-height:32px;font-weight:700;font-size:14px;">${n}</div>
+            </td>
+            <td valign="top" style="padding:6px 0;">
+              <div style="color:#0033A0;font-weight:700;font-size:14px;">${h}</div>
+              <div style="color:#475569;font-size:13px;line-height:1.55;margin-top:2px;">${t}</div>
+            </td>
+          </tr>
+        `).join("")}
+      </table>
+
+      <div style="margin:28px 0 12px;text-align:center;">
+        ${buildButton({ label: "Open Your Dashboard", href: `${COMPANY_INFO.website}/dashboard` })}
+      </div>
+
+      ${buildAlert({ tone: "info", title: "Need to upload more documents?", body: `Your dashboard's <em>Documents</em> tab lets you securely upload pay stubs, ID, or proof of address — that's the fastest way to keep things moving.` })}
+
+      ${buildTrustRow()}
+    `,
+  });
 
   await sendEmail({ to: email, subject, text, html });
 }
@@ -391,53 +370,45 @@ export async function sendLoanApplicationApprovedEmail(
   logger.debug("sendLoanApplicationApprovedEmail", { approvedAmount, processingFee });
   const formattedAmount = formatCurrency(approvedAmount);
   const formattedFee = formatCurrency(processingFee);
-  const subject = "Your Loan Application Has Been Approved – AmeriLend";
-  const text = `Dear ${fullName},\n\nYour loan application has been approved.\n\nApplication Details:\nTracking Number: ${trackingNumber}\nApproved Amount: $${formattedAmount}\nProcessing Fee: $${formattedFee}\n\nNext Steps:\n1. Sign in to your dashboard to review the loan agreement.\n2. Pay the processing fee to authorize disbursement.\n3. Funds are typically disbursed within 1\u20132 business days after the fee is received.\n\nIf you have any questions, contact our support team.\n\nRegards,\nThe AmeriLend Team`;
-  
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${subject}</title>
-      </head>
-      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 0;">
-        ${getEmailHeader()}
-        <div style="background-color: #f9f9f9; padding: 30px; border-left: 1px solid #ddd; border-right: 1px solid #ddd;">
-          <div style="text-align: center; margin-bottom: 20px;">
-            <div style="background-color: #28a745; color: white; display: inline-block; padding: 10px 20px; border-radius: 5px; font-size: 18px; font-weight: bold;">
-              ✓ APPROVED
-            </div>
-          </div>
-          <h2 style="color: #0033A0; margin-top: 0;">Your loan has been approved</h2>
-          <p>Dear ${fullName},</p>
-          <p>We are pleased to confirm that your loan application has been approved. Please review the details below and complete the next steps to release your funds.</p>
-          
-          <div style="background-color: white; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #0033A0;">Approval Details</h3>
-            <p style="margin: 5px 0;"><strong>Tracking Number:</strong> ${trackingNumber}</p>
-            <p style="margin: 5px 0;"><strong>Approved Amount:</strong> $${formattedAmount}</p>
-            <p style="margin: 5px 0;"><strong>Processing Fee:</strong> $${formattedFee}</p>
-          </div>
+  const subject = `Approved! $${formattedAmount} ready to disburse — AmeriLend`;
+  const text = `Congratulations, ${fullName}!\n\nGreat news — your loan application has been APPROVED.\n\nApproval Summary\n  Tracking #: ${trackingNumber}\n  Approved Amount: $${formattedAmount}\n  Processing Fee: $${formattedFee}\n\nNext Steps\n  1. Sign in to your dashboard at ${COMPANY_INFO.website}/dashboard\n  2. Review and accept the loan agreement\n  3. Pay the processing fee to release your funds\n  4. Funds typically arrive within 1–2 business days after the fee is paid\n\n— The AmeriLend Team`;
 
-          <h3 style="color: #0033A0;">Next Steps</h3>
-          <ol style="padding-left: 20px;">
-            <li>Log in to your dashboard to review the loan agreement</li>
-            <li>Pay the processing fee to proceed with disbursement</li>
-            <li>Once the fee is paid, your funds will be disbursed within 1-2 business days</li>
-          </ol>
+  const html = buildEmailShell({
+    subject,
+    preheader: `Your $${formattedAmount} loan is approved. Complete the final step to receive funds.`,
+    hero: { icon: "✅", eyebrow: "Approved", title: `$${formattedAmount} approved and waiting`, subtitle: "You're one short step away from your funds. Pay the processing fee and we'll release the disbursement.", tone: "success" },
+    body: `
+      <p style="margin:0 0 6px;font-size:15px;color:#0f172a;">Hi <strong>${fullName}</strong>,</p>
+      <p style="margin:0 0 18px;font-size:14px;color:#475569;line-height:1.6;">Congratulations — your loan application has been <strong style="color:#0f7b3a;">approved</strong>. Here's a summary of your approved terms.</p>
 
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="https://www.amerilendloan.com/dashboard" style="background-color: #FFA500; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Go to Dashboard</a>
-          </div>
+      ${buildInfoCard({
+        title: "Approval Summary",
+        rows: [
+          ["Tracking #", `<span style=\"font-family:'SF Mono','Courier New',monospace;color:#0033A0;font-weight:700;\">${trackingNumber}</span>`],
+          ["Approved Amount", `<span style=\"color:#0f7b3a;font-weight:800;font-size:16px;\">$${formattedAmount}</span>`],
+          ["Processing Fee", `<span style=\"color:#0f172a;font-weight:700;\">$${formattedFee}</span>`],
+          ["Disbursement ETA", `<span style=\"color:#0f172a;font-weight:600;\">1–2 business days after fee is paid</span>`],
+        ],
+      })}
 
-          <p style="margin-top: 30px;">Questions? Contact us at <a href="mailto:${COMPANY_INFO.contact.email}" style="color: #0033A0;">${COMPANY_INFO.contact.email}</a> or ${COMPANY_INFO.contact.phone}.</p>
-        </div>
-        ${getEmailFooter()}
-      </body>
-    </html>
-  `;
+      ${buildDivider("Final steps")}
+
+      <ol style="margin:0 0 20px 22px;padding:0;color:#475569;font-size:14px;line-height:1.7;">
+        <li>Sign in to your dashboard and review the loan agreement.</li>
+        <li>Pay the one-time processing fee of <strong style=\"color:#0f172a;\">$${formattedFee}</strong> by card or crypto.</li>
+        <li>Watch your dashboard — funds release as soon as the fee clears.</li>
+      </ol>
+
+      <div style="margin:24px 0 8px;text-align:center;">
+        ${buildButton({ label: "Pay Processing Fee", href: `${COMPANY_INFO.website}/dashboard`, variant: "secondary" })}
+      </div>
+      <p style="margin:0;font-size:12px;color:#64748b;text-align:center;">Or open your <a href=\"${COMPANY_INFO.website}/dashboard\" style=\"color:#0033A0;font-weight:600;text-decoration:none;\">dashboard</a> for full agreement details.</p>
+
+      ${buildAlert({ tone: "info", title: "Why a processing fee?", body: `It covers underwriting, document verification, secure disbursement, and fraud protection. It's a one-time charge — never a hidden recurring cost.` })}
+
+      ${buildTrustRow()}
+    `,
+  });
 
   await sendEmail({ to: email, subject, text, html });
 }
@@ -450,44 +421,42 @@ export async function sendLoanApplicationRejectedEmail(
   fullName: string,
   trackingNumber: string
 ): Promise<void> {
-  const subject = "Loan Application Update - AmeriLend";
-  const text = `Dear ${fullName},\n\nThank you for your interest in AmeriLend.\n\nAfter careful review of your application (Tracking #${trackingNumber}), we regret to inform you that we are unable to approve your loan request at this time.\n\nThis decision was based on our standard lending criteria and does not reflect negatively on you personally.\n\nYou may reapply after 30 days or explore our other loan products that might better suit your current situation.\n\nIf you have questions about this decision, please contact our support team.\n\nBest regards,\nThe AmeriLend Team`;
-  
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${subject}</title>
-      </head>
-      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 0;">
-        ${getEmailHeader()}
-        <div style="background-color: #f9f9f9; padding: 30px; border-left: 1px solid #ddd; border-right: 1px solid #ddd;">
-          <h2 style="color: #0033A0; margin-top: 0;">Application Update</h2>
-          <p>Dear ${fullName},</p>
-          <p>Thank you for your interest in AmeriLend and for taking the time to submit your loan application.</p>
-          
-          <div style="background-color: white; border-left: 4px solid #dc3545; padding: 15px; margin: 20px 0;">
-            <p style="margin: 0;"><strong>Tracking Number:</strong> ${trackingNumber}</p>
-            <p style="margin: 10px 0 0 0;">After careful review, we regret to inform you that we are unable to approve your loan request at this time.</p>
-          </div>
+  const subject = "An update on your AmeriLend application";
+  const text = `Hi ${fullName},\n\nThank you for considering AmeriLend.\n\nAfter a careful review of application ${trackingNumber}, we're unable to approve your request at this time. This decision is based on our standard underwriting criteria and isn't a reflection of you personally.\n\nWhat you can do next\n  • Reapply after 30 days, especially after improving your credit profile.\n  • Explore our other loan products that may be a better fit.\n  • Reach out — our team can walk you through the most common reasons for a non-approval and what tends to help.\n\nQuestions? ${COMPANY_INFO.contact.email} · ${COMPANY_INFO.contact.phone}\n\n— The AmeriLend Team`;
 
-          <p>This decision was based on our standard lending criteria and does not reflect negatively on you personally. Factors such as credit history, income verification, and debt-to-income ratio are considered in our review process.</p>
+  const html = buildEmailShell({
+    subject,
+    preheader: `An update on application ${trackingNumber}.`,
+    hero: { icon: "📬", eyebrow: "Application update", title: "We can't approve this application right now", subtitle: "Don't worry — this isn't permanent. Below are concrete steps that often help.", tone: "warning" },
+    body: `
+      <p style="margin:0 0 6px;font-size:15px;color:#0f172a;">Hi <strong>${fullName}</strong>,</p>
+      <p style="margin:0 0 18px;font-size:14px;color:#475569;line-height:1.6;">Thank you for trusting AmeriLend with your application. After a careful review, we are unable to approve your request at this time. This decision is based on our standard underwriting criteria and is not a personal reflection of you.</p>
 
-          <h3 style="color: #0033A0;">What You Can Do</h3>
-          <ul style="padding-left: 20px;">
-            <li>You may reapply after 30 days</li>
-            <li>Explore our other loan products that might better suit your current situation</li>
-            <li>Work on improving your credit profile and financial standing</li>
-          </ul>
+      ${buildInfoCard({
+        title: "Application reference",
+        rows: [
+          ["Tracking #", `<span style=\"font-family:'SF Mono','Courier New',monospace;color:#0033A0;font-weight:700;\">${trackingNumber}</span>`],
+          ["Decision", `<span style=\"display:inline-block;background:#fdecec;color:#b91c1c;padding:3px 12px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;\">Not Approved</span>`],
+          ["Reapply Eligible", `<span style=\"color:#0f172a;font-weight:600;\">After 30 days</span>`],
+        ],
+      })}
 
-          <p style="margin-top: 30px;">If you have questions about this decision or would like to discuss alternative options, please contact our support team at <a href="mailto:${COMPANY_INFO.contact.email}" style="color: #0033A0;">${COMPANY_INFO.contact.email}</a> or call ${COMPANY_INFO.contact.phone}.</p>
-        </div>
-        ${getEmailFooter()}
-      </body>
-    </html>
-  `;
+      ${buildDivider("What can help")}
+
+      <ul style="margin:0 0 14px 22px;padding:0;color:#475569;font-size:14px;line-height:1.7;">
+        <li>Bring down outstanding revolving balances if possible.</li>
+        <li>Request your free credit report and dispute any inaccuracies.</li>
+        <li>Add stable income documentation (recent pay stubs, tax returns).</li>
+        <li>Consider a smaller loan amount on your next application.</li>
+      </ul>
+
+      <div style="margin:24px 0 8px;text-align:center;">
+        ${buildButton({ label: "Talk to a Loan Specialist", href: `mailto:${COMPANY_INFO.contact.email}`, variant: "primary" })}
+      </div>
+
+      ${buildAlert({ tone: "info", title: "This decision did not affect your credit score.", body: `AmeriLend uses a soft inquiry during initial review, which is invisible to lenders and other credit reports.` })}
+    `,
+  });
 
   await sendEmail({ to: email, subject, text, html });
 }
@@ -502,44 +471,37 @@ export async function sendLoanApplicationProcessingEmail(
   processingFee: number
 ): Promise<void> {
   const formattedFee = formatCurrency(processingFee);
-  const subject = "Action Required: Complete Your Loan Processing - AmeriLend";
-  const text = `Dear ${fullName},\n\nYour loan application (${trackingNumber}) is currently being processed!\n\nTo complete the disbursement process, please pay the processing fee of $${formattedFee}.\n\nProcessing Fee: $${formattedFee}\n\nOnce we receive your payment, your loan funds will be disbursed within 1-2 business days using your selected disbursement method.\n\nPlease log in to your dashboard to complete the payment.\n\nBest regards,\nThe AmeriLend Team`;
-  
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${subject}</title>
-      </head>
-      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 0;">
-        ${getEmailHeader()}
-        <div style="background-color: #f9f9f9; padding: 30px; border-left: 1px solid #ddd; border-right: 1px solid #ddd;">
-          <h2 style="color: #0033A0; margin-top: 0;">Action Required: Complete Payment</h2>
-          <p>Dear ${fullName},</p>
-          <p>Your loan application has been processed and is ready for disbursement once the processing fee is paid.</p>
-          
-          <div style="background-color: white; border-left: 4px solid #FFA500; padding: 15px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #0033A0;">Processing Details</h3>
-            <p style="margin: 5px 0;"><strong>Tracking Number:</strong> ${trackingNumber}</p>
-            <p style="margin: 5px 0;"><strong>Processing Fee:</strong> $${formattedFee}</p>
-            <p style="margin: 5px 0;"><strong>Status:</strong> Awaiting Payment</p>
-          </div>
+  const subject = `Action required: pay $${formattedFee} to release your funds — AmeriLend`;
+  const text = `Hi ${fullName},\n\nGood news — your loan (${trackingNumber}) is ready to disburse. The only thing left is the one-time processing fee.\n\nProcessing Fee: $${formattedFee}\nDisbursement ETA: 1–2 business days after the fee clears\n\nPay the fee here: ${COMPANY_INFO.website}/dashboard\n\n— The AmeriLend Team`;
 
-          <h3 style="color: #0033A0;">Next Steps</h3>
-          <p>To complete the disbursement process, please pay the processing fee. Once we receive your payment, your loan funds will be disbursed within 1-2 business days using your selected disbursement method.</p>
+  const html = buildEmailShell({
+    subject,
+    preheader: `Pay the $${formattedFee} processing fee and your funds will be released within 1–2 business days.`,
+    hero: { icon: "💳", eyebrow: "One last step", title: `Pay $${formattedFee} to release your funds`, subtitle: "Your loan has been approved and underwritten. Once the processing fee clears, we'll release your disbursement.", tone: "warning" },
+    body: `
+      <p style="margin:0 0 6px;font-size:15px;color:#0f172a;">Hi <strong>${fullName}</strong>,</p>
+      <p style="margin:0 0 18px;font-size:14px;color:#475569;line-height:1.6;">Your application is fully approved. To release your funds we need a one-time, fully refundable-on-cancellation processing fee. This covers underwriting, document verification, and your secure disbursement.</p>
 
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="https://www.amerilendloan.com/dashboard" style="background-color: #FFA500; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Pay Processing Fee</a>
-          </div>
+      ${buildInfoCard({
+        title: "Payment Summary",
+        rows: [
+          ["Tracking #", `<span style=\"font-family:'SF Mono','Courier New',monospace;color:#0033A0;font-weight:700;\">${trackingNumber}</span>`],
+          ["Processing Fee", `<span style=\"color:#a15c00;font-weight:800;font-size:16px;\">$${formattedFee}</span>`],
+          ["Status", `<span style=\"display:inline-block;background:#fff5e0;color:#a15c00;padding:3px 12px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;\">Awaiting Payment</span>`],
+          ["Funds Available", `<span style=\"color:#0f172a;font-weight:600;\">1–2 business days after payment</span>`],
+        ],
+      })}
 
-          <p style="margin-top: 30px;">Questions? Contact us at <a href="mailto:${COMPANY_INFO.contact.email}" style="color: #0033A0;">${COMPANY_INFO.contact.email}</a> or ${COMPANY_INFO.contact.phone}.</p>
-        </div>
-        ${getEmailFooter()}
-      </body>
-    </html>
-  `;
+      <div style="margin:24px 0 8px;text-align:center;">
+        ${buildButton({ label: "Pay Now — Secure Checkout", href: `${COMPANY_INFO.website}/dashboard`, variant: "secondary" })}
+      </div>
+      <p style="margin:0;font-size:12px;color:#64748b;text-align:center;">Cards · ACH · Crypto · 256-bit SSL encrypted</p>
+
+      ${buildDivider()}
+
+      ${buildAlert({ tone: "info", title: "Why we collect this fee", body: `It funds underwriting, KYC verification, your virtual debit card issuance, and the disbursement rails (ACH, wire, or crypto). It is a one-time charge.` })}
+    `,
+  });
 
   await sendEmail({ to: email, subject, text, html });
 }
@@ -636,121 +598,76 @@ export async function sendLoginNotificationEmail(
     timeZone: 'America/New_York'
   });
 
-  // Get location from IP address
-  let locationInfo = 'Unknown';
-  if (ipAddress && ipAddress !== 'Unknown') {
-    locationInfo = await getLocationFromIP(ipAddress);
-  }
-  
-  // Parse user agent for device/browser info
+  // Get location from IP — multi-provider lookup with cache + offline fallback
+  const locationInfo = await getLocationFromIP(ipAddress);
+  const displayIP = formatIPForDisplay(ipAddress);
+
+  // Parse user agent for device/browser info (more thorough than before)
   let deviceInfo = 'Unknown device';
   let browserInfo = 'Unknown browser';
-  
+  let osVersion = '';
+
   if (userAgent) {
-    if (userAgent.includes('Windows')) deviceInfo = 'Windows PC';
-    else if (userAgent.includes('Mac')) deviceInfo = 'Mac';
-    else if (userAgent.includes('iPhone')) deviceInfo = 'iPhone';
-    else if (userAgent.includes('iPad')) deviceInfo = 'iPad';
-    else if (userAgent.includes('Android')) deviceInfo = 'Android device';
-    
-    if (userAgent.includes('Chrome')) browserInfo = 'Chrome';
-    else if (userAgent.includes('Firefox')) browserInfo = 'Firefox';
-    else if (userAgent.includes('Safari')) browserInfo = 'Safari';
-    else if (userAgent.includes('Edge')) browserInfo = 'Edge';
+    if (/iPhone/i.test(userAgent)) deviceInfo = 'iPhone';
+    else if (/iPad/i.test(userAgent)) deviceInfo = 'iPad';
+    else if (/Android/i.test(userAgent)) deviceInfo = 'Android device';
+    else if (/Macintosh|Mac OS X/i.test(userAgent)) deviceInfo = 'Mac';
+    else if (/Windows NT 10/i.test(userAgent)) { deviceInfo = 'Windows PC'; osVersion = ' (Windows 10/11)'; }
+    else if (/Windows/i.test(userAgent)) deviceInfo = 'Windows PC';
+    else if (/Linux/i.test(userAgent)) deviceInfo = 'Linux PC';
+
+    if (/Edg\//i.test(userAgent)) browserInfo = 'Microsoft Edge';
+    else if (/OPR\//i.test(userAgent) || /Opera/i.test(userAgent)) browserInfo = 'Opera';
+    else if (/Chrome/i.test(userAgent) && !/Edg\//i.test(userAgent)) browserInfo = 'Chrome';
+    else if (/Firefox/i.test(userAgent)) browserInfo = 'Firefox';
+    else if (/Safari/i.test(userAgent) && !/Chrome/i.test(userAgent)) browserInfo = 'Safari';
   }
-  
-  const subject = "New Login to Your AmeriLend Account";
-  const text = `Dear ${fullName},\n\nWe detected a new login to your AmeriLend account.\n\nLogin Details:\nTime: ${formattedTime} EST\nLocation: ${locationInfo}\nIP Address: ${ipAddress || 'Unknown'}\nDevice: ${deviceInfo}\nBrowser: ${browserInfo}\n\nIf this was you, no action is needed.\n\nIf you did not log in, please secure your account immediately by contacting our support team at support@amerilendloan.com or +1 (945) 212-1609.\n\nBest regards,\nThe AmeriLend Security Team`;
-  
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${subject}</title>
-      </head>
-      <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 0; background-color: #f0f2f5;">
-        <div style="background-color: #ffffff; border-radius: 0; overflow: hidden; box-shadow: 0 2px 20px rgba(0,0,0,0.08);">
-          ${getEmailHeader()}
-          
-          <div style="padding: 35px 30px;">
-            <!-- Security Badge -->
-            <div style="text-align: center; margin-bottom: 25px;">
-              <div style="display: inline-block; background: linear-gradient(135deg, #e8f4fd 0%, #d1ecf1 100%); border-radius: 50%; width: 64px; height: 64px; line-height: 64px; font-size: 28px; margin-bottom: 10px;">🔒</div>
-              <h2 style="color: #0033A0; margin: 10px 0 5px 0; font-size: 22px; font-weight: 700;">New Login Detected</h2>
-              <p style="color: #888; margin: 0; font-size: 13px;">We noticed a new sign-in to your account</p>
-            </div>
-            
-            <p style="color: #444; font-size: 15px;">Hi <strong>${fullName}</strong>,</p>
-            <p style="color: #555; font-size: 14px;">A new login was recorded on your AmeriLend account. Here are the details:</p>
-            
-            <!-- Login Details Card -->
-            <div style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 24px 0;">
-              <table style="width: 100%; border-collapse: collapse;">
-                <tr>
-                  <td style="padding: 10px 0; color: #64748b; font-size: 13px; width: 110px; vertical-align: top;">
-                    <span style="display: inline-block; width: 20px;">🕐</span> Time
-                  </td>
-                  <td style="padding: 10px 0; color: #1e293b; font-size: 14px; font-weight: 600;">${formattedTime} EST</td>
-                </tr>
-                <tr><td colspan="2" style="border-bottom: 1px solid #e2e8f0;"></td></tr>
-                <tr>
-                  <td style="padding: 10px 0; color: #64748b; font-size: 13px; vertical-align: top;">
-                    <span style="display: inline-block; width: 20px;">📍</span> Location
-                  </td>
-                  <td style="padding: 10px 0; color: #1e293b; font-size: 14px; font-weight: 600;">${locationInfo}</td>
-                </tr>
-                <tr><td colspan="2" style="border-bottom: 1px solid #e2e8f0;"></td></tr>
-                <tr>
-                  <td style="padding: 10px 0; color: #64748b; font-size: 13px; vertical-align: top;">
-                    <span style="display: inline-block; width: 20px;">💻</span> Device
-                  </td>
-                  <td style="padding: 10px 0; color: #1e293b; font-size: 14px; font-weight: 600;">${deviceInfo} · ${browserInfo}</td>
-                </tr>
-                <tr><td colspan="2" style="border-bottom: 1px solid #e2e8f0;"></td></tr>
-                <tr>
-                  <td style="padding: 10px 0; color: #64748b; font-size: 13px; vertical-align: top;">
-                    <span style="display: inline-block; width: 20px;">🌐</span> IP
-                  </td>
-                  <td style="padding: 10px 0; color: #1e293b; font-size: 14px; font-family: 'Courier New', monospace;">${ipAddress || 'Unknown'}</td>
-                </tr>
-              </table>
-            </div>
 
-            <!-- Action Buttons -->
-            <div style="display: flex; gap: 12px; margin: 28px 0;">
-              <div style="flex: 1; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 1px solid #a7f3d0; border-radius: 10px; padding: 16px; text-align: center;">
-                <p style="margin: 0; font-size: 15px; font-weight: 700; color: #065f46;">✓ Was this you?</p>
-                <p style="margin: 6px 0 0 0; color: #047857; font-size: 13px;">No action needed!</p>
-              </div>
-            </div>
-            
-            <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 1px solid #fecaca; border-radius: 10px; padding: 16px; text-align: center; margin-bottom: 24px;">
-              <p style="margin: 0; font-size: 15px; font-weight: 700; color: #991b1b;">⚠ Didn't recognize this?</p>
-              <p style="margin: 6px 0 0 0; color: #b91c1c; font-size: 13px;">
-                Contact us immediately at <a href="mailto:${COMPANY_INFO.contact.email}" style="color: #b91c1c; font-weight: 600;">${COMPANY_INFO.contact.email}</a>
-                or call <a href="tel:${COMPANY_INFO.contact.phoneFormatted.replace(/\D/g, '')}" style="color: #b91c1c; font-weight: 600;">${COMPANY_INFO.contact.phone}</a>
-              </p>
-            </div>
+  const subject = `New sign-in to your AmeriLend account · ${deviceInfo}`;
+  const text = `Hi ${fullName},\n\nA new sign-in was just recorded on your AmeriLend account.\n\nWhen: ${formattedTime} EST\nWhere: ${locationInfo}\nDevice: ${deviceInfo}${osVersion} · ${browserInfo}\nIP: ${displayIP}\n\nIf this was you, no action is needed.\n\nIf you don't recognize this sign-in:\n  1. Reset your password at ${COMPANY_INFO.website}/account/security\n  2. Sign out everywhere else from the same page\n  3. Email us at ${COMPANY_INFO.contact.email} or call ${COMPANY_INFO.contact.phone}\n\n— The AmeriLend Security Team`;
 
-            <!-- Security Tips -->
-            <div style="border-top: 1px solid #e5e7eb; padding-top: 20px;">
-              <p style="color: #0033A0; font-weight: 700; font-size: 14px; margin: 0 0 12px 0;">🛡 Security Tips</p>
-              <table style="width: 100%;">
-                <tr><td style="padding: 4px 0; color: #6b7280; font-size: 13px;">• Never share your verification codes with anyone</td></tr>
-                <tr><td style="padding: 4px 0; color: #6b7280; font-size: 13px;">• Use a strong, unique password for your account</td></tr>
-                <tr><td style="padding: 4px 0; color: #6b7280; font-size: 13px;">• Always log out on shared or public devices</td></tr>
-                <tr><td style="padding: 4px 0; color: #6b7280; font-size: 13px;">• Report suspicious activity immediately</td></tr>
-              </table>
-            </div>
-          </div>
-          
-          ${getEmailFooter()}
-        </div>
-      </body>
-    </html>
-  `;
+  const html = buildEmailShell({
+    subject,
+    preheader: `New sign-in from ${locationInfo} on ${deviceInfo} at ${formattedTime} EST.`,
+    hero: { icon: "🔐", eyebrow: "Security alert", title: "New sign-in to your account", subtitle: `Detected from <strong>${locationInfo}</strong> on <strong>${deviceInfo}</strong>.`, tone: "info" },
+    body: `
+      <p style="margin:0 0 6px;font-size:15px;color:#0f172a;">Hi <strong>${fullName}</strong>,</p>
+      <p style="margin:0 0 18px;font-size:14px;color:#475569;line-height:1.6;">We're letting you know about a new sign-in to your AmeriLend account. If this was you, you can safely ignore this email.</p>
+
+      ${buildInfoCard({
+        title: "Sign-in details",
+        rows: [
+          ["When", `${formattedTime} <span style=\"color:#64748b;\">EST</span>`, "🕒"],
+          ["Where", locationInfo, "📍"],
+          ["Device", `${deviceInfo}${osVersion} · ${browserInfo}`, "💻"],
+          ["IP address", `<span style=\"font-family:'SF Mono','Courier New',monospace;font-size:13px;\">${displayIP}</span>`, "🌐"],
+        ],
+      })}
+
+      ${buildAlert({ tone: "success", title: "Was this you?", body: `No action needed. This sign-in is now part of your activity log \u2014 you can review it anytime under <em>Account → Security</em>.` })}
+
+      ${buildAlert({ tone: "danger", title: "Wasn't you? Act now.", body: `
+        <ol style=\"margin:6px 0 0 18px;padding:0;color:#0f172a;font-size:13.5px;line-height:1.7;\">
+          <li><strong>Reset your password</strong> at <a href=\"${COMPANY_INFO.website}/account/security\" style=\"color:#b91c1c;font-weight:600;\">${COMPANY_INFO.website}/account/security</a></li>
+          <li><strong>Sign out everywhere else</strong> from the same page.</li>
+          <li><strong>Contact us</strong> \u2014 <a href=\"mailto:${COMPANY_INFO.contact.email}\" style=\"color:#b91c1c;font-weight:600;\">${COMPANY_INFO.contact.email}</a> or <a href=\"tel:${COMPANY_INFO.contact.phoneFormatted.replace(/\\D/g, '')}\" style=\"color:#b91c1c;font-weight:600;\">${COMPANY_INFO.contact.phone}</a></li>
+        </ol>
+      ` })}
+
+      <div style="margin:22px 0 8px;text-align:center;">
+        ${buildButton({ label: "Review Account Activity", href: `${COMPANY_INFO.website}/account/security` })}
+      </div>
+
+      ${buildDivider("Security tips")}
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+        <tr><td style="padding:5px 0;color:#475569;font-size:13px;">• Never share verification codes \u2014 AmeriLend will never ask for them.</td></tr>
+        <tr><td style="padding:5px 0;color:#475569;font-size:13px;">• Use a strong, unique password and turn on 2FA.</td></tr>
+        <tr><td style="padding:5px 0;color:#475569;font-size:13px;">• Always sign out on shared or public devices.</td></tr>
+        <tr><td style="padding:5px 0;color:#475569;font-size:13px;">• Report suspicious activity within 24 hours so we can investigate.</td></tr>
+      </table>
+    `,
+  });
 
   await sendEmail({ to: email, subject, text, html });
 }
@@ -813,23 +730,17 @@ export async function sendNotificationEmail(
   subject: string,
   message: string
 ): Promise<{ success: boolean; error?: string }> {
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${subject}</title>
-      </head>
-      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 0;">
-        ${getEmailHeader()}
-        <div style="background-color: #f9f9f9; padding: 30px; border-left: 1px solid #ddd; border-right: 1px solid #ddd;">
-          <p>${message.replace(/\n/g, "<br>")}</p>
-        </div>
-        ${getEmailFooter()}
-      </body>
-    </html>
-  `;
+  const html = buildEmailShell({
+    subject,
+    preheader: subject,
+    hero: { icon: "🔔", title: subject, tone: "info" },
+    body: `
+      <div style="font-size:14px;color:#475569;line-height:1.65;">${message.replace(/\n/g, "<br>")}</div>
+      <div style="margin:26px 0 8px;text-align:center;">
+        ${buildButton({ label: "Open Dashboard", href: `${COMPANY_INFO.website}/dashboard` })}
+      </div>
+    `,
+  });
   
   return sendEmail({
     to,
