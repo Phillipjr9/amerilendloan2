@@ -162,6 +162,39 @@ async function exchangeMicrosoftCode(code: string, redirectUri: string): Promise
 }
 
 export function registerOAuthRoutes(app: Express) {
+  // GitHub OAuth start route (server-side URL generation).
+  // This avoids relying on VITE_GITHUB_CLIENT_ID in the browser.
+  app.get("/auth/github/start", async (req: Request, res: Response) => {
+    try {
+      const { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET } = getEnv();
+      if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET) {
+        res.redirect(302, "/login?error=github_not_configured");
+        return;
+      }
+
+      const purpose = getQueryParam(req, "purpose") === "signup" ? "signup" : "login";
+      const redirectUri = `${getBaseUrl(req)}/auth/github/callback`;
+      const state = Buffer.from(JSON.stringify({
+        purpose,
+        timestamp: Date.now(),
+        nonce: Math.random().toString(36).slice(2),
+      })).toString("base64");
+
+      const params = new URLSearchParams({
+        client_id: GITHUB_CLIENT_ID,
+        redirect_uri: redirectUri,
+        scope: "read:user user:email",
+        state,
+        allow_signup: purpose === "signup" ? "true" : "false",
+      });
+
+      res.redirect(302, `https://github.com/login/oauth/authorize?${params.toString()}`);
+    } catch (error) {
+      logger.error("[GitHub OAuth] Start route failed", error);
+      res.redirect(302, "/login?error=github_start_failed");
+    }
+  });
+
   // Original Manus OAuth callback
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");

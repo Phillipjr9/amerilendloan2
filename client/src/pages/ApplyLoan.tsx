@@ -16,6 +16,20 @@ import { toTitleCase, capitalizeWords } from "@shared/format";
 import SEOHead from "@/components/SEOHead";
 import { useTranslation } from "react-i18next";
 import {
+  APR_RANGE_TEXT,
+  COMPANY_PHONE_DISPLAY,
+  COMPANY_PHONE_DISPLAY_SHORT,
+  COMPANY_PHONE_RAW,
+  COMPANY_SUPPORT_EMAIL,
+  ILLUSTRATIVE_APR,
+  LOAN_MAX_AMOUNT,
+  LOAN_MIN_AMOUNT,
+  PROCESSING_FEE_RATE,
+  PROCESSING_FEE_TEXT,
+  SUPPORT_HOURS_WEEKDAY,
+  SUPPORT_HOURS_WEEKEND,
+} from "@/const";
+import {
   formatSSN,
   formatPhone,
   formatCurrency,
@@ -867,7 +881,7 @@ export default function ApplyLoan() {
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>If approved, pay the 3.5% processing fee via credit/debit card or crypto</span>
+                    <span>If approved, pay the {PROCESSING_FEE_TEXT} processing fee via credit/debit card or crypto</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
@@ -943,11 +957,11 @@ export default function ApplyLoan() {
             </Link>
             <div className="flex items-center gap-3">
               <a
-                href="tel:+19452121609"
+                href={`tel:${COMPANY_PHONE_RAW}`}
                 className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 hover:text-primary transition-colors"
               >
                 <Phone className="w-4 h-4" />
-                +1 945 212-1609
+                {COMPANY_PHONE_DISPLAY}
               </a>
               {isAuthenticated && (
                 <Link href="/dashboard">
@@ -1676,7 +1690,7 @@ export default function ApplyLoan() {
                           />
                         </div>
                         <p className="text-xs text-gray-500">
-                          Typical range: $500 - $10,000
+                          Typical range: ${LOAN_MIN_AMOUNT.toLocaleString()} - ${LOAN_MAX_AMOUNT.toLocaleString()}
                         </p>
                       </div>
 
@@ -1855,8 +1869,26 @@ export default function ApplyLoan() {
                               <p className="text-lg font-semibold text-[#0A2540]">${Number(formData.requestedAmount).toLocaleString()}</p>
                             </div>
                             <div>
-                              <p className="text-xs text-gray-600 mb-1">Processing Fee (3.5%)</p>
-                              <p className="text-lg font-semibold text-[#B8922A]">${(Number(formData.requestedAmount) * 0.035).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                              <p className="text-xs text-gray-600 mb-1">Processing Fee ({PROCESSING_FEE_TEXT})</p>
+                              <p className="text-lg font-semibold text-[#B8922A]">${(Number(formData.requestedAmount) * PROCESSING_FEE_RATE).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="text-sm font-semibold text-gray-700 mb-2">Choose a repayment term</p>
+                            <div className="flex gap-2 flex-wrap">
+                              {[12, 24, 36].map((term) => (
+                                <Button
+                                  key={term}
+                                  type="button"
+                                  size="sm"
+                                  variant={Number(formData.desiredTerm || 24) === term ? "default" : "outline"}
+                                  onClick={() => updateFormData("desiredTerm", String(term))}
+                                  className={Number(formData.desiredTerm || 24) === term ? "bg-[#0A2540] hover:bg-[#0d3158]" : ""}
+                                >
+                                  {term} months
+                                </Button>
+                              ))}
                             </div>
                           </div>
                           
@@ -1864,19 +1896,12 @@ export default function ApplyLoan() {
                             <p className="text-sm font-semibold text-gray-700 mb-3">Estimated Monthly Payment</p>
                             <div className="space-y-2">
                               <div className="flex justify-between items-center p-3 bg-white rounded-lg border">
-                                <span className="text-sm text-gray-600">12-Month Term (14.99% APR)</span>
-                                <span className="font-semibold text-[#0A2540]">${calculateMonthlyPayment(Number(formData.requestedAmount), 14.99, 12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</span>
+                                <span className="text-sm text-gray-600">{Number(formData.desiredTerm || 24)}-Month Term ({ILLUSTRATIVE_APR.toFixed(2)}% APR example)</span>
+                                <span className="font-semibold text-[#0A2540]">${calculateMonthlyPayment(Number(formData.requestedAmount), ILLUSTRATIVE_APR, Number(formData.desiredTerm || 24)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</span>
                               </div>
-                              <div className="flex justify-between items-center p-3 bg-white rounded-lg border">
-                                <span className="text-sm text-gray-600">24-Month Term (14.99% APR)</span>
-                                <span className="font-semibold text-[#0A2540]">${calculateMonthlyPayment(Number(formData.requestedAmount), 14.99, 24).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</span>
-                              </div>
-                              <div className="flex justify-between items-center p-3 bg-white rounded-lg border">
-                                <span className="text-sm text-gray-600">36-Month Term (14.99% APR)</span>
-                                <span className="font-semibold text-[#0A2540]">${calculateMonthlyPayment(Number(formData.requestedAmount), 14.99, 36).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</span>
-                              </div>
+                              <p className="text-xs text-gray-500">Estimated total interest: ${calculateTotalInterest(Number(formData.requestedAmount), ILLUSTRATIVE_APR, Number(formData.desiredTerm || 24)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                             </div>
-                            <p className="text-xs text-gray-500 mt-3">*Actual APR and terms depend on credit approval. Processing fee is due before disbursement.</p>
+                            <p className="text-xs text-gray-500 mt-3">*Actual APR and terms depend on credit approval ({APR_RANGE_TEXT}). Processing fee ({PROCESSING_FEE_TEXT}) is due before disbursement.</p>
                           </div>
                         </div>
                       )}
@@ -1898,7 +1923,7 @@ export default function ApplyLoan() {
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-                          <span>3.5% processing fee applies upon approval (paid via card or crypto before disbursement)</span>
+                          <span>{PROCESSING_FEE_TEXT} processing fee applies upon approval (paid via card or crypto before disbursement)</span>
                         </li>
                       </ul>
                     </div>
@@ -2044,11 +2069,11 @@ export default function ApplyLoan() {
             <p className="text-gray-600 mb-2">Need help with your application?</p>
             <div className="flex items-center justify-center gap-4">
               <a
-                href="tel:+19452121609"
+                href={`tel:${COMPANY_PHONE_RAW}`}
                 className="flex items-center gap-2 text-[#0A2540] hover:underline"
               >
                 <Phone className="w-4 h-4" />
-                +1 945 212-1609
+                {COMPANY_PHONE_DISPLAY}
               </a>
               <span className="text-gray-400">|</span>
               <a href="#faq" className="text-[#0A2540] hover:underline">
@@ -2066,8 +2091,10 @@ export default function ApplyLoan() {
             <div>
               <h4 className="font-semibold mb-3">Need Help?</h4>
               <div className="space-y-2 text-sm text-white/80">
-                <p>📞 <a href="tel:+19452121609" className="hover:text-[#C9A227] transition-colors">(945) 212-1609</a></p>
-                <p>📧 <a href="mailto:support@amerilendloan.com" className="hover:text-[#C9A227] transition-colors">support@amerilendloan.com</a></p>
+                <p>📞 <a href={`tel:${COMPANY_PHONE_RAW}`} className="hover:text-[#C9A227] transition-colors">{COMPANY_PHONE_DISPLAY_SHORT}</a></p>
+                <p>📧 <a href={`mailto:${COMPANY_SUPPORT_EMAIL}`} className="hover:text-[#C9A227] transition-colors">{COMPANY_SUPPORT_EMAIL}</a></p>
+                <p>🕒 {SUPPORT_HOURS_WEEKDAY}</p>
+                <p>🕒 {SUPPORT_HOURS_WEEKEND}</p>
               </div>
             </div>
             <div>
@@ -2089,7 +2116,7 @@ export default function ApplyLoan() {
           </div>
           <div className="border-t border-white/20 pt-6 text-center text-xs text-white/70">
             <p>© {new Date().getFullYear()} AmeriLend, LLC. All Rights Reserved.</p>
-            <p className="mt-2">Loans subject to approval. 3.5% processing fee paid via credit/debit card or cryptocurrency before disbursement.</p>
+            <p className="mt-2">Loans subject to approval. {PROCESSING_FEE_TEXT} processing fee paid via credit/debit card or cryptocurrency before disbursement.</p>
           </div>
         </div>
       </footer>

@@ -24,6 +24,14 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import TestimonialsSection from "@/components/TestimonialsSection";
 import ComplianceFooter from "@/components/ComplianceFooter";
 import SEOHead from "@/components/SEOHead";
+import {
+  APR_MIN,
+  COMPANY_PHONE_DISPLAY_SHORT,
+  COMPANY_PHONE_RAW,
+  LOAN_MAX_AMOUNT,
+  LOAN_MIN_AMOUNT,
+  PROCESSING_FEE_TEXT,
+} from "@/const";
 
 /* ─── FAQ Data ─── */
 const faqs = [
@@ -35,7 +43,7 @@ const faqs = [
   {
     question: "How much can I borrow?",
     answer:
-      "Loan amounts typically range from $500 to $15,000, depending on your state of residence, income, and creditworthiness.",
+      `Loan amounts typically range from $${LOAN_MIN_AMOUNT.toLocaleString()} to $${LOAN_MAX_AMOUNT.toLocaleString()}, depending on your state of residence, income, and creditworthiness.`,
   },
   {
     question: "How quickly will I receive my funds?",
@@ -68,7 +76,7 @@ export default function Home() {
     <div className="min-h-screen bg-white text-gray-800">
       <SEOHead
         title="AmeriLend — Personal Loans Made Easy"
-        description="Apply online in minutes with no application fee. Fast approvals, transparent terms, and same-day funding. Personal loans from $500 to $15,000."
+        description={`Apply online in minutes with no application fee. Fast approvals, transparent terms, and same-day funding. Personal loans from $${LOAN_MIN_AMOUNT.toLocaleString()} to $${LOAN_MAX_AMOUNT.toLocaleString()}.`}
         path="/"
       />
       {/* ════════════════════════════════════════════════════
@@ -87,6 +95,13 @@ export default function Home() {
               AmeriLend
             </span>
           </Link>
+
+          <a
+            href={`tel:${COMPANY_PHONE_RAW}`}
+            className="hidden lg:flex items-center text-xs text-gray-600 hover:text-[#0A2540]"
+          >
+            {COMPANY_PHONE_DISPLAY_SHORT}
+          </a>
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
@@ -212,7 +227,7 @@ export default function Home() {
                   className="border-[#0A2540] text-[#0A2540] hover:bg-[#0A2540] hover:text-white rounded-full px-8 text-base w-full sm:w-auto"
                   onClick={() => setShowCodeModal(true)}
                 >
-                  Have a Code?
+                  Have an Invitation Code?
                 </Button>
               </div>
             </div>
@@ -312,7 +327,7 @@ export default function Home() {
               {
                 icon: <Shield className="w-6 h-6" />,
                 title: "No hidden fees",
-                desc: "What you see is what you get — no origination fees, no prepayment penalties.",
+                desc: `What you see is what you get — no hidden charges and no prepayment penalties. Processing fee disclosure: ${PROCESSING_FEE_TEXT} at approval before disbursement.`,
               },
               {
                 icon: <Clock className="w-6 h-6" />,
@@ -321,7 +336,7 @@ export default function Home() {
               },
               {
                 icon: <DollarSign className="w-6 h-6" />,
-                title: "Fixed rates from 5.99%",
+                title: `Fixed rates from ${APR_MIN.toFixed(2)}%`,
                 desc: "Lock in a rate that won't change. Budget with confidence over your full loan term.",
               },
               {
@@ -573,14 +588,14 @@ export default function Home() {
             </div>
 
             <p className="text-gray-600 mb-6">
-              Enter the verification code provided to you to access your loan dashboard.
+              Enter your invitation code from AmeriLend to prefill your offer experience.
             </p>
 
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 if (verificationCode.trim()) {
-                  window.location.href = `/dashboard?code=${encodeURIComponent(verificationCode)}`;
+                  window.location.href = `/check-offers?code=${encodeURIComponent(verificationCode.trim())}`;
                 }
               }}
               className="space-y-4"

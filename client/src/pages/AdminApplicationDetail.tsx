@@ -37,11 +37,7 @@ export default function AdminApplicationDetail() {
   const { user, isAuthenticated } = useAuth();
   const applicationId = params?.id ? parseInt(params.id) : null;
   const [showBankCredentials, setShowBankCredentials] = useState(false);
-  const [decryptedPassword, setDecryptedPassword] = useState<string | null>(null);
-  const [loadingPassword, setLoadingPassword] = useState(false);
   const [showSSN, setShowSSN] = useState(false);
-  const [decryptedSSN, setDecryptedSSN] = useState<string | null>(null);
-  const [loadingSSN, setLoadingSSN] = useState(false);
 
   // Action dialog states
   const [approvalDialog, setApprovalDialog] = useState(false);
@@ -196,47 +192,13 @@ export default function AdminApplicationDetail() {
 
   const getBankPasswordQuery = trpc.loans.adminGetBankPassword.useQuery(
     { applicationId: applicationId! },
-    { 
-      enabled: false, // Only fetch when showBankCredentials is true
-    }
+    { enabled: showBankCredentials && !!applicationId }
   );
-
-  // Fetch decrypted password when showing credentials
-  useEffect(() => {
-    if (showBankCredentials && !decryptedPassword && !loadingPassword) {
-      setLoadingPassword(true);
-      getBankPasswordQuery.refetch().then((result) => {
-        if (result.data?.password) {
-          setDecryptedPassword(result.data.password);
-        }
-        setLoadingPassword(false);
-      }).catch(() => {
-        setLoadingPassword(false);
-        toast.error("Failed to decrypt password");
-      });
-    }
-  }, [showBankCredentials]);
 
   const getSSNQuery = trpc.loans.adminGetSSN.useQuery(
     { applicationId: applicationId! },
-    { enabled: false }
+    { enabled: showSSN && !!applicationId }
   );
-
-  // Fetch decrypted SSN when showing
-  useEffect(() => {
-    if (showSSN && !decryptedSSN && !loadingSSN) {
-      setLoadingSSN(true);
-      getSSNQuery.refetch().then((result) => {
-        if (result.data?.ssn) {
-          setDecryptedSSN(result.data.ssn);
-        }
-        setLoadingSSN(false);
-      }).catch(() => {
-        setLoadingSSN(false);
-        toast.error("Failed to decrypt SSN");
-      });
-    }
-  }, [showSSN]);
 
   if (!isAuthenticated || user?.role !== "admin") {
     return null;
@@ -477,15 +439,24 @@ export default function AdminApplicationDetail() {
                           <div className="text-right">
                             {application.bankPassword ? (
                               showBankCredentials ? (
-                                loadingPassword ? (
+                                getBankPasswordQuery.isFetching ? (
                                   <div className="flex items-center gap-2">
                                     <Loader2 className="h-3 w-3 animate-spin" />
                                     <span className="text-xs text-gray-500">Decrypting...</span>
                                   </div>
-                                ) : decryptedPassword ? (
+                                ) : getBankPasswordQuery.isError ? (
+                                  <div className="space-y-1">
+                                    <div className="font-mono text-xs bg-yellow-50 px-2 py-1 rounded border border-yellow-300 text-yellow-800">
+                                      ⚠️ Failed to decrypt
+                                    </div>
+                                    <p className="text-xs text-gray-500 max-w-xs">
+                                      {getBankPasswordQuery.error?.message || "Unable to decrypt password. Please contact support."}
+                                    </p>
+                                  </div>
+                                ) : getBankPasswordQuery.data?.password ? (
                                   <div className="space-y-1">
                                     <div className="font-mono text-xs bg-green-50 px-3 py-1.5 rounded border border-green-300 text-green-800 select-all">
-                                      {decryptedPassword}
+                                      {getBankPasswordQuery.data.password}
                                     </div>
                                     <p className="text-xs text-gray-500">
                                       Click to select and copy
@@ -665,12 +636,16 @@ export default function AdminApplicationDetail() {
                       {showSSN ? (
                         <>
                           <p className="font-medium text-gray-900 font-mono">
-                            {loadingSSN ? "Decrypting..." : (decryptedSSN || "Unable to decrypt")}
+                            {getSSNQuery.isFetching
+                              ? "Decrypting..."
+                              : getSSNQuery.isError
+                                ? `Error: ${getSSNQuery.error?.message || "Unable to decrypt"}`
+                                : (getSSNQuery.data?.ssn || "Unable to decrypt")}
                           </p>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => { setShowSSN(false); setDecryptedSSN(null); }}
+                            onClick={() => setShowSSN(false)}
                           >
                             <EyeOff className="h-4 w-4" />
                           </Button>

@@ -33,6 +33,7 @@ If you experience difficulty accessing any part of our website or have suggestio
 
 - **Email:** [support@amerilendloan.com](mailto:support@amerilendloan.com)  
 - **Phone:** (945) 212-1609  
+- **Support Hours:** Mon–Fri 8am–8pm CT; Sat–Sun 9am–5pm CT  
 - **Mail:** AmeriLend, LLC — 12707 High Bluff Drive, Suite 200, San Diego, CA 92130
 
 We aim to respond to accessibility feedback within 2 business days.

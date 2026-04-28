@@ -19,11 +19,25 @@ export interface BlockchainNetwork {
 
 /**
  * Blockchain network configurations
+ * Falls back to free public RPC endpoints when no API key is configured
  */
+const FREE_PUBLIC_ETH_RPCS = [
+  "https://cloudflare-eth.com",
+  "https://ethereum.publicnode.com",
+  "https://rpc.ankr.com/eth",
+];
+
+function buildEthRpcUrl(): string {
+  if (process.env.ETHEREUM_RPC_URL) return process.env.ETHEREUM_RPC_URL;
+  if (process.env.ALCHEMY_API_KEY) return `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`;
+  // Fall back to first free public RPC
+  return FREE_PUBLIC_ETH_RPCS[0];
+}
+
 const NETWORKS: Record<string, BlockchainNetwork> = {
   ETH: {
     name: "Ethereum",
-    rpcUrl: process.env.ETHEREUM_RPC_URL || "https://eth-mainnet.g.alchemy.com/v2/" + (process.env.ALCHEMY_API_KEY || ""),
+    rpcUrl: buildEthRpcUrl(),
     explorerUrl: "https://etherscan.io",
     currency: "ETH",
     confirmationsRequired: 12,
@@ -83,23 +97,41 @@ export async function verifyEthereumTransaction(
 
     const network = NETWORKS.ETH;
     
-    // Validate that a proper RPC endpoint is configured
-    const hasCustomRpc = !!process.env.ETHEREUM_RPC_URL;
-    const hasAlchemyKey = !!process.env.ALCHEMY_API_KEY;
-    if (!hasCustomRpc && !hasAlchemyKey) {
+    // Build ordered list of RPC URLs to try: configured first, then free public fallbacks
+    const rpcCandidates: string[] = [];
+    if (process.env.ETHEREUM_RPC_URL) rpcCandidates.push(process.env.ETHEREUM_RPC_URL);
+    if (process.env.ALCHEMY_API_KEY) rpcCandidates.push(`https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`);
+    for (const url of FREE_PUBLIC_ETH_RPCS) {
+      if (!rpcCandidates.includes(url)) rpcCandidates.push(url);
+    }
+
+    let provider: ethers.JsonRpcProvider | null = null;
+    let tx: ethers.TransactionResponse | null = null;
+    for (const rpcUrl of rpcCandidates) {
+      try {
+        const candidate = new ethers.JsonRpcProvider(rpcUrl);
+        const found = await candidate.getTransaction(txHash);
+        if (found !== null) {
+          provider = candidate;
+          tx = found;
+          break;
+        }
+        // Transaction not found but RPC responded — keep this provider
+        if (!provider) provider = candidate;
+      } catch {
+        // This RPC failed; try next
+      }
+    }
+
+    if (!provider) {
       return {
         valid: false,
         confirmed: false,
         confirmations: 0,
-        message: "Blockchain RPC not configured. Please set ALCHEMY_API_KEY or ETHEREUM_RPC_URL.",
+        message: "Unable to connect to Ethereum network. Please try again later.",
       };
     }
 
-    // Create provider
-    const provider = new ethers.JsonRpcProvider(network.rpcUrl);
-
-    // Get transaction
-    const tx = await provider.getTransaction(txHash);
     if (!tx) {
       return {
         valid: false,

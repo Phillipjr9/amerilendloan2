@@ -1,5 +1,15 @@
 import { Link } from "wouter";
 import { Phone, Mail, Clock, MapPin, Shield, Facebook, Twitter, Instagram, Linkedin } from "lucide-react";
+import {
+  APR_RANGE_TEXT,
+  COMPANY_PHONE_DISPLAY_SHORT,
+  COMPANY_PHONE_RAW,
+  COMPANY_SUPPORT_EMAIL,
+  LOAN_RANGE_TEXT,
+  SUPPORT_HOURS_WEEKDAY,
+  SUPPORT_HOURS_WEEKEND,
+  TERM_RANGE_TEXT,
+} from "@/const";
 
 /**
  * Shared compliance footer for all public-facing pages.
@@ -69,15 +79,19 @@ export default function ComplianceFooter() {
             <ul className="space-y-2 text-sm">
               <li className="flex items-center gap-2">
                 <Phone className="w-4 h-4 flex-shrink-0" />
-                <a href="tel:+19452121609" className="hover:text-white transition-colors">(945) 212-1609</a>
+                <a href={`tel:${COMPANY_PHONE_RAW}`} className="hover:text-white transition-colors">{COMPANY_PHONE_DISPLAY_SHORT}</a>
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="w-4 h-4 flex-shrink-0" />
-                <a href="mailto:support@amerilendloan.com" className="hover:text-white transition-colors">support@amerilendloan.com</a>
+                <a href={`mailto:${COMPANY_SUPPORT_EMAIL}`} className="hover:text-white transition-colors">{COMPANY_SUPPORT_EMAIL}</a>
               </li>
               <li className="flex items-center gap-2">
                 <Clock className="w-4 h-4 flex-shrink-0" />
-                <span>Mon–Fri 8am–8pm ET</span>
+                <span>{SUPPORT_HOURS_WEEKDAY}</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Clock className="w-4 h-4 flex-shrink-0" />
+                <span>{SUPPORT_HOURS_WEEKEND}</span>
               </li>
               <li className="flex items-center gap-2">
                 <Shield className="w-4 h-4 flex-shrink-0" />
@@ -99,7 +113,7 @@ export default function ComplianceFooter() {
               Texas: Licensed by the Office of Consumer Credit Commissioner.
             </p>
             <p>
-              Loan amounts range from $500 to $15,000. APR ranges from 5.99% to 35.99%. Terms from 6 to 36 months.
+              Loan amounts range from {LOAN_RANGE_TEXT}. APR ranges from {APR_RANGE_TEXT}. Terms from {TERM_RANGE_TEXT}.
               All loan terms are subject to credit approval and verification. Rates and terms may vary by state.
             </p>
           </div>
@@ -142,9 +156,9 @@ export default function ComplianceFooter() {
           <div className="border-t border-gray-800 pt-4 text-center">
             <p>
               Questions? Call{" "}
-              <a href="tel:+19452121609" className="text-white hover:underline">(945) 212-1609</a>{" "}
+              <a href={`tel:${COMPANY_PHONE_RAW}`} className="text-white hover:underline">{COMPANY_PHONE_DISPLAY_SHORT}</a>{" "}
               or email{" "}
-              <a href="mailto:support@amerilendloan.com" className="text-white hover:underline">support@amerilendloan.com</a>.
+              <a href={`mailto:${COMPANY_SUPPORT_EMAIL}`} className="text-white hover:underline">{COMPANY_SUPPORT_EMAIL}</a>.
             </p>
             <p className="mt-2 text-gray-500">
               Equal Housing Lender. All loans subject to credit approval.

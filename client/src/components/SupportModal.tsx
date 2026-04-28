@@ -7,6 +7,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Phone, Mail, MessageCircle, Clock } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import {
+  COMPANY_PHONE_DISPLAY,
+  COMPANY_SUPPORT_EMAIL,
+  SUPPORT_HOURS_WEEKDAY,
+  SUPPORT_HOURS_WEEKEND,
+} from "@/const";
 
 interface SupportModalProps {
   isOpen?: boolean;
@@ -95,11 +101,11 @@ export function SupportModal({ isOpen, onOpenChange }: SupportModalProps) {
                 <div>
                   <h3 className="font-semibold text-gray-900">Phone Support</h3>
                   <p className="text-sm text-gray-600 mt-1">
-                    Call our team at <strong>1-800-AMERILEND</strong>
+                    Call our team at <strong>{COMPANY_PHONE_DISPLAY}</strong>
                   </p>
                   <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    Available Mon-Fri, 8am-6pm EST
+                    Available {SUPPORT_HOURS_WEEKDAY}; {SUPPORT_HOURS_WEEKEND}
                   </p>
                 </div>
               </div>
@@ -112,7 +118,7 @@ export function SupportModal({ isOpen, onOpenChange }: SupportModalProps) {
                 <div>
                   <h3 className="font-semibold text-gray-900">Email Support</h3>
                   <p className="text-sm text-gray-600 mt-1">
-                    Email us at <strong>support@amerilendloan.com</strong>
+                    Email us at <strong>{COMPANY_SUPPORT_EMAIL}</strong>
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     Response within 24 hours

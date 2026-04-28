@@ -5,6 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { X, Send, Loader2, Phone, Mail, User, RotateCcw, Shield, ArrowRight, CreditCard, FileText, HelpCircle, Zap } from "lucide-react";
 import { Streamdown } from "streamdown";
 import { trpc } from "@/lib/trpc";
+import {
+  COMPANY_PHONE_DISPLAY_SHORT,
+  COMPANY_PHONE_RAW,
+  COMPANY_SUPPORT_EMAIL,
+  SUPPORT_HOURS_WEEKDAY,
+  SUPPORT_HOURS_WEEKEND,
+} from "@/const";
 
 interface Message {
   role: "user" | "assistant";
@@ -82,7 +89,7 @@ export default function AiSupportWidget({ isAuthenticated = false, userName }: A
         ...newMessages,
         {
           role: "assistant",
-          content: "I apologize, but I'm having trouble connecting right now. Please try again or contact support at support@amerilendloan.com or (945) 212-1609.",
+          content: `I apologize, but I'm having trouble connecting right now. Please try again or contact support at ${COMPANY_SUPPORT_EMAIL} or ${COMPANY_PHONE_DISPLAY_SHORT}.`,
         },
       ]);
     }
@@ -360,30 +367,30 @@ export default function AiSupportWidget({ isAuthenticated = false, userName }: A
                   
                   <div className="space-y-2">
                     <a
-                      href="tel:+19452121609"
+                      href={`tel:${COMPANY_PHONE_RAW}`}
                       className="flex items-center gap-3 p-3 bg-[#0033A0] hover:bg-[#002080] text-white rounded-lg transition-colors"
                     >
                       <Phone className="w-5 h-5" />
                       <div className="text-left">
                         <p className="font-semibold text-sm">Call Us</p>
-                        <p className="text-xs opacity-90">(945) 212-1609</p>
+                        <p className="text-xs opacity-90">{COMPANY_PHONE_DISPLAY_SHORT}</p>
                       </div>
                     </a>
                     
                     <a
-                      href="mailto:support@amerilendloan.com"
+                      href={`mailto:${COMPANY_SUPPORT_EMAIL}`}
                       className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg transition-colors"
                     >
                       <Mail className="w-5 h-5 text-[#0033A0]" />
                       <div className="text-left">
                         <p className="font-semibold text-sm">Email Us</p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">support@amerilendloan.com</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">{COMPANY_SUPPORT_EMAIL}</p>
                       </div>
                     </a>
                   </div>
                   
                   <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-3">
-                    Available Monday-Friday, 9 AM - 6 PM EST
+                    Available {SUPPORT_HOURS_WEEKDAY} and {SUPPORT_HOURS_WEEKEND}
                   </p>
                 </div>
               ) : (

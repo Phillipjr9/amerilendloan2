@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, Phone } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
@@ -10,6 +10,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { SocialAuthButtons } from "@/components/SocialAuthButtons";
 import SEOHead from "@/components/SEOHead";
 import { useTurnstile } from "@/components/TurnstileWidget";
+import { COMPANY_PHONE_DISPLAY_SHORT, COMPANY_PHONE_RAW, COMPANY_SUPPORT_EMAIL } from "@/const";
 
 export default function OTPLogin() {
   const [, setLocation] = useLocation();
@@ -433,13 +434,17 @@ export default function OTPLogin() {
       />
       {/* Header */}
       <header className="bg-white border-b border-gray-100 shadow-sm py-0">
-        <div className="container mx-auto px-4 h-16 flex items-center">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/">
             <a className="flex items-center gap-2">
               <img src="/images/logo-new.jpg" alt="AmeriLend" className="h-9 w-auto rounded" />
               <span className="text-xl font-bold text-[#0A2540] hidden sm:inline">AmeriLend</span>
             </a>
           </Link>
+          <a href={`tel:${COMPANY_PHONE_RAW}`} className="hidden sm:flex items-center gap-1 text-xs text-gray-600 hover:text-[#0A2540]">
+            <Phone className="w-4 h-4" />
+            {COMPANY_PHONE_DISPLAY_SHORT}
+          </a>
         </div>
       </header>
       
@@ -623,7 +628,7 @@ export default function OTPLogin() {
                   <SocialAuthButtons purpose="login" />
 
                   <div className="text-center">
-                    <a href="mailto:support@amerilendloan.com" className="text-xs text-slate-500 hover:text-[#0A2540] transition-colors">
+                    <a href={`mailto:${COMPANY_SUPPORT_EMAIL}`} className="text-xs text-slate-500 hover:text-[#0A2540] transition-colors">
                       Need help? Contact Support
                     </a>
                   </div>
@@ -973,7 +978,7 @@ export default function OTPLogin() {
               Privacy Policy
             </a>
             <span className="text-slate-300">•</span>
-            <a href="mailto:support@amerilendloan.com" className="text-[#0A2540] hover:underline mx-2">
+            <a href={`mailto:${COMPANY_SUPPORT_EMAIL}`} className="text-[#0A2540] hover:underline mx-2">
               Support
             </a>
           </div>

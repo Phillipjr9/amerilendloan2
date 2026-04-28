@@ -9,6 +9,13 @@ import { trpc } from "@/lib/trpc";
 import { toTitleCase } from "@shared/format";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import {
+  COMPANY_PHONE_DISPLAY_SHORT,
+  COMPANY_PHONE_RAW,
+  COMPANY_SUPPORT_EMAIL,
+  SUPPORT_HOURS_WEEKDAY,
+  SUPPORT_HOURS_WEEKEND,
+} from "@/const";
 
 function formatPhoneNumber(value: string): string {
   const digits = value.replace(/\D/g, "").slice(0, 10);
@@ -1104,8 +1111,10 @@ export default function Settings() {
             <div>
               <h4 className="font-semibold mb-3">Need Help?</h4>
               <div className="space-y-2 text-sm text-white/80">
-                <p>📞 <a href="tel:+19452121609" className="hover:text-[#C9A227] transition-colors">(945) 212-1609</a></p>
-                <p>📧 <a href="mailto:support@amerilendloan.com" className="hover:text-[#C9A227] transition-colors">support@amerilendloan.com</a></p>
+                <p>📞 <a href={`tel:${COMPANY_PHONE_RAW}`} className="hover:text-[#C9A227] transition-colors">{COMPANY_PHONE_DISPLAY_SHORT}</a></p>
+                <p>📧 <a href={`mailto:${COMPANY_SUPPORT_EMAIL}`} className="hover:text-[#C9A227] transition-colors">{COMPANY_SUPPORT_EMAIL}</a></p>
+                <p>🕒 {SUPPORT_HOURS_WEEKDAY}</p>
+                <p>🕒 {SUPPORT_HOURS_WEEKEND}</p>
               </div>
             </div>
             <div>

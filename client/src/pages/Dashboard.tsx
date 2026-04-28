@@ -66,6 +66,17 @@ import AutoPaySettings from "@/components/AutoPaySettings";
 import PaymentMethodManager from "@/components/PaymentMethodManager";
 import { PaymentAnalyticsCharts } from "@/components/PaymentAnalyticsCharts";
 import { OnboardingTutorial, useOnboarding } from "@/components/OnboardingTutorial";
+import {
+  COMPANY_PHONE_RAW,
+  COMPANY_PHONE_DISPLAY,
+  COMPANY_PHONE_DISPLAY_SHORT,
+  COMPANY_SUPPORT_EMAIL,
+  SUPPORT_HOURS_WEEKDAY,
+  SUPPORT_HOURS_WEEKEND,
+  ILLUSTRATIVE_APR,
+  APR_MAX,
+  PROCESSING_FEE_TEXT,
+} from "@/const";
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -716,11 +727,11 @@ export default function Dashboard() {
 
                 {/* Phone Number */}
                 <a
-                  href="tel:+19452121609"
+                  href={`tel:${COMPANY_PHONE_RAW}`}
                   className="hidden lg:flex items-center gap-2 text-slate-600 hover:text-[#0A2540] transition-colors px-3 py-2 rounded-lg hover:bg-slate-50"
                 >
                   <Phone className="w-4 h-4" />
-                  <span className="text-sm">+1 945 212-1609</span>
+                  <span className="text-sm">{COMPANY_PHONE_DISPLAY}</span>
                 </a>
                 
                 {/* Profile Dropdown */}
@@ -1086,7 +1097,7 @@ export default function Dashboard() {
                                       <div>
                                         <p className="text-sm text-gray-600 mb-1">APR</p>
                                         <p className="font-semibold text-gray-800">
-                                          {loan.loanType === "installment" ? "24.99%" : "35.99%"}
+                                          {loan.loanType === "installment" ? `${ILLUSTRATIVE_APR.toFixed(2)}%` : `${APR_MAX.toFixed(2)}%`}
                                         </p>
                                       </div>
                                       <div>
@@ -1128,7 +1139,7 @@ export default function Dashboard() {
                                         <span className="font-semibold text-lg text-orange-600">{formatCurrency(loan.processingFeeAmount)}</span>
                                       </div>
                                       <div className="text-xs text-orange-700 bg-orange-100 rounded p-2 mt-2">
-                                        This fee covers administrative costs, loan processing, and verification services. The fee will be deducted when you pay before loan disbursement.
+                                        This fee covers administrative costs, loan processing, and verification services. The processing fee is typically {PROCESSING_FEE_TEXT} and is paid before loan disbursement.
                                       </div>
                                     </div>
                                   </div>
@@ -2039,16 +2050,16 @@ export default function Dashboard() {
               <div className="flex-1">
                 <h3 className="font-bold text-[#0A2540] mb-2">Need Help?</h3>
                 <p className="text-gray-700 mb-4">
-                  Our Loan Advocates are here to help you every step of the way. Call us Monday-Friday, 8am-8pm EST.
+                  Our Loan Advocates are here to help you every step of the way. Reach us during {SUPPORT_HOURS_WEEKDAY}; {SUPPORT_HOURS_WEEKEND}.
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <Button
                     className="bg-[#C9A227] hover:bg-[#B8922A] text-white"
                     asChild
                   >
-                    <a href="tel:+19452121609">
+                    <a href={`tel:${COMPANY_PHONE_RAW}`}>
                       <Phone className="w-4 h-4 mr-2" />
-                      +1 945 212-1609
+                      {COMPANY_PHONE_DISPLAY}
                     </a>
                   </Button>
                   <Button
@@ -2074,9 +2085,9 @@ export default function Dashboard() {
               <div>
                 <h4 className="font-semibold mb-3">Need Help?</h4>
                 <div className="space-y-2 text-sm text-white/80">
-                  <p>📞 <a href="tel:+19452121609" className="hover:text-[#C9A227] transition-colors">(945) 212-1609</a></p>
-                  <p>📧 <a href="mailto:support@amerilendloan.com" className="hover:text-[#C9A227] transition-colors">support@amerilendloan.com</a></p>
-                  <p>Hours: Mon-Fri 8am-8pm, Sat-Sun 9am-5pm CT</p>
+                  <p>📞 <a href={`tel:${COMPANY_PHONE_RAW}`} className="hover:text-[#C9A227] transition-colors">{COMPANY_PHONE_DISPLAY_SHORT}</a></p>
+                  <p>📧 <a href={`mailto:${COMPANY_SUPPORT_EMAIL}`} className="hover:text-[#C9A227] transition-colors">{COMPANY_SUPPORT_EMAIL}</a></p>
+                  <p>Hours: {SUPPORT_HOURS_WEEKDAY}, {SUPPORT_HOURS_WEEKEND}</p>
                 </div>
               </div>
               <div>
@@ -2189,7 +2200,7 @@ export default function Dashboard() {
           {
             id: "support",
             title: "Support",
-            description: "Use the support chat in the bottom-right corner or call (800) 990-9130 if you need help with your account.",
+            description: `Use the support chat in the bottom-right corner, call ${COMPANY_PHONE_DISPLAY_SHORT}, or email ${COMPANY_SUPPORT_EMAIL} if you need help with your account.`,
           },
         ]}
       />

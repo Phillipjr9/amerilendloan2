@@ -13,26 +13,40 @@ import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import ComplianceFooter from "@/components/ComplianceFooter";
 import SEOHead from "@/components/SEOHead";
+import {
+  APR_MAX,
+  APR_MIN,
+  APR_RANGE_TEXT,
+  COMPANY_PHONE_DISPLAY_SHORT,
+  COMPANY_PHONE_RAW,
+  ILLUSTRATIVE_APR,
+  LOAN_MAX_AMOUNT,
+  LOAN_MIN_AMOUNT,
+  LOAN_RANGE_TEXT,
+  PROCESSING_FEE_RATE,
+  PROCESSING_FEE_TEXT,
+  TERM_RANGE_TEXT,
+} from "@/const";
 
 const loanTiers = [
   {
     name: "Standard",
     range: "$500 – $3,000",
-    apr: "29.99% – 35.99%",
+    apr: "24.99% – 35.99%",
     term: "6 – 18 months",
     highlight: false,
   },
   {
     name: "Plus",
     range: "$3,000 – $7,500",
-    apr: "19.99% – 29.99%",
+    apr: "14.99% – 24.99%",
     term: "12 – 24 months",
     highlight: true,
   },
   {
     name: "Premium",
     range: "$7,500 – $15,000",
-    apr: "9.99% – 19.99%",
+    apr: "5.99% – 14.99%",
     term: "12 – 36 months",
     highlight: false,
   },
@@ -49,7 +63,7 @@ const faqs = [
   },
   {
     q: "Are there any hidden fees?",
-    a: "No. AmeriLend is committed to full transparency. All fees, including any origination fee, are clearly disclosed before you sign your loan agreement. There are no prepayment penalties.",
+    a: "No. AmeriLend is committed to full transparency. All fees, including the disclosed processing fee and any state-specific charges, are clearly shown before you sign your loan agreement. There are no prepayment penalties.",
   },
   {
     q: "Can I pay off my loan early?",
@@ -64,17 +78,18 @@ const faqs = [
 export default function Rates() {
   const [loanAmount, setLoanAmount] = useState(5000);
   const [loanTerm, setLoanTerm] = useState(24);
+  const [apr, setApr] = useState(ILLUSTRATIVE_APR);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Use tRPC server-side loan calculator
   const calcQuery = trpc.loanCalculator.calculatePayment.useQuery(
-    { amount: loanAmount * 100, term: loanTerm, interestRate: 24.99 },
+    { amount: loanAmount * 100, term: loanTerm, interestRate: apr },
   );
 
   // Server result or fallback to local calculation
   const serverData = calcQuery.data?.success ? calcQuery.data.data : null;
-  const localRate = 0.2499 / 12;
+  const localRate = (apr / 100) / 12;
   const localPayment = (loanAmount * localRate) / (1 - Math.pow(1 + localRate, -loanTerm));
   const monthlyPayment = serverData?.monthlyPaymentDollars ?? localPayment;
   const totalInterest = serverData?.totalInterestDollars ?? (localPayment * loanTerm - loanAmount);
@@ -84,7 +99,7 @@ export default function Rates() {
     <div className="min-h-screen bg-white text-gray-800">
       <SEOHead
         title="Rates & Terms"
-        description="Competitive personal loan rates starting at 5.99% APR. Transparent terms, no hidden fees, and flexible repayment options from 12 to 60 months."
+        description={`Competitive personal loan rates from ${APR_MIN.toFixed(2)}% APR. Transparent terms, no hidden fees, and flexible repayment options from ${TERM_RANGE_TEXT}.`}
         path="/rates"
       />
       {/* Header */}
@@ -94,6 +109,12 @@ export default function Rates() {
             <img src="/images/logo-new.jpg" alt="AmeriLend" className="h-9 w-auto rounded" />
             <span className="text-xl font-bold text-[#0A2540] hidden sm:inline">AmeriLend</span>
           </Link>
+          <a
+            href={`tel:${COMPANY_PHONE_RAW}`}
+            className="hidden lg:flex items-center text-xs text-gray-600 hover:text-[#0A2540]"
+          >
+            {COMPANY_PHONE_DISPLAY_SHORT}
+          </a>
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
             <Link href="/" className="hover:text-[#0A2540] transition-colors">Home</Link>
             <Link href="/about" className="hover:text-[#0A2540] transition-colors">About</Link>
@@ -153,7 +174,7 @@ export default function Rates() {
           <div className="text-center mb-14">
             <h2 className="text-3xl md:text-4xl font-bold text-[#0A2540] mb-4">Loan Options</h2>
             <p className="text-gray-500 text-lg max-w-2xl mx-auto">
-              Choose the loan that fits your needs. Rates vary based on creditworthiness and state.
+              Choose the loan that fits your needs. Current disclosed ranges: {LOAN_RANGE_TEXT}, {APR_RANGE_TEXT}, {TERM_RANGE_TEXT}.
             </p>
           </div>
 
@@ -233,16 +254,38 @@ export default function Rates() {
               <input
                 id="loan-amount-slider"
                 type="range"
-                min={500}
-                max={15000}
+                min={LOAN_MIN_AMOUNT}
+                max={LOAN_MAX_AMOUNT}
                 step={250}
                 value={loanAmount}
                 onChange={(e) => setLoanAmount(Number(e.target.value))}
                 className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-[#C9A227]"
               />
               <div className="flex justify-between text-xs text-gray-400 mt-1">
-                <span>$500</span>
-                <span>$15,000</span>
+                <span>${LOAN_MIN_AMOUNT.toLocaleString()}</span>
+                <span>${LOAN_MAX_AMOUNT.toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* APR Slider */}
+            <div className="mb-8">
+              <div className="flex justify-between items-center mb-2">
+                <label htmlFor="apr-slider" className="text-sm font-medium text-gray-700">APR (illustrative)</label>
+                <span className="text-lg font-bold text-[#0A2540]">{apr.toFixed(2)}%</span>
+              </div>
+              <input
+                id="apr-slider"
+                type="range"
+                min={APR_MIN}
+                max={APR_MAX}
+                step={0.1}
+                value={apr}
+                onChange={(e) => setApr(Number(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-[#0A2540]"
+              />
+              <div className="flex justify-between text-xs text-gray-400 mt-1">
+                <span>{APR_MIN.toFixed(2)}%</span>
+                <span>{APR_MAX.toFixed(2)}%</span>
               </div>
             </div>
 
@@ -283,9 +326,13 @@ export default function Rates() {
                 </div>
               </div>
               <p className="text-xs text-gray-400 mt-3">
-                Based on illustrative 24.99% APR. Your actual rate may be lower.
+                Based on illustrative APR selection. Processing fee disclosure: {PROCESSING_FEE_TEXT} due at approval before disbursement.
               </p>
             </div>
+            <p className="text-xs text-gray-500 mt-4">
+              Payment examples are estimates only and exclude any optional or state-specific charges.
+              Final terms are shown before you sign. Range disclosures: {LOAN_RANGE_TEXT}, APR {APR_RANGE_TEXT}, terms {TERM_RANGE_TEXT}.
+            </p>
           </div>
         </div>
       </section>

@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { APP_LOGO } from "@/const";
+import { APP_LOGO, COMPANY_PHONE_DISPLAY_SHORT, COMPANY_SUPPORT_EMAIL } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { 
   Loader2, 
@@ -1140,8 +1140,8 @@ export default function AdminSettings() {
 12707 High Bluff Drive, Suite 200
 San Diego, CA 92130, USA
 
-Phone: (945) 212-1609
-Email: support@amerilendloan.com`}
+Phone: ${COMPANY_PHONE_DISPLAY_SHORT}
+Email: ${COMPANY_SUPPORT_EMAIL}`}
                   />
                 </div>
 

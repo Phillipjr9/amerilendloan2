@@ -31,7 +31,7 @@ This disclosure is provided to you in accordance with the Truth in Lending Act (
 The APR is the cost of your credit expressed as a yearly rate. Your APR will be determined based on your creditworthiness, loan amount, and loan term. The APR includes:
 
 - Interest charges
-- Origination fee (if applicable)
+- Processing fee and other applicable charges (if any)
 
 **APR Range:** 5.99% – 35.99%
 
@@ -42,13 +42,13 @@ The APR is the cost of your credit expressed as a yearly rate. Your APR will be 
 The **Finance Charge** is the dollar amount the credit will cost you over the full term of the loan. It includes:
 
 - Total interest paid over the life of the loan
-- Origination fee (if applicable)
+- Processing fee and other applicable charges (if any)
 
 Your exact Finance Charge will be disclosed in your Loan Agreement prior to signing.
 
 ### 3. Amount Financed
 
-The **Amount Financed** is the amount of credit provided to you or on your behalf. This is the loan principal minus any prepaid finance charges (such as an origination fee deducted at disbursement).
+The **Amount Financed** is the amount of credit provided to you or on your behalf. This is the loan principal minus any prepaid finance charges (such as a processing fee deducted at disbursement).
 
 ### 4. Total of Payments
 
@@ -71,12 +71,12 @@ The **Total of Payments** is the total amount you will have paid after making al
 
 ## FEES
 
-### Origination Fee
+### Processing Fee
 
-AmeriLend may charge an origination fee of **0% – 8%** of the loan amount. If applicable, this fee is:
+AmeriLend charges a processing fee of **3.5%** of the approved loan amount. This fee is:
 
 - Clearly disclosed before you sign the loan agreement
-- Either deducted from the loan proceeds at disbursement or added to the loan balance
+- Paid before disbursement (card, bank, or eligible crypto methods)
 
 ### Late Payment Fee
 
@@ -140,7 +140,7 @@ Upon approval, you will receive an itemization showing:
 | Item                          | Amount         |
 | ----------------------------- | -------------- |
 | Loan Principal                | $[AMOUNT]      |
-| Less: Origination Fee         | –$[FEE]        |
+| Less: Processing Fee          | –$[FEE]        |
 | **Net Amount Disbursed**      | **$[NET]**     |
 
 ---
@@ -157,7 +157,7 @@ For illustration purposes only:
 | Monthly Payment          | $271.83          |
 | Total of Payments        | $6,523.92        |
 | Total Finance Charge     | $1,523.92        |
-| Origination Fee          | $0               |
+| Processing Fee (3.5%)    | $175.00          |
 
 > *Your actual terms may differ based on creditworthiness and other factors.*
 
@@ -167,7 +167,7 @@ For illustration purposes only:
 
 If you have questions or concerns about your loan or this disclosure, contact us:
 
-- **Phone:** (800) 990-9130
+- **Phone:** +1 945 212-1609 (Mon–Fri 8am–8pm CT; Sat–Sun 9am–5pm CT)
 - **Email:** support@amerilendloan.com
 - **Mail:** AmeriLend, 12707 High Bluff Drive, Suite 200, San Diego, CA 92130
 

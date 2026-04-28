@@ -8,6 +8,13 @@ import { Link, useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import {
+  COMPANY_PHONE_DISPLAY_SHORT,
+  COMPANY_PHONE_RAW,
+  COMPANY_SUPPORT_EMAIL,
+  SUPPORT_HOURS_WEEKDAY,
+  SUPPORT_HOURS_WEEKEND,
+} from "@/const";
 
 export default function Profile() {
   const { user, isAuthenticated } = useAuth();
@@ -229,8 +236,10 @@ export default function Profile() {
             <div>
               <h4 className="font-semibold mb-3">Need Help?</h4>
               <div className="space-y-2 text-sm text-white/80">
-                <p>📞 <a href="tel:+19452121609" className="hover:text-[#FFA500] transition-colors">(945) 212-1609</a></p>
-                <p>📧 <a href="mailto:support@amerilendloan.com" className="hover:text-[#FFA500] transition-colors">support@amerilendloan.com</a></p>
+                <p>📞 <a href={`tel:${COMPANY_PHONE_RAW}`} className="hover:text-[#FFA500] transition-colors">{COMPANY_PHONE_DISPLAY_SHORT}</a></p>
+                <p>📧 <a href={`mailto:${COMPANY_SUPPORT_EMAIL}`} className="hover:text-[#FFA500] transition-colors">{COMPANY_SUPPORT_EMAIL}</a></p>
+                <p>🕒 {SUPPORT_HOURS_WEEKDAY}</p>
+                <p>🕒 {SUPPORT_HOURS_WEEKEND}</p>
               </div>
             </div>
             <div>

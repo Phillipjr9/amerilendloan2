@@ -17,18 +17,23 @@ import { toast } from "sonner";
 import ComplianceFooter from "@/components/ComplianceFooter";
 import SEOHead from "@/components/SEOHead";
 import { useTurnstile } from "@/components/TurnstileWidget";
+import {
+  COMPANY_PHONE_DISPLAY_SHORT,
+  COMPANY_SUPPORT_EMAIL,
+  SUPPORT_HOURS_WEEKDAY,
+} from "@/const";
 
 const contactMethods = [
   {
     icon: Phone,
     title: "Call Us",
-    detail: "(945) 212-1609",
-    sub: "Mon – Fri, 8am – 8pm ET",
+    detail: COMPANY_PHONE_DISPLAY_SHORT,
+    sub: SUPPORT_HOURS_WEEKDAY,
   },
   {
     icon: Mail,
     title: "Email Us",
-    detail: "support@amerilendloan.com",
+    detail: COMPANY_SUPPORT_EMAIL,
     sub: "We respond within 24 hours",
   },
   {
@@ -92,7 +97,7 @@ export default function Contact() {
     <div className="min-h-screen bg-white text-gray-800">
       <SEOHead
         title="Contact Us"
-        description="Get in touch with AmeriLend. Call us at (945) 212-1609, email support@amerilendloan.com, or submit a message. We're here to help with your loan questions."
+        description={`Get in touch with AmeriLend. Call us at ${COMPANY_PHONE_DISPLAY_SHORT}, email ${COMPANY_SUPPORT_EMAIL}, or submit a message. We're here to help with your loan questions.`}
         path="/contact"
       />
       {/* Header */}

@@ -204,6 +204,27 @@ export default function Careers() {
                 </div>
 
                 <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-[#0A2540]">
+                  <h3 className="font-semibold text-[#0A2540] mb-2">Loan Underwriter</h3>
+                  <p className="text-sm text-gray-600">
+                    Evaluate loan applications, assess creditworthiness, and make approval decisions.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-[#0A2540]">
+                  <h3 className="font-semibold text-[#0A2540] mb-2">Loan Processor</h3>
+                  <p className="text-sm text-gray-600">
+                    Collect and verify borrower documents to prepare loan files for underwriting.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-[#0A2540]">
+                  <h3 className="font-semibold text-[#0A2540] mb-2">Loan Officer</h3>
+                  <p className="text-sm text-gray-600">
+                    Originate and manage personal and business loan applications from start to close.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-[#0A2540]">
                   <h3 className="font-semibold text-[#0A2540] mb-2">Risk Analyst</h3>
                   <p className="text-sm text-gray-600">
                     Analyze applications and ensure responsible lending practices.
@@ -211,9 +232,65 @@ export default function Careers() {
                 </div>
 
                 <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-[#0A2540]">
+                  <h3 className="font-semibold text-[#0A2540] mb-2">Compliance Officer</h3>
+                  <p className="text-sm text-gray-600">
+                    Ensure lending operations comply with federal and state regulations.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-[#0A2540]">
+                  <h3 className="font-semibold text-[#0A2540] mb-2">Collections Specialist</h3>
+                  <p className="text-sm text-gray-600">
+                    Manage delinquent accounts and work with borrowers to resolve outstanding balances.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-[#0A2540]">
+                  <h3 className="font-semibold text-[#0A2540] mb-2">Customer Service Representative</h3>
+                  <p className="text-sm text-gray-600">
+                    Assist borrowers with account inquiries, payment support, and loan status updates.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-[#0A2540]">
+                  <h3 className="font-semibold text-[#0A2540] mb-2">Financial Analyst</h3>
+                  <p className="text-sm text-gray-600">
+                    Analyze financial data to support lending decisions and business strategy.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-[#0A2540]">
                   <h3 className="font-semibold text-[#0A2540] mb-2">Marketing Specialist</h3>
                   <p className="text-sm text-gray-600">
                     Develop strategies to reach customers and educate them about borrowing options.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-[#0A2540]">
+                  <h3 className="font-semibold text-[#0A2540] mb-2">Business Development Manager</h3>
+                  <p className="text-sm text-gray-600">
+                    Build partnerships and grow AmeriLend's client base through strategic outreach.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-[#0A2540]">
+                  <h3 className="font-semibold text-[#0A2540] mb-2">Software Engineer</h3>
+                  <p className="text-sm text-gray-600">
+                    Build and maintain the platform powering AmeriLend's digital lending experience.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-[#0A2540]">
+                  <h3 className="font-semibold text-[#0A2540] mb-2">Data Analyst</h3>
+                  <p className="text-sm text-gray-600">
+                    Transform lending data into actionable insights to drive informed decisions.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-[#0A2540]">
+                  <h3 className="font-semibold text-[#0A2540] mb-2">Account Manager</h3>
+                  <p className="text-sm text-gray-600">
+                    Manage existing borrower relationships and ensure long-term customer satisfaction.
                   </p>
                 </div>
 
@@ -305,8 +382,19 @@ export default function Careers() {
                   >
                     <option value="Not Specified">Select a position...</option>
                     <option value="Loan Advocate">Loan Advocate</option>
+                    <option value="Loan Underwriter">Loan Underwriter</option>
+                    <option value="Loan Processor">Loan Processor</option>
+                    <option value="Loan Officer">Loan Officer</option>
                     <option value="Risk Analyst">Risk Analyst</option>
+                    <option value="Compliance Officer">Compliance Officer</option>
+                    <option value="Collections Specialist">Collections Specialist</option>
+                    <option value="Customer Service Representative">Customer Service Representative</option>
+                    <option value="Financial Analyst">Financial Analyst</option>
                     <option value="Marketing Specialist">Marketing Specialist</option>
+                    <option value="Business Development Manager">Business Development Manager</option>
+                    <option value="Software Engineer">Software Engineer</option>
+                    <option value="Data Analyst">Data Analyst</option>
+                    <option value="Account Manager">Account Manager</option>
                     <option value="Other">Other Position</option>
                   </select>
                 </div>

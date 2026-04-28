@@ -25,6 +25,7 @@ import {
   AlertCircle,
   Ticket,
   Gift,
+  Phone,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
@@ -32,6 +33,14 @@ import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import SEOHead from "@/components/SEOHead";
+import {
+  APR_MAX,
+  APR_MIN,
+  COMPANY_PHONE_DISPLAY_SHORT,
+  COMPANY_PHONE_RAW,
+  LOAN_MAX_AMOUNT,
+  LOAN_MIN_AMOUNT,
+} from "@/const";
 
 /* ─── offer generation helpers ─── */
 interface LoanOffer {
@@ -48,18 +57,20 @@ interface LoanOffer {
 function generateOffers(income: number, creditScore: number, requestedAmount: number): LoanOffer[] {
   // Base APR determined by credit score
   let baseApr = 24.99;
-  if (creditScore >= 750) baseApr = 7.99;
+  if (creditScore >= 750) baseApr = 6.49;
   else if (creditScore >= 700) baseApr = 11.49;
   else if (creditScore >= 650) baseApr = 14.99;
   else if (creditScore >= 600) baseApr = 18.99;
   else if (creditScore >= 550) baseApr = 21.99;
 
+  baseApr = Math.min(Math.max(baseApr, APR_MIN), APR_MAX);
+
   // Max loan based on income & credit
-  let maxLoan = Math.min(requestedAmount, income * 0.4);
+  let maxLoan = Math.min(requestedAmount, income * 0.4, LOAN_MAX_AMOUNT);
   if (creditScore >= 700) maxLoan = Math.min(requestedAmount, income * 0.6);
   else if (creditScore >= 650) maxLoan = Math.min(requestedAmount, income * 0.5);
   maxLoan = Math.round(maxLoan / 500) * 500; // Round to nearest $500
-  if (maxLoan < 1000) maxLoan = 1000;
+  if (maxLoan < LOAN_MIN_AMOUNT) maxLoan = LOAN_MIN_AMOUNT;
 
   const pmt = (principal: number, annualRate: number, months: number) => {
     const r = annualRate / 100 / 12;
@@ -88,7 +99,7 @@ function generateOffers(income: number, creditScore: number, requestedAmount: nu
   // Offer 2 — Lower payment (longer term, slightly higher APR)
   const amt2 = maxLoan;
   const apr2 = Math.min(baseApr + 1.5, 29.99);
-  const term2 = 60;
+  const term2 = 36;
   const mp2 = pmt(amt2, apr2, term2);
   offers.push({
     id: "offer-2",
@@ -102,14 +113,14 @@ function generateOffers(income: number, creditScore: number, requestedAmount: nu
 
   // Offer 3 — Fast payoff (shorter term, lower APR)
   if (creditScore >= 580) {
-    const amt3 = Math.min(maxLoan, Math.round((income * 0.3) / 500) * 500);
-    const apr3 = Math.max(baseApr - 1.0, 5.99);
+    const amt3 = Math.min(maxLoan, Math.round((income * 0.3) / 500) * 500, LOAN_MAX_AMOUNT);
+    const apr3 = Math.max(baseApr - 1.0, APR_MIN);
     const term3 = 24;
-    const mp3 = pmt(Math.max(amt3, 1000), apr3, term3);
+    const mp3 = pmt(Math.max(amt3, LOAN_MIN_AMOUNT), apr3, term3);
     offers.push({
       id: "offer-3",
       name: "Fast Payoff",
-      amount: Math.max(amt3, 1000),
+      amount: Math.max(amt3, LOAN_MIN_AMOUNT),
       apr: apr3,
       term: term3,
       monthlyPayment: Math.round(mp3 * 100) / 100,
@@ -695,9 +706,15 @@ export default function CheckOffers() {
               Ameri<span className="text-[#C9A227]">Lend</span>
             </span>
           </Link>
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <Shield className="w-4 h-4 text-green-600" />
-            No impact on your credit score
+          <div className="flex items-center gap-4 text-sm text-gray-500">
+            <div className="hidden sm:flex items-center gap-2">
+              <Shield className="w-4 h-4 text-green-600" />
+              No impact on your credit score
+            </div>
+            <a href={`tel:${COMPANY_PHONE_RAW}`} className="flex items-center gap-1 hover:text-[#0A2540]">
+              <Phone className="w-4 h-4" />
+              {COMPANY_PHONE_DISPLAY_SHORT}
+            </a>
           </div>
         </div>
       </header>
@@ -817,16 +834,16 @@ export default function CheckOffers() {
                 </span>
               </div>
               <Slider
-                min={1000}
-                max={50000}
+                min={LOAN_MIN_AMOUNT}
+                max={LOAN_MAX_AMOUNT}
                 step={500}
                 value={[formData.desiredAmount]}
                 onValueChange={([v]) => setFormData((p) => ({ ...p, desiredAmount: v }))}
                 className="py-2"
               />
               <div className="flex justify-between text-xs text-gray-400 mt-1">
-                <span>$1,000</span>
-                <span>$50,000</span>
+                <span>${LOAN_MIN_AMOUNT.toLocaleString()}</span>
+                <span>${LOAN_MAX_AMOUNT.toLocaleString()}</span>
               </div>
             </div>
 

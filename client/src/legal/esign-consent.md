@@ -72,7 +72,7 @@ To access and retain electronic Communications, you must have:
 You can access Communications by:
 
 1. **Email:** Check the email address you provided to us
-2. **Account Dashboard:** Log in to your account at [website URL]
+2. **Account Dashboard:** Log in to your account at https://www.amerilendloan.com
 3. **Download:** Save Communications to your device
 4. **Print:** Print Communications for your records
 
@@ -173,8 +173,9 @@ If you have questions about this E-Sign Consent or need assistance accessing ele
 
 **AmeriLend**  
 Email: support@amerilendloan.com  
-Phone: 1-800-AMERILEND  
-Address: [Your Business Address]
+Phone: +1 945 212-1609  
+Support Hours: Mon–Fri 8am–8pm CT; Sat–Sun 9am–5pm CT  
+Address: 12707 High Bluff Drive, Suite 200, San Diego, CA 92130, USA
 
 ## 15. Confirmation
 

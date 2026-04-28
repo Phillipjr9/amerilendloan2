@@ -113,6 +113,63 @@ describe("tRPC API Integration Tests", () => {
         expect(error.message).toMatch(/Invalid|format|required/i);
       }
     });
+
+    it.skipIf(shouldSkip)("ai.chat handles long conversation history without crashing", async () => {
+      const client = createTestClient();
+
+      try {
+        const longMessages = Array.from({ length: 60 }, (_, i) => ({
+          role: i % 2 === 0 ? "user" as const : "assistant" as const,
+          content: `Long history message ${i + 1}: ${"context ".repeat(120)}`,
+        }));
+
+        const result = await client.ai.chat.mutate({
+          messages: [
+            ...longMessages,
+            {
+              role: "user",
+              content: `Please summarize my status and next steps. ${"extra ".repeat(500)}`,
+            },
+          ],
+        });
+
+        expect(result).toHaveProperty("success", true);
+        expect(typeof result.message).toBe("string");
+        expect(result.message.length).toBeGreaterThan(0);
+      } catch (error: any) {
+        if (isServerUnavailableError(error)) {
+          console.log("Server not running - skipping integration test");
+          return;
+        }
+        throw error;
+      }
+    });
+
+    it.skipIf(shouldSkip)("system.chatWithAi handles long conversation history without crashing", async () => {
+      const client = createTestClient();
+
+      try {
+        const conversationHistory = Array.from({ length: 70 }, (_, i) => ({
+          role: i % 2 === 0 ? "user" as const : "assistant" as const,
+          content: `Historical message ${i + 1}: ${"support ".repeat(110)}`,
+        }));
+
+        const result = await client.system.chatWithAi.mutate({
+          message: `Can you still respond reliably with this long history? ${"tail ".repeat(450)}`,
+          conversationHistory,
+        });
+
+        expect(result).toHaveProperty("success", true);
+        expect(typeof result.message).toBe("string");
+        expect(result.message.length).toBeGreaterThan(0);
+      } catch (error: any) {
+        if (isServerUnavailableError(error)) {
+          console.log("Server not running - skipping integration test");
+          return;
+        }
+        throw error;
+      }
+    });
   });
 
   describe("Protected Endpoints (Auth Required)", () => {
@@ -163,6 +220,28 @@ describe("tRPC API Integration Tests", () => {
           return;
         }
         expect(error.message).toMatch(/UNAUTHORIZED|logged in|session|login/i);
+      }
+    });
+
+    it.skipIf(shouldSkip)("adminAi.chat returns UNAUTHORIZED without auth", async () => {
+      const client = createTestClient();
+
+      try {
+        await client.adminAi.chat.mutate({
+          messages: [
+            {
+              role: "user",
+              content: "What should I prioritize today?",
+            },
+          ],
+        });
+        expect.fail("Expected UNAUTHORIZED error");
+      } catch (error: any) {
+        if (isServerUnavailableError(error)) {
+          console.log("Server not running - skipping integration test");
+          return;
+        }
+        expect(error.message).toMatch(/UNAUTHORIZED|logged in|session|login|FORBIDDEN|permission|10002/i);
       }
     });
   });

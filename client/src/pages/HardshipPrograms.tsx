@@ -10,6 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { AlertCircle, CheckCircle2, Clock, DollarSign, Calendar } from "lucide-react";
+import {
+  COMPANY_HARDSHIP_EMAIL,
+  COMPANY_PHONE_DISPLAY,
+  SUPPORT_HOURS_WEEKDAY,
+  SUPPORT_HOURS_WEEKEND,
+} from "@/const";
 
 export default function HardshipPrograms() {
   const [showRequestForm, setShowRequestForm] = useState(false);
@@ -320,9 +326,9 @@ export default function HardshipPrograms() {
           <CardContent className="text-slate-300 space-y-2">
             <p>Our hardship assistance team is here to help you navigate difficult financial situations.</p>
             <p className="text-sm">
-              <strong>Phone:</strong> +1 945 212-1609<br />
-              <strong>Email:</strong> hardship@amerilendloan.com<br />
-              <strong>Hours:</strong> Monday-Friday 8AM-6PM PST
+              <strong>Phone:</strong> {COMPANY_PHONE_DISPLAY}<br />
+              <strong>Email:</strong> {COMPANY_HARDSHIP_EMAIL}<br />
+              <strong>Hours:</strong> {SUPPORT_HOURS_WEEKDAY}; {SUPPORT_HOURS_WEEKEND}
             </p>
           </CardContent>
         </Card>

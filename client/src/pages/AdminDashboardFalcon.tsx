@@ -33,6 +33,7 @@ import AdminAiAssistant from "@/components/AdminAiAssistant";
 import AdminJobApplications from "./admin/AdminJobApplications";
 import AdminSystemHealth from "./admin/AdminSystemHealth";
 import AdminStaleWork from "./admin/AdminStaleWork";
+import { AdminKYCManagement } from "./AdminKYCManagement";
 
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800 border-yellow-300",
@@ -923,6 +924,15 @@ export default function AdminDashboardFalcon() {
                               <td className="py-3 px-4 text-gray-600">{new Date(app.createdAt).toLocaleDateString()}</td>
                               <td className="py-3 px-4">
                                 <div className="flex justify-end space-x-2 flex-wrap gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setLocation(`/admin/application/${app.id}`)}
+                                    title="View full application details"
+                                  >
+                                    <Eye className="h-4 w-4 mr-1" />
+                                    View
+                                  </Button>
                                   {app.status === "pending" && (
                                     <>
                                       <Button
@@ -1361,20 +1371,7 @@ export default function AdminDashboardFalcon() {
           {/* KYC Management View */}
           {currentView === "kyc" && (
             <div className="space-y-6">
-              <Card className="shadow-md">
-                <CardHeader>
-                  <CardTitle>KYC Management</CardTitle>
-                  <CardDescription>Review and manage Know Your Customer verifications</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-4">
-                    <p className="text-gray-500 mb-4">Review identity documents, address proofs, and KYC compliance</p>
-                    <Button onClick={() => setLocation('/admin/kyc')} className="gap-2">
-                      <UserCheck className="w-4 h-4" /> Open KYC Management
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <AdminKYCManagement />
             </div>
           )}
 

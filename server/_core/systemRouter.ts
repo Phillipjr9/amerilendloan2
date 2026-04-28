@@ -3,7 +3,7 @@ import { notifyOwner } from "./notification";
 import { adminProcedure, publicProcedure, router } from "./trpc";
 import { getDb, getDbStatus } from "../db";
 import { buildMessages, getSuggestedPrompts as getAiSuggestedPrompts } from "./aiSupport";
-import { invokeLLM } from "./llm";
+import { extractMessageText, invokeLLM } from "./llm";
 import { createBackup, restoreBackup, listBackups, getBackupHealth } from "./database-backup";
 import * as db from "../db";
 import * as path from "path";
@@ -70,6 +70,21 @@ const getFallbackResponse = (userMessage: string): string => {
   ];
   return defaults[Math.floor(Math.random() * defaults.length)];
 };
+
+const SUPPORT_MAX_HISTORY_MESSAGES = 18;
+const SUPPORT_MAX_MESSAGE_CHARS = 2000;
+
+function normalizeSupportHistory(
+  history: Array<{ role: "user" | "assistant"; content: string }>
+): Array<{ role: "user" | "assistant"; content: string }> {
+  return history
+    .filter((msg) => typeof msg.content === "string" && msg.content.trim().length > 0)
+    .slice(-SUPPORT_MAX_HISTORY_MESSAGES)
+    .map((msg) => ({
+      role: msg.role,
+      content: msg.content.slice(0, SUPPORT_MAX_MESSAGE_CHARS),
+    }));
+}
 
 export const systemRouter = router({
   health: publicProcedure
@@ -155,8 +170,8 @@ export const systemRouter = router({
 
         // Build conversation history with the new message
         const conversationMessages: Array<{ role: "user" | "assistant"; content: string }> = [
-          ...input.conversationHistory,
-          { role: "user", content: input.message }
+          ...normalizeSupportHistory(input.conversationHistory),
+          { role: "user", content: input.message.slice(0, SUPPORT_MAX_MESSAGE_CHARS) }
         ];
 
         // Build messages with context
@@ -164,13 +179,23 @@ export const systemRouter = router({
 
         // Try to get AI response
         try {
-          const aiResponse = await invokeLLM({ messages });
+          const aiResponse = await invokeLLM({
+            messages,
+            maxTokens: 1500,
+            temperature: 0.8,
+          });
           const responseContent = aiResponse.choices[0]?.message?.content;
-          const messageText = typeof responseContent === 'string' 
-            ? responseContent 
-            : Array.isArray(responseContent) 
-              ? responseContent.map(c => c.type === 'text' ? c.text : '').join('')
-              : '';
+          const messageText = extractMessageText(responseContent);
+
+          if (!messageText) {
+            const fallbackMsg = getFallbackResponse(input.message);
+            return {
+              success: true,
+              message: fallbackMsg,
+              isAuthenticated,
+              userContext,
+            };
+          }
               
           return {
             success: true,

@@ -1,6 +1,12 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatCurrency, formatDate } from "./utils";
+import {
+  COMPANY_PHONE_DISPLAY_SHORT,
+  COMPANY_SUPPORT_EMAIL,
+  SUPPORT_HOURS_WEEKDAY,
+  SUPPORT_HOURS_WEEKEND,
+} from "@/const";
 
 interface StatementParams {
   loan: any;
@@ -53,10 +59,10 @@ const LENDER = {
   addressLine1: "AmeriLend Customer Service",
   addressLine2: "P.O. Box 7842",
   cityStateZip: "Dallas, TX 75221",
-  phone: "(945) 212-1609",
-  email: "support@amerilendloan.com",
+  phone: COMPANY_PHONE_DISPLAY_SHORT,
+  email: COMPANY_SUPPORT_EMAIL,
   website: "www.amerilendloan.com",
-  hours: "Mon-Fri 8am-8pm CT, Sat-Sun 9am-5pm CT",
+  hours: `${SUPPORT_HOURS_WEEKDAY}, ${SUPPORT_HOURS_WEEKEND}`,
   nmls: "NMLS ID: Pending",
 };
 

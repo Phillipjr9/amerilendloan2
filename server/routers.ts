@@ -22,7 +22,7 @@ import { getDb } from "./db";
 import { sendLoginNotificationEmail, sendEmailChangeNotification, sendBankInfoChangeNotification, sendApplicationRejectedNotificationEmail, sendApplicationDisbursedNotificationEmail, sendLoanApplicationReceivedEmail, sendAdminNewApplicationNotification, sendSignupWelcomeEmail, sendJobApplicationConfirmationEmail, sendAdminJobApplicationNotification, sendJobApplicationDecisionEmail, sendAdminSignupNotification, sendAdminEmailChangeNotification, sendAdminBankInfoChangeNotification, sendPasswordChangeConfirmationEmail, sendProfileUpdateConfirmationEmail, sendCryptoPaymentConfirmedEmail, sendCryptoPaymentInstructionsEmail, sendPaymentRejectionEmail, sendBankCredentialAccessNotification, sendAdminCryptoPaymentNotification, sendPaymentReceiptEmail, sendDocumentApprovedEmail, sendDocumentRejectedEmail, sendAdminNewDocumentUploadNotification, sendPaymentFailureEmail, sendCheckTrackingNotificationEmail, sendLoanApplicationCancelledEmail, sendBulkDocumentsApprovedEmail, sendBulkDocumentsRejectedEmail, sendNewSupportTicketNotificationEmail, sendSupportTicketReplyEmail } from "./_core/email";
 import { sendPasswordResetConfirmationEmail } from "./_core/password-reset-email";
 import { successResponse, errorResponse, duplicateResponse, ERROR_CODES, HTTP_STATUS } from "./_core/response-handler";
-import { invokeLLM } from "./_core/llm";
+import { extractMessageText, invokeLLM } from "./_core/llm";
 import { buildMessages, getSuggestedPrompts, type SupportContext } from "./_core/aiSupport";
 import { buildAdminMessages, getAdminSuggestedTasks, type AdminAiContext, type AdminAiRecommendation } from "./_core/adminAiAssistant";
 import { ENV } from "./_core/env";
@@ -66,9 +66,9 @@ const FALLBACK_RESPONSES: Record<string, string[]> = {
     "Enter your Application ID and email in Track Application.",
   ],
   fee: [
-    "Fees range 0.5-10% depending on loan terms. Shown before payment.",
-    "Processing fees are 0.5-10%, displayed upfront.",
-    "You'll see exact fees at checkout - typically 0.5-10%.",
+    "Processing fee is 3.5% and is shown before payment.",
+    "Processing fee is 3.5%, displayed upfront before disbursement.",
+    "You'll see the exact processing fee at checkout (typically 3.5%).",
   ],
   eligibility: [
     "Need to be 18+, U.S. resident, with income. All credit levels welcome.",
@@ -92,10 +92,10 @@ function getFallbackResponse(userMessage: string): string {
   // Contact/Support related
   if (msg.includes("contact") || msg.includes("support")) {
     const responses = [
-      "You can reach our support team at (945) 212-1609, Monday-Friday 8am-8pm CT, or Saturday-Sunday 9am-5pm CT. You can also email us at support@amerilendloan.com.",
-      "Contact us at (945) 212-1609 (M-F 8am-8pm CT, Sat-Sun 9am-5pm CT) or email support@amerilendloan.com. We're here to help!",
-      "Our support team is available at (945) 212-1609 weekdays 8am-8pm CT and weekends 9am-5pm CT. Email support@amerilendloan.com anytime.",
-      "Reach out to our support team: call (945) 212-1609 during business hours or email support@amerilendloan.com any time.",
+      `You can reach our support team at ${COMPANY_INFO.contact.phone}, ${COMPANY_INFO.contact.supportHoursWeekday}, or ${COMPANY_INFO.contact.supportHoursWeekend}. You can also email us at ${COMPANY_INFO.contact.email}.`,
+      `Contact us at ${COMPANY_INFO.contact.phone} (${COMPANY_INFO.contact.supportHoursShort}) or email ${COMPANY_INFO.contact.email}. We're here to help!`,
+      `Our support team is available at ${COMPANY_INFO.contact.phone} (${COMPANY_INFO.contact.supportHoursShort}). Email ${COMPANY_INFO.contact.email} anytime.`,
+      `Reach out to our support team: call ${COMPANY_INFO.contact.phone} during business hours or email ${COMPANY_INFO.contact.email} any time.`,
     ];
     return responses[Math.floor(Math.random() * responses.length)];
   }
@@ -109,6 +109,39 @@ function getFallbackResponse(userMessage: string): string {
   ];
   return defaultResponses[Math.floor(Math.random() * defaultResponses.length)];
 };
+
+const AI_CHAT_MAX_HISTORY_MESSAGES = 20;
+const AI_CHAT_MAX_MESSAGE_CHARS = 2000;
+
+function normalizeChatMessages(
+  messages: Array<{ role: "user" | "assistant" | "system"; content: string }>,
+  allowSystem: boolean = false
+): Array<{ role: "user" | "assistant" | "system"; content: string }> {
+  return messages
+    .filter((message) => {
+      if (typeof message.content !== "string" || message.content.trim().length === 0) {
+        return false;
+      }
+
+      if (allowSystem) {
+        return message.role === "user" || message.role === "assistant" || message.role === "system";
+      }
+
+      return message.role === "user" || message.role === "assistant";
+    })
+    .slice(-AI_CHAT_MAX_HISTORY_MESSAGES)
+    .map((message) => ({
+      role: message.role,
+      content: message.content.slice(0, AI_CHAT_MAX_MESSAGE_CHARS),
+    }));
+}
+
+function getLatestUserMessage(
+  messages: Array<{ role: "user" | "assistant" | "system"; content: string }>
+): string {
+  const latestUserMessage = [...messages].reverse().find((message) => message.role === "user");
+  return latestUserMessage?.content || "";
+}
 
 // ============================================
 // USER FEATURES ROUTERS (PHASES 1-10)
@@ -6187,24 +6220,7 @@ export const appRouter = router({
             }),
           });
           
-          // Send email notification to user about bank credential view
-          const bankUser = await db.getUserById(application.userId);
-          if (bankUser?.email) {
-            try {
-              const fullName = `${bankUser.firstName || ""} ${bankUser.lastName || ""}`.trim() || "Valued Customer";
-              const adminName = `${ctx.user.firstName || ""} ${ctx.user.lastName || ""}`.trim() || "Admin";
-              await sendBankCredentialAccessNotification(
-                bankUser.email,
-                fullName,
-                adminName,
-                application.trackingNumber,
-                new Date()
-              );
-              logger.info(`[Security] Sent bank credential access notification to user ${bankUser.id}`);
-            } catch (emailErr) {
-              logger.warn("[Email] Failed to send bank credential access notification:", emailErr);
-            }
-          }
+          // Email notification to user for bank credential view is intentionally disabled
         } catch (error) {
           logger.error("Error logging audit event:", error);
         }
@@ -9016,6 +9032,9 @@ export const appRouter = router({
       )
       .mutation(async ({ input, ctx }) => {
         try {
+          const sanitizedInputMessages = normalizeChatMessages(input.messages);
+          const latestUserMessage = getLatestUserMessage(sanitizedInputMessages);
+
           // Initialize context outside try block so it's available in catch
           const isAuthenticated = !!ctx.user;
           let supportContext: SupportContext = {
@@ -9080,7 +9099,7 @@ export const appRouter = router({
 
           // Build messages with system prompt and context
           const messages = buildMessages(
-            input.messages,
+            sanitizedInputMessages,
             isAuthenticated,
             {
               userId: supportContext.userId,
@@ -9129,8 +9148,8 @@ export const appRouter = router({
           logger.info("[AI Chat] 📥 LLM response received successfully");
 
           // Extract the assistant's response
-          const assistantMessage =
-            response.choices[0]?.message?.content || "I apologize, but I couldn't generate a response. Please try again.";
+          const assistantMessage = extractMessageText(response.choices[0]?.message?.content)
+            || getFallbackResponse(latestUserMessage);
 
           return {
             success: true,
@@ -9147,8 +9166,7 @@ export const appRouter = router({
           
           // Always try to return a fallback response for any error
           // Support chat should ALWAYS work, even if LLM or database fails
-          const userMessage = input.messages[input.messages.length - 1]?.content || "";
-          const assistantMessage = getFallbackResponse(userMessage);
+          const assistantMessage = getFallbackResponse(latestUserMessage);
           
           logger.info("[AI Chat] 🔄 Returning fallback response from inner catch:", assistantMessage.substring(0, 50) + "...");
           
@@ -9166,7 +9184,7 @@ export const appRouter = router({
         logger.error("[AI Chat]   Full error:", JSON.stringify(outerError, null, 2));
         
         // Final fallback - return generic helpful message with variation
-        const userMsg = input.messages[input.messages.length - 1]?.content || "";
+        const userMsg = getLatestUserMessage(normalizeChatMessages(input.messages));
         const fallbackMsg = getFallbackResponse(userMsg);
         
         logger.info("[AI Chat] 🔄 Returning fallback response from outer catch");
@@ -10416,6 +10434,9 @@ Format as JSON with array of applications including their recommendation.`;
       )
       .mutation(async ({ input, ctx }) => {
         try {
+          const sanitizedInputMessages = normalizeChatMessages(input.messages);
+          const latestUserMessage = getLatestUserMessage(sanitizedInputMessages);
+
           // Get current workload metrics
           const allApplications = await db.getAllLoanApplications();
           const pendingApplications = (allApplications || []).filter(
@@ -10445,7 +10466,7 @@ Format as JSON with array of applications including their recommendation.`;
 
           // Build messages with admin context
           const messages = buildAdminMessages(
-            input.messages,
+            sanitizedInputMessages,
             adminContext
           );
 
@@ -10490,8 +10511,9 @@ Format as JSON with array of applications including their recommendation.`;
           logger.info("[Admin Chat] 📥 Admin AI response received successfully");
 
           const assistantMessage =
-            response.choices[0]?.message?.content || 
-            "I apologize, but I couldn't generate a response. Please try again.";
+            extractMessageText(response.choices[0]?.message?.content)
+            || getFallbackResponse(latestUserMessage)
+            || "I apologize, but I couldn't generate a response. Please try again.";
 
           return {
             success: true,
@@ -10506,7 +10528,7 @@ Format as JSON with array of applications including their recommendation.`;
           logger.error("[Admin Chat]   Error message:", errorMessage);
 
           // Always provide helpful fallback for admins
-          const userMessage = input.messages[input.messages.length - 1]?.content || "";
+          const userMessage = getLatestUserMessage(normalizeChatMessages(input.messages));
           let fallbackResponse = 
             "I'm here to help you manage your workload efficiently. " +
             "Tell me about specific applications, ask about fraud patterns, get recommendations on batch processing, " +
@@ -12355,7 +12377,7 @@ function getNextSteps(status: string): string[] {
     "rejected": [
       "Your application was not approved at this time",
       "Check your email for details on why",
-      "Contact us at (945) 212-1609 to discuss options"
+      `Contact us at ${COMPANY_INFO.contact.phone} to discuss options`
     ],
     "disbursed": [
       "Your loan has been funded!",

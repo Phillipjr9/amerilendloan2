@@ -98,6 +98,24 @@ export type InvokeResult = {
   };
 };
 
+export function extractMessageText(
+  content: string | Array<TextContent | ImageContent | FileContent> | null | undefined
+): string {
+  if (typeof content === "string") {
+    return content.trim();
+  }
+
+  if (!Array.isArray(content)) {
+    return "";
+  }
+
+  return content
+    .filter((part): part is TextContent => part.type === "text")
+    .map((part) => part.text)
+    .join("\n")
+    .trim();
+}
+
 export type JsonSchema = {
   name: string;
   schema: Record<string, unknown>;
