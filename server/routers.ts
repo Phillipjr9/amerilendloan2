@@ -3028,6 +3028,113 @@ const virtualCardsRouter = router({
       }
     }),
 
+  /**
+   * Admin: Ensure a virtual card exists for a disbursed loan.
+   * Safety net for the silent try/catch around the auto-issue path
+   * inside `disbursements.adminInitiate`. Idempotent — if an active
+   * card already exists for (userId, loanApplicationId), returns it.
+   */
+  ensureCardForLoan: adminProcedure
+    .input(z.object({ loanApplicationId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const dbConn = await getDb();
+      if (!dbConn) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      const application = await db.getLoanApplicationById(input.loanApplicationId);
+      if (!application) throw new TRPCError({ code: "NOT_FOUND", message: "Loan application not found" });
+      if (application.status !== "disbursed") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Loan must be disbursed before issuing a card (current status: ${application.status})`,
+        });
+      }
+
+      // Idempotency: return existing active card if present
+      const existingCards = await dbConn
+        .select()
+        .from(schema.virtualCards)
+        .where(and(
+          eq(schema.virtualCards.userId, application.userId),
+          eq(schema.virtualCards.loanApplicationId, input.loanApplicationId)
+        ));
+      const activeCard = existingCards.find((c: any) => c.status === "active");
+      if (activeCard) {
+        return {
+          success: true,
+          created: false,
+          card: { id: activeCard.id, cardNumberLast4: activeCard.cardNumberLast4 },
+        };
+      }
+
+      const approvedAmount = application.approvedAmount || 0;
+      const user = await db.getUserById(application.userId);
+
+      const generateCardNumber = () => {
+        let num = "4";
+        const bytes = crypto.randomBytes(15);
+        for (let i = 1; i < 16; i++) num += (bytes[i] % 10).toString();
+        return num;
+      };
+      const rawCardNumber = generateCardNumber();
+      const rawCvv = String(100 + (crypto.randomBytes(2).readUInt16BE(0) % 900));
+      const last4 = rawCardNumber.slice(-4);
+      const expiry = new Date();
+      expiry.setFullYear(expiry.getFullYear() + 3);
+      const expiryMonth = String(expiry.getMonth() + 1).padStart(2, "0");
+      const expiryYear = String(expiry.getFullYear());
+
+      const [newCard] = await dbConn
+        .insert(schema.virtualCards)
+        .values({
+          userId: application.userId,
+          loanApplicationId: input.loanApplicationId,
+          cardNumber: encrypt(rawCardNumber),
+          cardNumberLast4: last4,
+          expiryMonth,
+          expiryYear,
+          cvv: encrypt(rawCvv),
+          cardholderName: application.fullName || user?.name || "Cardholder",
+          cardLabel: `Loan #${application.trackingNumber || input.loanApplicationId}`,
+          cardColor: "blue",
+          currentBalance: approvedAmount,
+          dailySpendLimit: 500000,
+          monthlySpendLimit: 2500000,
+          status: "active",
+          issuedBy: ctx.user!.id,
+          issuedAt: new Date(),
+          expiresAt: expiry,
+        })
+        .returning();
+
+      // Mirror the disbursement transaction credit so the card UI shows the load
+      const refNum = `DISB${Date.now()}${crypto.randomBytes(2).readUInt16BE(0) % 1000}`;
+      await dbConn.insert(schema.virtualCardTransactions).values({
+        cardId: newCard.id,
+        userId: application.userId,
+        amount: approvedAmount,
+        merchantName: "AmeriLend Loan Disbursement",
+        merchantCategory: "Loan Disbursement",
+        description: `Loan disbursement credited to virtual card — ${formatCurrencyServer(approvedAmount)} (manual ensure) for Loan #${application.trackingNumber || input.loanApplicationId}`,
+        status: "completed",
+        referenceNumber: refNum,
+      });
+
+      await db.logAdminActivity({
+        adminId: ctx.user!.id,
+        action: "ensure_card_for_loan",
+        targetType: "loan_application",
+        targetId: input.loanApplicationId,
+        details: JSON.stringify({ cardId: newCard.id, last4, amount: approvedAmount }),
+      });
+
+      logger.info(`[VirtualCards] Ensure-card created card #${newCard.id} (last4: ${last4}) for loan ${input.loanApplicationId}`);
+      return {
+        success: true,
+        created: true,
+        card: { id: newCard.id, cardNumberLast4: last4 },
+      };
+    }),
+
   // Admin: Cancel a card
   cancelCard: adminProcedure
     .input(z.object({

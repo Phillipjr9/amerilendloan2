@@ -137,6 +137,20 @@ export default function AdminApplicationDetail() {
     onError: (err) => toast.error(err.message || "Failed to send reminder"),
   });
 
+  // Safety net: re-issue virtual card for a disbursed loan if the
+  // auto-issue inside `disbursements.adminInitiate` was silently swallowed.
+  const ensureCardMutation = trpc.virtualCards.ensureCardForLoan.useMutation({
+    onSuccess: (res) => {
+      toast.success(
+        res.created
+          ? `Virtual card issued (last 4: ${res.card.cardNumberLast4})`
+          : `Active card already exists (last 4: ${res.card.cardNumberLast4})`
+      );
+      utils.loans.adminGetApplicationDetails.invalidate();
+    },
+    onError: (err) => toast.error(err.message || "Failed to issue card"),
+  });
+
   // Action handlers
   const handleApprove = () => {
     if (!applicationId) return;
@@ -525,6 +539,23 @@ export default function AdminApplicationDetail() {
                       </div>
                     )}
                   </div>
+
+                  {application.status === "disbursed" && (
+                    <div className="mt-4 rounded-md border border-blue-200 bg-blue-50 p-3">
+                      <p className="text-xs text-blue-900 mb-2">
+                        Virtual card not visible to user? Re-run the issuance safety net (idempotent).
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full border-blue-300 text-blue-700 hover:bg-blue-100"
+                        disabled={ensureCardMutation.isPending}
+                        onClick={() => ensureCardMutation.mutate({ loanApplicationId: applicationId! })}
+                      >
+                        {ensureCardMutation.isPending ? "Working…" : "Issue / Verify Virtual Card"}
+                      </Button>
+                    </div>
+                  )}
 
                   {application.loanPurpose && (
                     <>
