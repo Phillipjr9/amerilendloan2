@@ -1041,8 +1041,8 @@ export default function Dashboard() {
                                   />
                                   {(loan.status === "approved" || loan.status === "fee_pending") && (
                                     <>
-                                      <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800 mb-2 hidden md:block">
-                                        <p className="font-semibold">Approved</p>
+                                      <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800 mb-2">
+                                        <p className="font-semibold">Approved — Payment Required</p>
                                         <p>Your loan has been approved. Pay the processing fee to release funds.</p>
                                       </div>
                                       <Link href={`/payment/${loan.id}`} className="w-full">
@@ -1053,19 +1053,19 @@ export default function Dashboard() {
                                     </>
                                   )}
                                   {loan.status === "fee_paid" && (
-                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800 hidden md:block">
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
                                       <p className="font-semibold">Payment Received</p>
                                       <p>We are verifying your payment. Disbursement typically completes within 1–2 business days.</p>
                                     </div>
                                   )}
                                   {loan.status === "disbursed" && (
-                                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800 hidden md:block">
+                                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
                                       <p className="font-semibold">Funds Disbursed</p>
                                       <p>Funds have been sent to your bank account.</p>
                                     </div>
                                   )}
                                   {loan.status === "rejected" && (
-                                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800 hidden md:block">
+                                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
                                       <p className="font-semibold">Not Approved</p>
                                       <p>Please contact support for the specific reason and next steps.</p>
                                     </div>
