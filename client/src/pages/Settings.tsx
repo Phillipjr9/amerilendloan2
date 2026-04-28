@@ -383,8 +383,10 @@ export default function Settings() {
   // handleCopyBackupCodes removed - 2FA now managed in Dashboard
 
   const handleLogoutClick = () => {
+    // logout() navigates to /api/logout which clears the httpOnly session cookie
+    // server-side and then redirects to "/". Don't overwrite window.location
+    // here or the navigation to /api/logout never happens and the cookie stays.
     logout();
-    window.location.href = "/";
   };
 
   const handleRemoveDeviceClick = (deviceId: string, deviceName: string) => {

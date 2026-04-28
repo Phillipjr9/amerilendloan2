@@ -25,18 +25,27 @@ export function useAuth(options?: UseAuthOptions) {
     utils.auth.me.setData(undefined, null);
 
     // Selectively clear auth/session storage but PRESERVE non-auth
-    // user preferences such as the cookie-consent record and theme,
-    // so the banner doesn't pop back up after every logout.
-    const PRESERVE_KEYS = [
+    // user preferences such as the cookie-consent record, theme, language,
+    // and any onboarding-tutorial "already seen" flags so the tutorial
+    // doesn't replay on every login.
+    const PRESERVE_PREFIXES = [
       "amerilend_cookie_consent",
       "theme",
       "i18nextLng",
+      "amerilend_dashboard_onboarding",
+      "onboarding_completed",
+      "amerilend_", // covers any future tutorial / preference keys
     ];
+    const shouldPreserve = (key: string) =>
+      PRESERVE_PREFIXES.some((p) => key === p || key.startsWith(p));
     try {
       const preserved: Record<string, string> = {};
-      for (const k of PRESERVE_KEYS) {
-        const v = localStorage.getItem(k);
-        if (v !== null) preserved[k] = v;
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && shouldPreserve(k)) {
+          const v = localStorage.getItem(k);
+          if (v !== null) preserved[k] = v;
+        }
       }
       localStorage.clear();
       for (const [k, v] of Object.entries(preserved)) {
