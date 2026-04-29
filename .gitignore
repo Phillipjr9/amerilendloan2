@@ -95,3 +95,4 @@ testsprite_tests/
 
 # Uploaded files
 uploads/
+lint*.log
