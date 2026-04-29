@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import SEOHead from "@/components/SEOHead";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   APR_MAX,
   APR_MIN,
@@ -336,7 +337,12 @@ export default function CheckOffers() {
   if (step === "checking") {
     return (
       <div className="min-h-screen bg-gradient-to-b from-[#f0f7f6] to-white flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          className="text-center max-w-md"
+        >
           <div className="relative w-24 h-24 mx-auto mb-8">
             <div className="absolute inset-0 rounded-full border-4 border-[#0A2540]/10" />
             <div className="absolute inset-0 rounded-full border-4 border-t-[#C9A227] animate-spin" />
@@ -349,14 +355,20 @@ export default function CheckOffers() {
           <div className="space-y-3 text-left max-w-xs mx-auto">
             {["Verifying identity", "Checking credit profile", "Generating personalized offers"].map(
               (label, i) => (
-                <div key={label} className="flex items-center gap-3 text-sm text-gray-600">
+                <motion.div
+                  key={label}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 + i * 0.25, duration: 0.3 }}
+                  className="flex items-center gap-3 text-sm text-gray-600"
+                >
                   <Loader2 className={`w-4 h-4 animate-spin ${i < 2 ? "text-green-500" : "text-[#C9A227]"}`} />
                   {label}
-                </div>
+                </motion.div>
               )
             )}
           </div>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -438,13 +450,18 @@ export default function CheckOffers() {
 
           {/* Offer cards */}
           <div className="grid md:grid-cols-3 gap-5 mb-10">
-            {offers.map((offer) => {
+            {offers.map((offer, idx) => {
               const isSelected = selectedOffer === offer.id;
               return (
-                <button
+                <motion.button
                   key={offer.id}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.08, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.99 }}
                   onClick={() => setSelectedOffer(offer.id)}
-                  className={`text-left rounded-2xl border-2 p-5 transition-all relative ${
+                  className={`text-left rounded-2xl border-2 p-5 transition-colors relative ${
                     isSelected
                       ? "border-[#C9A227] bg-white shadow-lg ring-2 ring-[#C9A227]/20 scale-[1.02]"
                       : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-md"
@@ -488,7 +505,7 @@ export default function CheckOffers() {
                       <BadgeCheck className="w-4 h-4" /> Selected
                     </div>
                   )}
-                </button>
+                </motion.button>
               );
             })}
           </div>

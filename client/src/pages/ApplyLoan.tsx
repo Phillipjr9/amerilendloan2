@@ -44,6 +44,7 @@ import {
 } from "@/lib/inputMask";
 import { friendlyError } from "@/lib/friendlyError";
 import { useTurnstile } from "@/components/TurnstileWidget";
+import { motion, AnimatePresence } from "framer-motion";
 
 const US_STATES = [
   { code: "AL", name: "Alabama" },
@@ -1056,9 +1057,10 @@ export default function ApplyLoan() {
           <Card>
             <CardContent className="p-4 sm:p-6 md:p-8">
               <form onSubmit={handleSubmit}>
+                <AnimatePresence mode="wait">
                 {/* Step 1: Personal Information */}
                 {currentStep === 1 && (
-                  <div className="space-y-6">
+                  <motion.div key="step-1" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }} className="space-y-6">
                     <div>
                       <h2 className="text-xl sm:text-2xl font-bold text-[#0A2540] mb-2">
                         Personal Information
@@ -1296,12 +1298,12 @@ export default function ApplyLoan() {
                         Continue
                       </Button>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* Step 2: Address Information */}
                 {currentStep === 2 && (
-                  <div className="space-y-6">
+                  <motion.div key="step-2" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }} className="space-y-6">
                     <div>
                       <h2 className="text-2xl font-bold text-[#0A2540] mb-2">
                         Address Information
@@ -1437,12 +1439,12 @@ export default function ApplyLoan() {
                         </Button>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* Step 3: Employment Information */}
                 {currentStep === 3 && (
-                  <div className="space-y-6">
+                  <motion.div key="step-3" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }} className="space-y-6">
                     <div>
                       <h2 className="text-2xl font-bold text-[#0A2540] mb-2">
                         Employment Information
@@ -1641,12 +1643,12 @@ export default function ApplyLoan() {
                         </Button>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* Step 4: Loan Details */}
                 {currentStep === 4 && (
-                  <div className="space-y-6">
+                  <motion.div key="step-4" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }} className="space-y-6">
                     <div>
                       <h2 className="text-2xl font-bold text-[#0A2540] mb-2">
                         Loan Details
@@ -2058,8 +2060,9 @@ export default function ApplyLoan() {
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
+                </AnimatePresence>
               </form>
             </CardContent>
           </Card>

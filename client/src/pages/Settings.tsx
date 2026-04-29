@@ -6,6 +6,7 @@ import { Link, useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { motion, AnimatePresence } from "framer-motion";
 import { toTitleCase } from "@shared/format";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -447,8 +448,9 @@ export default function Settings() {
           {/* Tabs */}
           <div className="flex gap-2 mb-6 border-b flex-wrap">
             {["password", "email", "bank", "profile", "language", "notifications", "2fa", "devices", "activity", "privacy"].map((tab) => (
-              <button
+              <motion.button
                 key={tab}
+                whileTap={{ scale: 0.96 }}
                 onClick={() => setActiveTab(tab as any)}
                 className={`px-4 py-3 font-medium transition-colors border-b-2 capitalize text-sm ${
                   activeTab === tab
@@ -467,10 +469,18 @@ export default function Settings() {
                 {tab === "activity" && <ActivityIcon className="w-4 h-4 inline mr-2" />}
                 {tab === "privacy" && <Download className="w-4 h-4 inline mr-2" />}
                 {tab === "2fa" ? "Security (2FA)" : tab === "privacy" ? "Privacy & Data" : tab === "devices" ? "Devices" : tab === "activity" ? "Activity" : tab}
-              </button>
+              </motion.button>
             ))}
           </div>
 
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            >
           {/* Password Tab */}
           {activeTab === "password" && (
             <Card>
@@ -1443,6 +1453,8 @@ export default function Settings() {
               </CardContent>
             </Card>
           )}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
 

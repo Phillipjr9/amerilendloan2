@@ -24,6 +24,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import TestimonialsSection from "@/components/TestimonialsSection";
 import ComplianceFooter from "@/components/ComplianceFooter";
 import SEOHead from "@/components/SEOHead";
+import { motion } from "framer-motion";
 import {
   APR_MIN,
   COMPANY_PHONE_DISPLAY_SHORT,
@@ -191,7 +192,12 @@ export default function Home() {
         <div className="container mx-auto px-4 relative z-20">
           <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-10 md:gap-16">
             {/* Left – Copy */}
-            <div className="flex-1 text-center md:text-left pb-16 md:pb-24">
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              className="flex-1 text-center md:text-left pb-16 md:pb-24"
+            >
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-[#0A2540] leading-tight mb-6">
                 Personal loans,{" "}
                 <span className="text-[#C9A227]">made easy</span> for you.
@@ -230,17 +236,22 @@ export default function Home() {
                   Have an Invitation Code?
                 </Button>
               </div>
-            </div>
+            </motion.div>
 
             {/* Right – Hero Image */}
-            <div className="flex-1 flex justify-center relative z-20">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.7, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+              className="flex-1 flex justify-center relative z-20"
+            >
               <img
                 src="/images/hero-woman.png"
                 alt="Smiling woman viewing a mobile notification that she was approved for a $2,500 loan"
                 className="w-full max-w-sm sm:max-w-md md:w-[28rem] md:max-w-none lg:w-[32rem] h-auto object-contain drop-shadow-2xl"
                 loading="lazy"
               />
-            </div>
+            </motion.div>
           </div>
         </div>
 
@@ -294,8 +305,15 @@ export default function Home() {
                 desc: "Once approved, funds can be deposited as soon as the same day.¹",
                 icon: <Clock className="w-5 h-5 sm:w-7 sm:h-7 text-white" />,
               },
-            ].map((item) => (
-              <div key={item.step} className="text-center">
+            ].map((item, idx) => (
+              <motion.div
+                key={item.step}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-50px" }}
+                transition={{ duration: 0.5, delay: idx * 0.12, ease: [0.16, 1, 0.3, 1] }}
+                className="text-center"
+              >
                 <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-full bg-[#0A2540] flex items-center justify-center mx-auto mb-2 sm:mb-5">
                   {item.icon}
                 </div>
@@ -304,7 +322,7 @@ export default function Home() {
                 </span>
                 <h3 className="text-sm sm:text-xl font-bold text-[#0A2540] mb-1 sm:mb-3">{item.title}</h3>
                 <p className="text-xs sm:text-base text-gray-600 leading-relaxed hidden sm:block">{item.desc}</p>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
