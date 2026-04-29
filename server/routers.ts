@@ -12586,7 +12586,7 @@ Format as JSON with array of applications including their recommendation.`;
               ].join('\n');
               break;
 
-            case "repayment_schedule":
+            case "repayment_schedule": {
               filename = `Repayment_Schedule_${trackingNumber}.txt`;
               const loanTerm = (loan as any).loanTerm as number | undefined;
               const monthlyPayment = loan.approvedAmount && loanTerm
@@ -12626,6 +12626,7 @@ Format as JSON with array of applications including their recommendation.`;
                 `\u00A9 ${new Date().getFullYear()} AmeriLend Financial. All rights reserved.`,
               ].join('\n');
               break;
+            }
           }
 
           return successResponse({ content, filename, mimeType: 'text/plain' });

@@ -50,11 +50,23 @@ export class ApiErrorHandler {
       code = error.data.code;
       message = error.message || ERROR_MESSAGES[code] || message;
       statusCode = this.codeToStatus(code);
+      // tRPC rate-limit middleware may surface retry hint in error.data
+      if (typeof error.data.retryAfter === "number") {
+        retryAfterSeconds = error.data.retryAfter;
+      }
     } else if (error?.status) {
       // Standard HTTP error
       statusCode = error.status;
       message = error.message || ERROR_MESSAGES[this.statusToMessage(statusCode)];
       code = this.statusToCode(statusCode);
+      // Honor standard Retry-After header when present
+      const retryHeader =
+        error?.headers?.get?.("retry-after") ??
+        error?.headers?.["retry-after"];
+      if (retryHeader) {
+        const parsed = Number(retryHeader);
+        if (!Number.isNaN(parsed)) retryAfterSeconds = parsed;
+      }
     } else if (error?.message?.includes("offline")) {
       code = "NETWORK_ERROR";
       message = ERROR_MESSAGES.NETWORK_ERROR;

@@ -196,7 +196,7 @@ export default function VerificationUpload() {
         uploadedFile = await uploadResponse.json();
       } catch (parseError) {
         console.error("[Upload] Failed to parse upload response:", parseError);
-        throw new Error("Invalid response from upload endpoint");
+        throw new Error("Invalid response from upload endpoint", { cause: parseError });
       }
 
       if (!uploadedFile.url) {
