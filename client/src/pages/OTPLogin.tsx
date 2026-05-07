@@ -306,17 +306,11 @@ export default function OTPLogin() {
     }
   };
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!signupEmail || !signupUsername || !signupPassword) {
       toast.error("Please fill in all fields");
-      return;
-    }
-
-    // Block submission while email check is still in progress
-    if (checkEmailMutation.isPending) {
-      toast.info("Checking email availability, please wait...");
       return;
     }
 
@@ -336,11 +330,23 @@ export default function OTPLogin() {
       return;
     }
 
-    // If the email hasn't been checked yet (user never blurred the field), trigger a check now
-    if (!existingAccountInfo && signupEmail !== accountCheckEmail) {
-      checkEmailMutation.mutate({ email: signupEmail });
-      toast.info("Checking email availability, please wait...");
-      return;
+    // If the email hasn't been checked yet (user never blurred the field), check now and await result
+    if (signupEmail !== accountCheckEmail) {
+      try {
+        const result: any = await checkEmailMutation.mutateAsync({ email: signupEmail });
+        setAccountCheckEmail(signupEmail);
+        if (result?.exists) {
+          setExistingAccountInfo(result);
+          toast.error("This email is already registered! Please log in instead.");
+          setIsLogin(true);
+          setLoginIdentifier(signupEmail);
+          setStep("form");
+          return;
+        }
+      } catch (err) {
+        // Network error checking email — allow signup to continue; server will reject duplicates
+        console.error("Email check failed, proceeding with signup:", err);
+      }
     }
 
     if (signupUsername.length < 3) {
