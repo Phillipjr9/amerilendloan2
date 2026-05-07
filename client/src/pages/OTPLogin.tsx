@@ -98,6 +98,31 @@ export default function OTPLogin() {
     // Run only on initial mount; subsequent state changes are user-driven.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Surface OAuth/session errors that the server signals via ?error=... so
+  // users actually see why a Google/GitHub/Microsoft sign-in didn't redirect.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const errorParam = params.get("error");
+    if (!errorParam) return;
+
+    const errorMessages: Record<string, string> = {
+      google_auth_failed: "Google sign-in failed. Please try again or use email login.",
+      github_auth_failed: "GitHub sign-in failed. Please try again or use email login.",
+      microsoft_auth_failed: "Microsoft sign-in failed. Please try again or use email login.",
+      session_expired: "Your sign-in session expired. Please try again.",
+      access_denied: "Sign-in was cancelled.",
+    };
+    toast.error(errorMessages[errorParam] || `Sign-in error: ${errorParam}`);
+
+    // Strip ?error= from the URL so a refresh doesn't re-show the toast.
+    const url = new URL(window.location.href);
+    url.searchParams.delete("error");
+    url.searchParams.delete("error_description");
+    window.history.replaceState({}, "", url.pathname + (url.search ? url.search : "") + url.hash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   // Validation state
   const [accountCheckEmail, setAccountCheckEmail] = useState("");
