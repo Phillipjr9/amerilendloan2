@@ -111,6 +111,10 @@ export default function OTPLogin() {
       google_auth_failed: "Google sign-in failed. Please try again or use email login.",
       github_auth_failed: "GitHub sign-in failed. Please try again or use email login.",
       microsoft_auth_failed: "Microsoft sign-in failed. Please try again or use email login.",
+      github_not_configured: "GitHub sign-in is not available. Please use email login.",
+      github_start_failed: "Couldn't start GitHub sign-in. Please try again.",
+      google_not_configured: "Google sign-in is not available. Please use email login.",
+      microsoft_not_configured: "Microsoft sign-in is not available. Please use email login.",
       session_expired: "Your sign-in session expired. Please try again.",
       access_denied: "Sign-in was cancelled.",
     };

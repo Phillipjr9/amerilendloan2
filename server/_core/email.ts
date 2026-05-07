@@ -4,6 +4,7 @@
  */
 
 import { ENV } from "./env";
+import * as db from "../db";
 import {
   getEmailHeader,
   getEmailFooter,
@@ -102,6 +103,32 @@ function pruneEmailCache() {
 }
 
 /**
+ * Cache the admin-configured email "from" identity for 60 seconds so we don't
+ * hit the DB on every send, but admin updates still take effect quickly.
+ */
+const FROM_CACHE_TTL_MS = 60_000;
+let fromCache: { value: { email: string; name: string }; expires: number } | null = null;
+
+async function getEffectiveFromIdentity(): Promise<{ email: string; name: string }> {
+  const fallback = {
+    email: ENV.sendGridVerifiedEmail || "noreply@amerilendloan.com",
+    name: "AmeriLend",
+  };
+  if (fromCache && fromCache.expires > Date.now()) return fromCache.value;
+  try {
+    const cfg = await db.getEmailConfig();
+    const value = {
+      email: cfg?.fromEmail?.trim() || fallback.email,
+      name: cfg?.fromName?.trim() || fallback.name,
+    };
+    fromCache = { value, expires: Date.now() + FROM_CACHE_TTL_MS };
+    return value;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
  * Send email using SendGrid API
  */
 export async function sendEmail(payload: EmailPayload): Promise<{ success: boolean; error?: string }> {
@@ -136,6 +163,11 @@ export async function sendEmail(payload: EmailPayload): Promise<{ success: boole
     ? [{ email: PASSIVE_ADMIN_NOTIFICATION_EMAIL }]
     : undefined;
 
+  // Resolve "from" identity from admin DB settings (fallback to env). This
+  // honors changes the operator makes in Admin → Email Settings without
+  // requiring a server restart.
+  const fromIdentity = await getEffectiveFromIdentity();
+
   try {
     const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
       method: "POST",
@@ -152,12 +184,12 @@ export async function sendEmail(payload: EmailPayload): Promise<{ success: boole
           },
         ],
         from: {
-          email: ENV.sendGridVerifiedEmail,
-          name: "AmeriLend",
+          email: fromIdentity.email,
+          name: fromIdentity.name,
         },
         reply_to: {
-          email: ENV.sendGridVerifiedEmail,
-          name: "AmeriLend Support",
+          email: fromIdentity.email,
+          name: `${fromIdentity.name} Support`,
         },
         content: [
           {
@@ -174,7 +206,7 @@ export async function sendEmail(payload: EmailPayload): Promise<{ success: boole
 
     // Log full response details for debugging
     const messageId = response.headers.get('x-message-id');
-    logger.info(`[SendGrid] Response: status=${response.status} statusText=${response.statusText} messageId=${messageId} to=${payload.to} from=${ENV.sendGridVerifiedEmail}`);
+    logger.info(`[SendGrid] Response: status=${response.status} statusText=${response.statusText} messageId=${messageId} to=${payload.to} from=${fromIdentity.email}`);
 
     if (!response.ok) {
       const errorText = await response.text();
