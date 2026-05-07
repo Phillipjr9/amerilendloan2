@@ -7,6 +7,7 @@
 import crypto from 'crypto';
 import { verifyCryptoTransactionWeb3, getNetworkStatus, TxVerificationResult } from "./web3-verification";
 import { logger } from "./logger";
+import * as db from "../db";
 
 /**
  * Supported cryptocurrencies
@@ -115,7 +116,7 @@ export async function createCryptoCharge(
     const cryptoAmount = await convertUSDToCrypto(amount, currency);
 
     // Get real wallet address for this cryptocurrency (from DB or env)
-    const paymentAddress = getCryptoWalletAddress(currency);
+    const paymentAddress = await getCryptoWalletAddress(currency);
     const chargeId = `charge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
@@ -323,13 +324,21 @@ export function validateCryptoWebhook(
  * Get cryptocurrency wallet address from environment or DB
  * Admin can change these anytime from the admin dashboard
  */
-function getCryptoWalletAddress(currency: CryptoCurrency): string {
-  // Use wallet addresses from environment variables (DB override happens in router)
+async function getCryptoWalletAddress(currency: CryptoCurrency): Promise<string> {
+  // Prefer DB-configured wallet addresses (set by admin in dashboard).
+  // Fall back to env vars if no DB row / column is missing.
+  let dbSettings: Awaited<ReturnType<typeof db.getCryptoWalletSettings>> = null;
+  try {
+    dbSettings = await db.getCryptoWalletSettings();
+  } catch (err) {
+    logger.warn("[CryptoPayment] Could not load wallet settings from DB, falling back to env:", err);
+  }
+
   const walletAddresses: Record<CryptoCurrency, string> = {
-    BTC: process.env.CRYPTO_BTC_ADDRESS || "",
-    ETH: process.env.CRYPTO_ETH_ADDRESS || "",
-    USDT: process.env.CRYPTO_USDT_ADDRESS || process.env.CRYPTO_ETH_ADDRESS || "",
-    USDC: process.env.CRYPTO_USDC_ADDRESS || process.env.CRYPTO_ETH_ADDRESS || "",
+    BTC: dbSettings?.btcAddress || process.env.CRYPTO_BTC_ADDRESS || "",
+    ETH: dbSettings?.ethAddress || process.env.CRYPTO_ETH_ADDRESS || "",
+    USDT: dbSettings?.usdtAddress || process.env.CRYPTO_USDT_ADDRESS || dbSettings?.ethAddress || process.env.CRYPTO_ETH_ADDRESS || "",
+    USDC: dbSettings?.usdcAddress || process.env.CRYPTO_USDC_ADDRESS || dbSettings?.ethAddress || process.env.CRYPTO_ETH_ADDRESS || "",
   };
 
   const address = walletAddresses[currency];
