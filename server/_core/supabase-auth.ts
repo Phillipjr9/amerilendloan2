@@ -1,12 +1,11 @@
 /**
  * Supabase Authentication Integration
- * All login/signup flows go through Supabase Auth.
- * After Supabase verifies the user, we create our own JWT session cookie
- * so the rest of the app (tRPC context, dashboard, etc.) works unchanged.
+ * Handles user authentication via Supabase Auth while maintaining SendGrid for emails
  */
 
 import { createClient } from "@supabase/supabase-js";
 import { ENV } from "./env";
+import { sendEmail } from "./email";
 import * as db from "../db";
 import { logger } from "./logger";
 
@@ -140,8 +139,7 @@ export async function signInWithEmail(email: string, password: string) {
 }
 
 /**
- * Send a 6-digit OTP code to the user's email via Supabase Auth.
- * Supabase will create the user in auth.users if they don't exist yet.
+ * Sign in with OTP (still uses Supabase for management but your SendGrid for emails)
  */
 export async function signInWithOTP(email: string) {
   try {
@@ -150,12 +148,11 @@ export async function signInWithOTP(email: string) {
       throw new Error("Supabase not configured");
     }
 
-    // Use shouldCreateUser: true so new users are auto-created in Supabase Auth.
-    // We do NOT set emailRedirectTo — we want a 6-digit code, not a magic link.
-    const { error } = await client.auth.signInWithOtp({
+    const { data, error } = await client.auth.signInWithOtp({
       email,
       options: {
         shouldCreateUser: true,
+        emailRedirectTo: `${getAppUrl()}/auth/callback`,
       },
     });
 
@@ -171,8 +168,7 @@ export async function signInWithOTP(email: string) {
 }
 
 /**
- * Verify a 6-digit OTP token sent via Supabase Auth email OTP.
- * Returns the Supabase user and session on success.
+ * Verify OTP token (custom - uses your database for audit trail)
  */
 export async function verifyOTPToken(email: string, token: string) {
   try {
@@ -181,7 +177,6 @@ export async function verifyOTPToken(email: string, token: string) {
       throw new Error("Supabase not configured");
     }
 
-    // type: "email" is for the 6-digit OTP code flow
     const { data, error } = await client.auth.verifyOtp({
       email,
       token,
@@ -190,6 +185,18 @@ export async function verifyOTPToken(email: string, token: string) {
 
     if (error) {
       throw error;
+    }
+
+    // Get or create user in your database
+    const user = await db.getUserByEmail(email);
+    if (!user && data.user) {
+      await db.upsertUser({
+        openId: data.user.id,
+        email: data.user.email || undefined,
+        name: data.user.user_metadata?.full_name,
+        loginMethod: "otp",
+        lastSignedIn: new Date(),
+      });
     }
 
     return { success: true, user: data.user, session: data.session };

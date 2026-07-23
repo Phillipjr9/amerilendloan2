@@ -4739,95 +4739,6 @@ export const appRouter = router({
         }
       }),
 
-    // ── Supabase Auth: request email OTP (primary login method) ──────────
-    supabaseRequestOTP: publicProcedure
-      .input(z.object({
-        email: z.string().email(),
-      }))
-      .mutation(async ({ input }) => {
-        if (!isSupabaseConfigured()) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "Supabase auth is not configured. Please contact support."
-          });
-        }
-        const result = await signInWithOTP(input.email);
-        if (!result.success) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: result.error || "Failed to send verification code"
-          });
-        }
-        return { success: true };
-      }),
-
-    // ── Supabase Auth: verify OTP and establish session ───────────────────
-    supabaseVerifyOTP: publicProcedure
-      .input(z.object({
-        email: z.string().email(),
-        token: z.string().length(6),
-      }))
-      .mutation(async ({ input, ctx }) => {
-        if (!isSupabaseConfigured()) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "Supabase auth is not configured. Please contact support."
-          });
-        }
-
-        const result = await verifyOTPToken(input.email, input.token);
-        if (!result.success || !result.user) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: result.error || "Invalid or expired code"
-          });
-        }
-
-        // Sync Supabase user into our local users table
-        const supabaseUser = result.user;
-        let localUser = await db.getUserByEmail(supabaseUser.email!);
-        if (!localUser) {
-          // New user — create a local record linked by Supabase UUID
-          try {
-            localUser = await db.createUser(
-              supabaseUser.email!,
-              supabaseUser.user_metadata?.full_name || undefined
-            );
-          } catch (createErr: any) {
-            // Race condition: another request may have created the user
-            localUser = await db.getUserByEmail(supabaseUser.email!);
-            if (!localUser) throw createErr;
-          }
-          // Send welcome email in background
-          try {
-            const { sendSignupWelcomeEmail } = await import("./_core/email");
-            await sendSignupWelcomeEmail(localUser.email!, localUser.name || "User");
-          } catch { /* non-critical */ }
-        }
-
-        // Update last signed in
-        await db.upsertUser({ openId: localUser.openId, lastSignedIn: new Date() });
-
-        // Create our JWT session cookie
-        const cookieOptions = getSessionCookieOptions(ctx.req);
-        const sessionToken = await sdk.createSessionToken(localUser.openId, {
-          name: localUser.name || "",
-          expiresInMs: SESSION_COOKIE_MS,
-        });
-        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: SESSION_COOKIE_MS });
-        const sessionCode = createSessionCode(sessionToken);
-
-        // Send login notification in background
-        if (localUser.email && localUser.name) {
-          const ipAddress = getClientIP(ctx.req);
-          const userAgent = ctx.req?.headers?.["user-agent"] as string;
-          sendLoginNotificationEmail(localUser.email, localUser.name, new Date(), ipAddress, userAgent)
-            .catch(err => logger.error("[Security] Failed to send login notification:", err));
-        }
-
-        return { success: true, sessionCode };
-      }),
-
     supabaseSignInWithOTP: publicProcedure
       .input(z.object({
         email: z.string().email(),
@@ -4849,6 +4760,42 @@ export const appRouter = router({
         }
 
         return { success: true, message: "Check your email for the OTP" };
+      }),
+
+    supabaseVerifyOTP: publicProcedure
+      .input(z.object({
+        email: z.string().email(),
+        token: z.string().length(6),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (!isSupabaseConfigured()) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Supabase auth not configured"
+          });
+        }
+
+        const result = await verifyOTPToken(input.email, input.token);
+        if (!result.success) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: result.error || "Failed to verify OTP"
+          });
+        }
+
+        // Create and set our own signed session cookie (not the Supabase token)
+        let sessionCode: string | undefined;
+        if (result.session && result.user?.id) {
+          const cookieOptions = getSessionCookieOptions(ctx.req);
+          const sessionToken = await sdk.createSessionToken(result.user.id, {
+            name: result.user.user_metadata?.full_name || "",
+            expiresInMs: SESSION_COOKIE_MS,
+          });
+          ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: SESSION_COOKIE_MS });
+          sessionCode = createSessionCode(sessionToken);
+        }
+
+        return { success: true, user: result.user?.email, sessionCode };
       }),
 
     supabaseResetPassword: publicProcedure
