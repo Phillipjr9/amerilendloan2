@@ -28,12 +28,12 @@
       "headers": [{ "key": "Content-Type", "value": "text/plain; charset=utf-8" }]
     }
   ],
-  "rewrites": [
-    { "source": "/auth/reset-password", "destination": "/index.html" },
-    { "source": "/auth/callback", "destination": "/index.html" },
-    { "source": "/api/:path*", "destination": "/api/index.ts" },
-    { "source": "/auth/:path*", "destination": "/api/index.ts" },
-    { "source": "/health", "destination": "/api/index.ts" },
-    { "source": "/(.*)", "destination": "/index.html" }
+  "routes": [
+    { "src": "/auth/reset-password", "dest": "/index.html" },
+    { "src": "/auth/callback", "dest": "/index.html" },
+    { "src": "/api/(.*)", "dest": "/api/index.ts" },
+    { "src": "/auth/(.*)", "dest": "/api/index.ts" },
+    { "src": "/health", "dest": "/api/index.ts" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
